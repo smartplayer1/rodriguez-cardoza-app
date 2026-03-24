@@ -1,17 +1,5 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -19,8 +7,300 @@
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  
+  /* Rodriguez Cardoza Brand Colors - Extracted from logo */
+  --brand-blue: #001B8C;
+  --brand-blue-light: #0D47A1;
+  --brand-blue-dark: #001064;
+  --brand-accent: #1976D2;
+  --brand-black: #212121;
+  
+  /* Material Design Color System */
+  --background: #FAFAFA;
+  --foreground: #212121;
+  --surface: #FFFFFF;
+  --surface-variant: #F5F5F5;
+  
+  --card: #FFFFFF;
+  --card-foreground: #212121;
+  
+  --popover: #FFFFFF;
+  --popover-foreground: #212121;
+  
+  /* Primary = Brand Blue */
+  --primary: #001B8C;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #0D47A1;
+  --primary-active: #001064;
+  
+  /* Secondary colors */
+  --secondary: #757575;
+  --secondary-foreground: #FFFFFF;
+  --secondary-hover: #616161;
+  
+  /* Accent */
+  --accent: #1976D2;
+  --accent-foreground: #FFFFFF;
+  
+  --muted: #F5F5F5;
+  --muted-foreground: #757575;
+  
+  --destructive: #D32F2F;
+  --destructive-foreground: #FFFFFF;
+  
+  /* Borders and inputs */
+  --border: #E0E0E0;
+  --input: #E0E0E0;
+  --input-background: #FFFFFF;
+  --input-focus: #001B8C;
+  --switch-background: #BDBDBD;
+  
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  
+  --ring: #001B8C;
+  
+  /* Material Design elevation shadows */
+  --elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  --elevation-2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+  --elevation-3: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+  --elevation-4: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+  --elevation-5: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
+  
+  /* Material Design spacing (8dp grid) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 40px;
+  --spacing-3xl: 48px;
+  
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  
+  --radius: 4px; /* Material Design uses 4px radius */
+  
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #212121;
+  --sidebar-primary: #001B8C;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F5F5F5;
+  --sidebar-accent-foreground: #212121;
+  --sidebar-border: #E0E0E0;
+  --sidebar-ring: #001B8C;
+}
+
+.dark {
+  --background: #121212;
+  --foreground: #FFFFFF;
+  --surface: #1E1E1E;
+  --surface-variant: #2C2C2C;
+  
+  --card: #1E1E1E;
+  --card-foreground: #FFFFFF;
+  
+  --popover: #1E1E1E;
+  --popover-foreground: #FFFFFF;
+  
+  --primary: #1976D2;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #0D47A1;
+  
+  --secondary: #757575;
+  --secondary-foreground: #FFFFFF;
+  
+  --muted: #2C2C2C;
+  --muted-foreground: #9E9E9E;
+  
+  --accent: #1976D2;
+  --accent-foreground: #FFFFFF;
+  
+  --destructive: #EF5350;
+  --destructive-foreground: #FFFFFF;
+  
+  --border: #424242;
+  --input: #424242;
+  --input-background: #2C2C2C;
+  --ring: #1976D2;
+  
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  
+  --sidebar: #1E1E1E;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #1976D2;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #2C2C2C;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #424242;
+  --sidebar-ring: #1976D2;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-variant: var(--surface-variant);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-input-focus: var(--input-focus);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/**
+ * Base typography - Material Design style
+ */
+@layer base {
+  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 300;
+      line-height: 1.2;
+      letter-spacing: -0.01562em;
+    }
+
+    h2 {
+      font-size: 2rem;
+      font-weight: 300;
+      line-height: 1.2;
+      letter-spacing: -0.00833em;
+    }
+
+    h3 {
+      font-size: 1.75rem;
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: 0em;
+    }
+
+    h4 {
+      font-size: 1.5rem;
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: 0.00735em;
+    }
+
+    h5 {
+      font-size: 1.25rem;
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: 0em;
+    }
+
+    h6 {
+      font-size: 1.125rem;
+      font-weight: 500;
+      line-height: 1.2;
+      letter-spacing: 0.0075em;
+    }
+
+    p {
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      letter-spacing: 0.00938em;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.5;
+      letter-spacing: 0.00714em;
+    }
+
+    button {
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.75;
+      letter-spacing: 0.02857em;
+      text-transform: uppercase;
+    }
+
+    input {
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      letter-spacing: 0.00938em;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Material Design utility classes */
+.elevation-1 {
+  box-shadow: var(--elevation-1);
+}
+
+.elevation-2 {
+  box-shadow: var(--elevation-2);
+}
+
+.elevation-3 {
+  box-shadow: var(--elevation-3);
+}
+
+.elevation-4 {
+  box-shadow: var(--elevation-4);
+}
+
+.elevation-5 {
+  box-shadow: var(--elevation-5);
 }
