@@ -3,6 +3,8 @@ import { MaterialButton } from './MaterialButton';
 import { MaterialInput } from './MaterialInput';
 import { Receipt, Plus, Trash2, Save, X, ChevronDown, ChevronUp, Search, Filter, Eye, Award, Package, Gift, CreditCard } from 'lucide-react';
 import Cobros from './Cobros';
+import { Button } from './ui/button';
+import { Upload } from 'lucide-react';
 
 // Interfaces
 interface FacturaDetalle {
@@ -178,6 +180,11 @@ export default function Facturacion() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortColumn, setSortColumn] = useState<'numeroFactura' | 'fecha' | 'total'>('fecha');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  //state importmodal
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [showValidationModal, setShowValidationModal] = useState(false)
+    const [importFileName, setImportFileName] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     cajaId: gestionesAbiertas.length > 0 ? gestionesAbiertas[0].cajaId : '',
@@ -648,7 +655,13 @@ export default function Facturacion() {
               {formData.detalles.length > 0 && (
                 <div className="bg-primary/5 border border-primary/20 rounded p-6">
                   <h3 className="text-foreground mb-4">Resumen de Totales</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-col {/* Validation Results Modal */}
+                        <ValidationModal
+                          open={showValidationModal}
+                          onOpenChange={setShowValidationModal}
+                          data={importData}
+                          errors={importErrors}
+                        />s-1 md:grid-cols-3 gap-6">
                     <div>
                       <span className="text-sm text-muted-foreground">Subtotal</span>
                       <p className="text-2xl text-foreground font-mono">{subtotal.toFixed(2)}</p>
@@ -840,6 +853,20 @@ export default function Facturacion() {
               Gestione las facturas de venta
             </p>
           </div>
+          <div className='flex flex-row'>
+          <MaterialButton
+              variant='contained'
+              color='secondary'
+              className="gap-2 ml-0.5 mr-0.5"
+              onClick={() => {
+              setImportFileName(null)
+               setShowImportModal(true)
+              }}
+            >
+              <Upload className="size-4" />
+              Importar Excel
+            </MaterialButton>
+
           <MaterialButton
             variant="contained"
             color="primary"
@@ -848,6 +875,7 @@ export default function Facturacion() {
           >
             Nueva Factura
           </MaterialButton>
+          </div>
         </div>
 
         {/* Filters and Search */}
