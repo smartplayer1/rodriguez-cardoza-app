@@ -1,7 +1,7 @@
 import React from 'react';
 import { Award } from 'lucide-react';
 import ReglasBonificacion from './ReglasBonificacion';
-import Bonificaciones from './Bonificaciones';
+import Bonificaciones from '../app/(dashboard)/premios/seguimiento/Bonificaciones';
 
 interface BonificacionProps {
   activeSubmodule?: string | null;
