@@ -1,55 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { MaterialButton } from './MaterialButton';
 import { MaterialInput } from './MaterialInput';
-import { Save, X, User, Shuffle, Eye, EyeOff, Shield, Mail, UserCircle, ChevronDown } from 'lucide-react';
+import { Save, X, User, Shuffle, Eye, EyeOff, Shield, Mail} from 'lucide-react';
+import { RolesResponse, UserFormData, User as Usuario } from '@/app/type/user';
+import { getRoles } from '@/app/lib/api/roles';
+
 
 interface CreateUserProps {
-  user: any | null;
-  onSave: (userData: any) => void;
+  user: Usuario | null;
+  onSave: (userData: UserFormData) => void;
   onCancel: () => void;
 }
 
 export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) {
-  const [firstName, setFirstName] = useState(user?.firstName || '');
+ const [firstName, setFirstName] = useState(user?.name || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
-  const [username, setUsername] = useState(user?.username || '');
+  const [username, setUsername] = useState(user?.userName || '');
   const [email, setEmail] = useState(user?.email || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState(user?.role || 'Facturador');
-  const [empleadoId, setEmpleadoId] = useState(user?.empleadoId || '');
+  const [roleId, setRoleId] = useState<string>(user?.role.id || '');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [roles, setRoles] = useState<RolesResponse[]>([]);
 
-  const roles = ['Facturador', 'Bodeguero', 'Supervisor/Coordinador', 'Administrador'];
-  
-  // Mock employees data - in a real app, this would be fetched from the Empleados module
-  const empleadosDisponibles = [
-    { id: '', nombre: 'Ninguno (No asignar empleado)' },
-    { id: '1', nombre: 'Carlos Alberto Rodríguez Cardoza' },
-    { id: '2', nombre: 'María Elena González Pérez' },
-    { id: '3', nombre: 'José Luis Martínez López' }
-  ];
+  // 🔥 FLAGS PARA CONTROL MANUAL
+  const [isUsernameManual, setIsUsernameManual] = useState(!!user?.userName);
+  const [isEmailManual, setIsEmailManual] = useState(!!user?.email);
 
-  // Auto-generate username when first name or last name changes
   useEffect(() => {
-    if (!user && firstName && lastName) {
-      const autoUsername = generateUsername(firstName, lastName);
-      if (!username) {
-        setUsername(autoUsername);
-      }
-    }
-  }, [firstName, lastName, user]);
-
-  // Auto-generate email when username changes
-  useEffect(() => {
-    if (!user && username) {
-      const autoEmail = `${username.toLowerCase()}@rodriguezcardoza.com`;
-      if (!email) {
-        setEmail(autoEmail);
-      }
-    }
-  }, [username, user]);
+    const fetchRoles = async () => {
+      const response = await getRoles();
+      setRoles(response.records || []);
+    };
+    fetchRoles();
+  }, []);
 
   const generateUsername = (first: string, last: string): string => {
     const firstPart = first.toLowerCase().charAt(0);
@@ -57,9 +42,26 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
     return `${firstPart}${lastPart}`;
   };
 
+  // 🔥 VALORES DERIVADOS (SIN useEffect)
+  const autoUsername =
+    !user && firstName && lastName
+      ? generateUsername(firstName, lastName)
+      : '';
+
+  const finalUsername = isUsernameManual ? username : autoUsername;
+
+  const autoEmail =
+    !user && finalUsername
+      ? `${finalUsername.toLowerCase()}@rodriguezcardoza.com`
+      : '';
+
+  const finalEmail = isEmailManual ? email : autoEmail;
+
   const handleGenerateUsername = () => {
     if (firstName && lastName) {
       const generated = generateUsername(firstName, lastName);
+      setIsUsernameManual(true);
+      setIsEmailManual(true);
       setUsername(generated);
       setEmail(`${generated.toLowerCase()}@rodriguezcardoza.com`);
     } else {
@@ -71,19 +73,16 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
     const length = 12;
     const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     let password = '';
-    
-    // Ensure at least one of each type
+
     password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(Math.floor(Math.random() * 26));
     password += 'abcdefghijklmnopqrstuvwxyz'.charAt(Math.floor(Math.random() * 26));
     password += '0123456789'.charAt(Math.floor(Math.random() * 10));
     password += '!@#$%^&*'.charAt(Math.floor(Math.random() * 8));
-    
-    // Fill the rest
+
     for (let i = password.length; i < length; i++) {
       password += charset.charAt(Math.floor(Math.random() * charset.length));
     }
-    
-    // Shuffle the password
+
     return password.split('').sort(() => Math.random() - 0.5).join('');
   };
 
@@ -94,67 +93,31 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
   };
 
   const handleSave = () => {
-    // Validation
-    if (!firstName.trim()) {
-      alert('Por favor ingrese el nombre');
-      return;
-    }
+    if (!firstName.trim()) return alert('Por favor ingrese el nombre');
+    if (!lastName.trim()) return alert('Por favor ingrese el apellido');
+    if (!finalUsername.trim()) return alert('Por favor ingrese el nombre de usuario');
+    if (!finalEmail.trim()) return alert('Por favor ingrese el correo electrónico');
 
-    if (!lastName.trim()) {
-      alert('Por favor ingrese el apellido');
-      return;
-    }
+    if (!user && !password) return alert('Por favor ingrese una contraseña');
+    if (!user && password !== confirmPassword) return alert('Las contraseñas no coinciden');
+    if (!user && password.length < 8) return alert('La contraseña debe tener al menos 8 caracteres');
+    if (!user && roleId === '') return alert('Seleccione un rol');
 
-    if (!username.trim()) {
-      alert('Por favor ingrese el nombre de usuario');
-      return;
-    }
-
-    if (!email.trim()) {
-      alert('Por favor ingrese el correo electrónico');
-      return;
-    }
-
-    if (!user && !password) {
-      alert('Por favor ingrese una contraseña');
-      return;
-    }
-
-    if (!user && password !== confirmPassword) {
-      alert('Las contraseñas no coinciden');
-      return;
-    }
-
-    if (!user && password.length < 8) {
-      alert('La contraseña debe tener al menos 8 caracteres');
-      return;
-    }
-
-    const userData = {
+    const userData : UserFormData = {
       firstName,
       lastName,
-      username,
-      email,
-      role,
-      empleadoId
+      username: finalUsername,
+      password,
+      email: finalEmail,
+      roleId,
+      role: roles.find(r => r.id === roleId)?.name || '',
     };
 
     onSave(userData);
   };
 
   const getRoleDescription = (roleType: string) => {
-    switch (roleType) {
-      case 'Facturador':
-        return 'Puede crear y gestionar facturas';
-      case 'Bodeguero':
-        return 'Puede gestionar inventario y stock';
-      case 'Supervisor/Coordinador':
-        return 'Puede supervisar operaciones y generar reportes';
-      case 'Administrador':
-        return 'Tiene acceso completo al sistema';
-      default:
-        return '';
-    }
+    return roles.find(r => r.id === roleType)?.name || '';
   };
 
   return (
@@ -334,7 +297,7 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
             {user && (
               <div className="bg-muted rounded p-4 mb-6">
                 <p className="text-sm text-foreground">
-                  Para cambiar la contraseña, utilice la opción "Restablecer Contraseña" 
+                  Para cambiar la contraseña, utilice la opción Restablecer Contraseña 
                   en la lista de usuarios.
                 </p>
               </div>
@@ -356,13 +319,14 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
                 Rol del Usuario
               </label>
               <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
+                value={roleId}
+                onChange={(e) => setRoleId(e.target.value)}
                 className="w-full px-4 py-3 bg-input-background border-b-2 border-border 
                          focus:border-primary rounded-t transition-colors outline-none"
               >
+                <option value="">Seleccione un rol</option>
                 {roles.map(r => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
               </select>
             </div>
@@ -371,20 +335,20 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
             <div className="bg-primary/5 border border-primary/20 rounded p-4 mb-6">
               <p className="text-xs text-primary mb-2">Descripción del Rol</p>
               <p className="text-sm text-foreground">
-                {getRoleDescription(role)}
+                {getRoleDescription(roleId)}
               </p>
             </div>
 
             {/* Divider */}
             <div className="my-6 border-t border-border"></div>
 
-            {/* Empleado Asignado Section */}
+            {/* Empleado Asignado Section 
             <div className="flex items-center gap-2 mb-6">
               <UserCircle size={24} className="text-primary" />
               <h3 className="text-foreground">Empleado Asignado</h3>
             </div>
 
-            {/* Empleado Dropdown */}
+            {/* Empleado Dropdown 
             <div className="mb-6">
               <label className="text-sm text-foreground mb-2 block">
                 Empleado Asignado <span className="text-muted-foreground">(Opcional)</span>
@@ -408,8 +372,9 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
                 Vincule este usuario con un registro de empleado existente
               </p>
             </div>
+            }
 
-            {/* Info about optional field */}
+            {/* Info about optional field }
             <div className="bg-muted/50 border border-border rounded p-4 mb-6">
               <p className="text-xs text-muted-foreground mb-2">Información</p>
               <p className="text-sm text-foreground">
@@ -417,7 +382,7 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
                 con el registro de empleado de la empresa.
               </p>
             </div>
-
+            */}
             {/* User Summary */}
             <div className="bg-muted rounded p-4 mb-6">
               <p className="text-xs text-muted-foreground mb-3">Resumen</p>
@@ -453,7 +418,7 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
                   <Shield size={16} className="text-muted-foreground mt-0.5" />
                   <div>
                     <p className="text-xs text-muted-foreground">Rol</p>
-                    <p className="text-sm text-foreground">{role}</p>
+                    <p className="text-sm text-foreground">{getRoleDescription(roleId)}</p>
                   </div>
                 </div>
               </div>

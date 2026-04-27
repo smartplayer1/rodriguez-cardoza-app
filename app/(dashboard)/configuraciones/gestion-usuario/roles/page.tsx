@@ -1,18 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { Plus, Edit, Trash2, Shield } from 'lucide-react';
 import RoleDetails from '@/components/RoleDetails';
-
-interface Role {
-  id: string;
-  name: string;
-  type: string;
-  permissionsCount: number;
-  usersCount: number;
-  createdAt: string;
-}
+import { getRoles } from '@/app/lib/api/roles';
+import { Role } from '@/app/type/user';
 
 interface RoleFormData {
   name: string;
@@ -21,32 +14,7 @@ interface RoleFormData {
 }
 
 export default function RolesScreen() {
-  const [roles, setRoles] = useState<Role[]>([
-    {
-      id: '1',
-      name: 'Administrador del Sistema',
-      type: 'Administrador',
-      permissionsCount: 24,
-      usersCount: 2,
-      createdAt: '2025-01-15'
-    },
-    {
-      id: '2',
-      name: 'Facturador Principal',
-      type: 'Facturador',
-      permissionsCount: 12,
-      usersCount: 5,
-      createdAt: '2025-01-20'
-    },
-    {
-      id: '3',
-      name: 'Supervisor de Inventario',
-      type: 'Supervisor/Coordinador',
-      permissionsCount: 18,
-      usersCount: 3,
-      createdAt: '2025-02-01'
-    }
-  ]);
+  const [roles, setRoles] = useState<Role[]>([]);
 
   const [showRoleDetails, setShowRoleDetails] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -75,7 +43,7 @@ export default function RolesScreen() {
               ...r,
               name: roleData.name,
               type: roleData.type,
-              permissionsCount: roleData.permissions.length
+              permissions: roleData.permissions.length
             }
           : r
       ));
@@ -83,9 +51,8 @@ export default function RolesScreen() {
       const newRole: Role = {
         id: Date.now().toString(),
         name: roleData.name,
-        type: roleData.type,
-        permissionsCount: roleData.permissions.length,
-        usersCount: 0,
+        permissions: roleData.permissions.length,
+        users: 0,
         createdAt: new Date().toISOString().split('T')[0]
       };
       setRoles([...roles, newRole]);
@@ -97,6 +64,14 @@ export default function RolesScreen() {
     setShowRoleDetails(false);
     setEditingRole(null);
   };
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      const data = await getRoles();
+        setRoles(data.records || []);
+    }
+    fetchRoles();
+  }, []);
 
   const getRoleTypeColor = (type: string) => {
     switch (type) {
@@ -122,6 +97,7 @@ export default function RolesScreen() {
       />
     );
   }
+
 
   return (
     <div className="p-6">
@@ -171,9 +147,7 @@ export default function RolesScreen() {
                 </div>
                 <div>
                   <h4 className="text-foreground">{role.name}</h4>
-                  <span className={`inline-block px-2 py-1 rounded text-xs mt-1 ${getRoleTypeColor(role.type)}`}>
-                    {role.type}
-                  </span>
+
                 </div>
               </div>
             </div>
@@ -182,11 +156,11 @@ export default function RolesScreen() {
             <div className="space-y-3 mb-4">
               <div className="flex items-center justify-between py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">Permisos</span>
-                <span className="text-foreground">{role.permissionsCount}</span>
+                <span className="text-foreground">{role.permissions}</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">Usuarios</span>
-                <span className="text-foreground">{role.usersCount}</span>
+                <span className="text-foreground">{role.users}</span>
               </div>
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm text-muted-foreground">Creado</span>

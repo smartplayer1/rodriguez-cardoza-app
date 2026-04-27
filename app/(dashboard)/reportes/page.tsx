@@ -213,8 +213,14 @@ export default function ReporteGestionCaja() {
 
   // Filter and sort
   const sortedData = [...reporteData].sort((a, b) => {
-    let compareA: any = a[sortColumn];
-    let compareB: any = b[sortColumn];
+    let compareA: string | number | undefined = a[sortColumn];
+    let compareB: string | number | undefined = b[sortColumn];
+
+
+    // Default undefined values to '' for strings or 0 for numbers
+    if (typeof compareA === 'undefined') compareA = typeof compareB === 'number' ? 0 : '';
+    if (typeof compareB === 'undefined') compareB = typeof compareA === 'number' ? 0 : '';
+
     if (compareA < compareB) return sortDirection === 'asc' ? -1 : 1;
     if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
     return 0;

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import {useUserStore} from '@/app/store/useUserStore';
 import { usePathname } from 'next/navigation';
 import { 
   ChevronLeft, 
@@ -22,6 +23,7 @@ import {
   GiftIcon
 
 } from 'lucide-react';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 interface AppSidebarProps {
   expanded: boolean;
@@ -33,46 +35,47 @@ type MenuItemType = {
   label: string;
   icon: React.ElementType;
   href?: string;
+  permission: string;
   options?: MenuItemType[] | null;
 };
 
 const menuItems: MenuItemType[] = [
-  { id: 'configurations', label: 'Configuraciones', icon: Settings, href: '/configuraciones', options:[
-    { id: 'usuarios', label: 'Gestion de Usuarios', href: '/configuraciones/gestion-usuario', icon: UserCircle , options: [
-      { id: 'usuarios', label: 'Usuarios', href: '/configuraciones/gestion-usuario/usuarios', icon: UserCircle },
-      { id: 'roles', label: 'Roles', href: '/configuraciones/gestion-usuario/roles', icon: UserCircle }
+  { id: 'configurations', label: 'Configuraciones', icon: Settings, href: '/configuraciones', permission: PERMISSIONS.USER_VIEW || PERMISSIONS.ROLE_CREATE , options:[
+    { id: 'usuarios', label: 'Gestion de Usuarios', href: '/configuraciones/gestion-usuario', icon: UserCircle , permission: PERMISSIONS.USER_VIEW || PERMISSIONS.ROLE_CREATE, options: [
+      { id: 'usuarios', label: 'Usuarios', href: '/configuraciones/gestion-usuario/usuarios', icon: UserCircle, permission: PERMISSIONS.USER_VIEW },
+      { id: 'roles', label: 'Roles', href: '/configuraciones/gestion-usuario/roles', icon: UserCircle , permission: PERMISSIONS.ROLE_VIEW},
     ]},
-    { id: 'moneda', label: 'Configuración de Moneda', href: '/configuraciones/moneda', icon: Settings },
-    { id: 'bancos', label: 'Bancos', href: '/configuraciones/bancos', icon: Settings },
-    { id: 'empresa', label: 'Empresa', href: '/configuraciones/empresa', icon: Settings, options: [
-      { id: 'cuenta-de-banco', label: 'Cuenta de Banco', href: '/configuraciones/empresa/cuenta-de-banco', icon: Settings },
-      { id: 'sucursales', label: 'Sucursales', href: '/configuraciones/empresa/sucursales', icon: Settings },
-      { id: 'concepto-contable', label: 'Concepto Contable', href: '/configuraciones/empresa/concepto-contable', icon: Settings },
-      { id: 'cargos', label: 'Cargos', href: '/configuraciones/empresa/cargos', icon: Settings },
+    { id: 'moneda', label: 'Configuración de Moneda', href: '/configuraciones/moneda', icon: Settings, permission: PERMISSIONS.MONEDA_VIEW },
+    { id: 'bancos', label: 'Bancos', href: '/configuraciones/bancos', icon: Settings, permission: PERMISSIONS.BANCO_VIEW },
+    { id: 'empresa', label: 'Empresa', href: '/configuraciones/empresa', icon: Settings, permission: PERMISSIONS.EMPRESA_VIEW, options: [
+      { id: 'cuenta-de-banco', label: 'Cuenta de Banco', href: '/configuraciones/empresa/cuenta-de-banco', icon: Settings, permission: PERMISSIONS.CUENTA_BANCO_VIEW },
+      { id: 'sucursales', label: 'Sucursales', href: '/configuraciones/empresa/sucursales', icon: Settings, permission: PERMISSIONS.SUCURSAL_VIEW },
+      { id: 'concepto-contable', label: 'Concepto Contable', href: '/configuraciones/empresa/concepto-contable', icon: Settings, permission: PERMISSIONS.CONCEPTO_CONTABLE_VIEW },
+      { id: 'cargos', label: 'Cargos', href: '/configuraciones/empresa/cargos', icon: Settings, permission: PERMISSIONS.CARGO_VIEW },
     ]},
 
   ] },
-  { id: 'premios', label: 'Premios', icon: Award, href: '/premios', options:[
-    { id: 'seguimiento', label: 'Seguimiento', href: '/premios/seguimiento', icon: Award },
-    { id: 'cupones', label: 'Cupones', href: '/premios/cupones', icon: Ticket },
-    { id: 'incentivos-retencion', label: 'Incentivos Retención', href: '/premios/incentivos-retencion', icon: GiftIcon},
-    { id: 'incentivos-retencion-nuevos-ingresos', label: 'Incentivos Retención Nuevos Ingresos', href: '/premios/incentivos-retencion-nuevos-ingresos', icon: Gift}
+  { id: 'premios', label: 'Premios', icon: Award, href: '/premios', permission: PERMISSIONS.EJEMPLO_VIEW, options:[
+    { id: 'seguimiento', label: 'Seguimiento', href: '/premios/seguimiento', icon: Award , permission: PERMISSIONS.EJEMPLO_VIEW },
+    { id: 'cupones', label: 'Cupones', href: '/premios/cupones', icon: Ticket , permission: PERMISSIONS.EJEMPLO_VIEW},
+    { id: 'incentivos-retencion', label: 'Incentivos Retención', href: '/premios/incentivos-retencion', icon: GiftIcon, permission: PERMISSIONS.EJEMPLO_VIEW},
+    { id: 'incentivos-retencion-nuevos-ingresos', label: 'Incentivos Retención Nuevos Ingresos', href: '/premios/incentivos-retencion-nuevos-ingresos', icon: Gift, permission: PERMISSIONS.EJEMPLO_VIEW}
   ] },
-  { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, options: [
-    {id: 'gestiones', label: 'Gestiones', href: '/gestion-de-caja/gestiones', icon: Wallet},
-    {id: 'facturacion', label: 'Facturación', href: '/gestion-de-caja/facturacion', icon: Receipt}, 
-    {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: TrendingUp},
-    {id: 'cobros', label: 'Cobros', href: '/gestion-de-caja/cobros', icon: CreditCard},
-    {id:'notas-credito', label: 'Notas de Credito', href: '/gestion-de-caja/notas-credito', icon: FileText}
+  { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, permission: PERMISSIONS.EJEMPLO_VIEW, options: [
+    {id: 'gestiones', label: 'Gestiones', href: '/gestion-de-caja/gestiones', icon: Wallet , permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'facturacion', label: 'Facturación', href: '/gestion-de-caja/facturacion', icon: Receipt, permission: PERMISSIONS.EJEMPLO_VIEW}, 
+    {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: TrendingUp, permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'cobros', label: 'Cobros', href: '/gestion-de-caja/cobros', icon: CreditCard, permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id:'notas-credito', label: 'Notas de Credito', href: '/gestion-de-caja/notas-credito', icon: FileText, permission: PERMISSIONS.EJEMPLO_VIEW}
   ]}, 
-  { id: 'credito', label: 'Credito', icon: CreditCard, href: '/credito', options:null },
-  { id: 'reportes', label: 'Reportes', icon: BarChart3, href: '/reportes', options:null },
-  { id: 'empleados', label: 'Empleados', icon: UserCircle, href: '/empleados', options:null },
-  { id: 'articulos', label: 'Articulos', icon: Package, options: [
-    {id: 'articulos', label: 'Articulos', href: '/articulos', icon: Package},
-    {id: 'categorias', label: 'Categorias', href: '/articulos/categorias', icon: Package},
-    {id: 'marcas', label: 'Marcas', href: '/articulos/marcas', icon: Package},
-    {id: 'clasificaciones', label: 'Clasificaciones', href: '/articulos/clasificaciones', icon: Package}
+  { id: 'credito', label: 'Credito', icon: CreditCard, href: '/credito', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
+  { id: 'reportes', label: 'Reportes', icon: BarChart3, href: '/reportes', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
+  { id: 'empleados', label: 'Empleados', icon: UserCircle, href: '/empleados', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
+  { id: 'articulos', label: 'Articulos', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW, options: [
+    {id: 'articulos', label: 'Articulos', href: '/articulos', icon: Package , permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'categorias', label: 'Categorias', href: '/articulos/categorias', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'marcas', label: 'Marcas', href: '/articulos/marcas', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'clasificaciones', label: 'Clasificaciones', href: '/articulos/clasificaciones', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW}
   ]}
 ];
 
@@ -80,6 +83,51 @@ const menuItems: MenuItemType[] = [
 export default function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
+  const { can } = useUserStore();
+  const [isMounted, setIsMounted] = React.useState(false);
+
+    React.useEffect(() => {
+      setIsMounted(true);
+    }, []);
+
+    if (!isMounted) return null;
+
+
+
+const filterMenu = (items: MenuItemType[]): MenuItemType[] => {
+  return items
+    .map(item => {
+      // Filtrar hijos primero
+      let filteredOptions: MenuItemType[] | undefined;
+
+      if (item.options) {
+        filteredOptions = filterMenu(item.options);
+      }
+
+      const hasPermission = canAccess(item.permission);
+      const hasVisibleChildren = filteredOptions && filteredOptions.length > 0;
+
+      // Si no tiene permiso NI hijos visibles → eliminar
+      if (!hasPermission && !hasVisibleChildren) {
+        return null;
+      }
+
+      return {
+        ...item,
+        options: filteredOptions
+      };
+    })
+    .filter(Boolean) as MenuItemType[];
+};
+
+const canAccess = (permission: string | string[]) => {
+  if (Array.isArray(permission)) {
+    return permission.some(p => can(p));
+  }
+  return can(permission);
+};
+const filteredMenu = menuItems; //filterMenu(menuItems);
+
   const toggleMenu = (id: string) => {
     setOpenMenus(prev => ({
       ...prev,
@@ -191,7 +239,7 @@ const paddingLeft = expanded ? `${16 + level * 12}px` : '0px';
       </div>
 
       <nav className="flex-1 p-2">
-      {menuItems.map((item) => (
+      {filteredMenu.map((item) => (
       <MenuItem key={item.id} item={item} />
     ))}
       </nav>

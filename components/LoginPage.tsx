@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 import React, { useState } from "react";
 import { MaterialButton } from "@/components/MaterialButton";
@@ -9,38 +10,59 @@ import {
   MaterialCardActions,
 } from "@/components/MaterialCard";
 import { Lock, Mail, Eye, EyeOff } from "lucide-react";
+import { loginRequest } from "@/app/lib/api";
+import { useUserStore } from "@/app/store/useUserStore";
+import jwt from 'jsonwebtoken';
+import { mapUserFromToken, isJwtDecoded } from "@/app/utils/mapUser";
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
 }
 
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
-  const [email, setEmail] = useState("example@example.com");
-  const [password, setPassword] = useState("example123");
+  const [email, setEmail] = useState("SUPERADMIN");
+  const [password, setPassword] = useState("Qwerty1234*");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
 
-    // Simple validation
-    const isEmailValid = email.includes("@");
-    const isPasswordValid = password.length >= 6;
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    setEmailError(!isEmailValid);
-    setPasswordError(!isPasswordValid);
+  const isPasswordValid = password.length >= 6;
+  setPasswordError(!isPasswordValid);
 
-    if (isEmailValid && isPasswordValid) {
-      console.log("Iniciando sesión...", {
-        email,
-        password,
-        rememberMe,
-      });
-      onLoginSuccess();
+  if (!isPasswordValid) return;
+
+  try {
+    const request = await loginRequest({credential: email, password});
+
+    if (!request.ok) {
+      const errorData = await request.json();
+      throw new Error(errorData.message || "Error al iniciar sesión");
     }
-  };
+    // ⚠️ si backend devuelve token (opcional)
+    const data = await request.json();
+    if (data?.token) {
+      const decoded = jwt.decode(data.token);
+
+      if (!isJwtDecoded(decoded)) return;
+
+      const user = mapUserFromToken(decoded);
+
+      // ✅ solo guardas user en Zustand
+      useUserStore.getState().setUser(user);
+    }
+
+    onLoginSuccess();
+
+  } catch (error: any) {
+    console.error(error);
+    alert(error.message);
+  }
+};
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -97,9 +119,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
             {/* Email Input */}
             <MaterialInput
               label="Correo Electrónico"
-              type="email"
+              type="text"
               placeholder="tu@email.com"
-              content="example@example.com"
+              content="SUPERADMIN"
               fullWidth
               value={email}
               onChange={(e) => {
@@ -121,7 +143,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               fullWidth
-              content="example123"
+              content="Qwerty1234*"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);

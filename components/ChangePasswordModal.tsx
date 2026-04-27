@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import { MaterialButton } from './MaterialButton';
-import { MaterialInput } from './MaterialInput';
 import { Save, X, Eye, EyeOff, Shuffle, Lock } from 'lucide-react';
+import { User } from '@/app/type/user';
 
 interface ChangePasswordModalProps {
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    username: string;
-  };
+  user: User;
   onSave: (userId: string, newPassword: string) => void;
   onClose: () => void;
 }
@@ -119,7 +114,7 @@ export default function ChangePasswordModal({ user, onSave, onClose }: ChangePas
               <div>
                 <h3 className="text-foreground">Cambiar Contraseña</h3>
                 <p className="text-sm text-muted-foreground">
-                  {user.firstName} {user.lastName}
+                  {user.name} {user.lastName}
                 </p>
               </div>
             </div>
@@ -136,7 +131,7 @@ export default function ChangePasswordModal({ user, onSave, onClose }: ChangePas
             {/* User Info */}
             <div className="bg-muted rounded p-3">
               <p className="text-xs text-muted-foreground mb-1">Usuario</p>
-              <p className="text-sm text-foreground">{user.username}</p>
+              <p className="text-sm text-foreground">{user.userName}</p>
             </div>
 
             {/* New Password */}

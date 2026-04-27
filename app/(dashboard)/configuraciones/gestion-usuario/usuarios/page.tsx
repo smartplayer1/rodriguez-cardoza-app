@@ -1,56 +1,14 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { Users, Plus, Edit, Trash2, User as UserIcon, Mail, Key } from 'lucide-react';
 import CreateUser from '@/components/CreateUser';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
-
-interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  username: string;
-  email: string;
-  role: string;
-  status: 'active' | 'inactive';
-  createdAt: string;
-  empleadoId?: string;
-  empleadoNombre?: string;
-}
+import { insertUser, getUsers, updateUser , updatePassword, deleteUser } from '@/app/lib/api/user';
+import { CreateUserDto, User, UpdateUserDto, UserFormData } from '@/app/type/user';
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      firstName: 'Juan',
-      lastName: 'Pérez',
-      username: 'jperez',
-      email: 'juan.perez@rodriguezcardoza.com',
-      role: 'Administrador',
-      status: 'active',
-      createdAt: '2025-01-15'
-    },
-    {
-      id: '2',
-      firstName: 'María',
-      lastName: 'González',
-      username: 'mgonzalez',
-      email: 'maria.gonzalez@rodriguezcardoza.com',
-      role: 'Facturador',
-      status: 'active',
-      createdAt: '2025-02-10'
-    },
-    {
-      id: '3',
-      firstName: 'Carlos',
-      lastName: 'Martínez',
-      username: 'cmartinez',
-      email: 'carlos.martinez@rodriguezcardoza.com',
-      role: 'Bodeguero',
-      status: 'active',
-      createdAt: '2025-02-20'
-    }
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
 
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -67,53 +25,97 @@ export default function UserManagement() {
     setShowCreateUser(true);
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (confirm('¿Está seguro de eliminar este usuario?')) {
-      setUsers(users.filter(u => u.id !== userId));
+      const response = await deleteUser(userId);
+      if (response.ok) {
+        setUsers(users.filter(u => u.id !== userId));
+      } else {
+        const errorData = await response.json();
+        alert(`Error al eliminar usuario: ${errorData.message || 'Error desconocido'}`);
+      }
     }
   };
 
-  interface UserFormData {
-    firstName: string;
-    lastName: string;
-    username: string;
-    email: string;
-    role: string;
-    empleadoId?: string;
-    [key: string]: unknown; // To allow extra fields if needed
-  }
 
-  const handleSaveUser = (userData: UserFormData) => {
-    // Get empleado name if empleadoId is provided
-    const empleadosDisponibles = [
-      { id: '', nombre: '' },
-      { id: '1', nombre: 'Carlos Alberto Rodríguez Cardoza' },
-      { id: '2', nombre: 'María Elena González Pérez' },
-      { id: '3', nombre: 'José Luis Martínez López' }
-    ];
-    
-    const empleadoSeleccionado = empleadosDisponibles.find(e => e.id === userData.empleadoId);
-    const empleadoNombre = empleadoSeleccionado ? empleadoSeleccionado.nombre : '';
+  useEffect(() => {
+     const fetchUsers = async () => {
+      const response = await getUsers(); // Implementa esta función para obtener los usuarios desde tu API
+       const data = await response.json();
+
+      setUsers(data?.records || []); // Asegúrate de ajustar esto según la estructura real de tu respuesta API
+    };
+    fetchUsers();
+  }, []);
+
+
+
+  const handleSaveUser = async (userData: UserFormData) => {
+  const newUser: User = {
+        id: Date.now().toString(),
+        name: userData.firstName,
+        lastName: userData.lastName,
+        userName: userData.username,
+        email: userData.email,
+        role :  {
+          id: userData.roleId,
+          name: userData.role,
+          permissions: 0,
+          users: 0,
+          createdAt: new Date().toISOString().split('T')[0]
+        },
+        isArchived: false,
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0]
+      };
 
     if (editingUser) {
-      setUsers(users.map(u => 
-        u.id === editingUser.id
-          ? {
-              ...u,
-              ...userData,
-              empleadoNombre
-            }
-          : u
+
+     const user :   UpdateUserDto ={
+        id: editingUser.id,
+        name: editingUser.name !== newUser.name ? newUser.name : null,
+        lastName: editingUser.lastName !== newUser.lastName ? newUser.lastName : null,
+        userName: editingUser.userName !== newUser.userName ? newUser.userName : null,
+        email: editingUser.email !== newUser.email ? newUser.email : null,
+        roleId: newUser.role.id
+      }
+        const response = await updateUser(user);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert(`Error al actualizar usuario: ${errorData.message || 'Error desconocido'}`);
+        return;
+      } 
+
+     setUsers(users.map((u: User) => 
+      u.id === editingUser.id
+        ? {
+            ...u,
+            ...newUser,
+          } as User
+        : u
       ));
     } else {
-      const newUser: User = {
-        id: Date.now().toString(),
-        ...userData,
-        empleadoNombre,
-        status: 'active' as const,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setUsers([...users, newUser]);
+      const user: CreateUserDto = {
+        name: newUser.name,
+        lastName: newUser.lastName,
+        userName: newUser.userName,
+        email: newUser.email,
+        password: userData.password,
+        roleId: newUser.role.id
+      }
+      const response = await insertUser(user);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert(`Error al crear usuario: ${errorData.message || 'Error desconocido'}`);
+        return;
+      }
+      
+      const newlyCreatedUser : User = await response.json();
+      
+      setUsers([...users, newlyCreatedUser]);
+
     }
     setShowCreateUser(false);
   };
@@ -128,16 +130,27 @@ export default function UserManagement() {
     setShowChangePassword(true);
   };
 
-  const handleSavePassword = (userId: string, newPassword: string) => {
-    // In a real application, this would make an API call to update the password
-    console.log(`Password updated for user ${userId}: ${newPassword}`);
+  const handleSavePassword = async (userId: string, newPassword: string) => {
+    try {
     
+   const result = await updatePassword(userId, newPassword);
+
+    if (!result.ok) {
+      const errorData = await result.json();
+      alert(`Error al actualizar contraseña: ${errorData.message || 'Error desconocido'}`);
+      return;
+    }
+
     // Show success message
     alert('Contraseña actualizada exitosamente');
     
     // Close modal
     setShowChangePassword(false);
     setSelectedUser(null);
+    } catch (error) {
+      alert(`Error al actualizar contraseña: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+
   };
 
   const getRoleColor = (role: string) => {
@@ -232,12 +245,12 @@ export default function UserManagement() {
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                         <UserIcon size={20} className="text-primary" />
                       </div>
-                      <span className="text-sm text-foreground">{user.username}</span>
+                      <span className="text-sm text-foreground">{user.userName}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm text-foreground">
-                      {user.firstName} {user.lastName}
+                      {user.name} {user.lastName}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -247,13 +260,13 @@ export default function UserManagement() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-block px-3 py-1 rounded text-xs ${getRoleColor(user.role)}`}>
-                      {user.role}
+                    <span className={`inline-block px-3 py-1 rounded text-xs ${getRoleColor(user.role.name)}`}>
+                      {user.role.name}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-block px-3 py-1 rounded text-xs ${getStatusColor(user.status)}`}>
-                      {user.status === 'active' ? 'Activo' : 'Inactivo'}
+                    <span className={`inline-block px-3 py-1 rounded text-xs ${getStatusColor(!user.isArchived ? 'active' : 'inactive')}`}>
+                      {!user.isArchived ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
                   <td className="px-6 py-4">

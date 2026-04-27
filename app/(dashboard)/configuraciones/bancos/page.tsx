@@ -1,49 +1,29 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
-import { Building2, Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Save, X} from 'lucide-react';
+import { getBank } from '@/app/lib/api/bank';
 
 interface Bank {
   id: string;
   name: string;
-  abbreviation: string;
-  imageUrl: string;
+  acronymus: string
 }
 
 export default function Bancos() {
-  const [banks, setBanks] = useState<Bank[]>([
-    {
-      id: '1',
-      name: 'Banco de América Central',
-      abbreviation: 'BAC',
-      imageUrl: 'https://via.placeholder.com/80x80?text=BAC'
-    },
-    {
-      id: '2',
-      name: 'Banco de Finanzas',
-      abbreviation: 'BDF',
-      imageUrl: 'https://via.placeholder.com/80x80?text=BDF'
-    },
-    {
-      id: '3',
-      name: 'Banco Atlántida',
-      abbreviation: 'BANATLÁN',
-      imageUrl: 'https://via.placeholder.com/80x80?text=ATL'
-    }
-  ]);
+  const [banks, setBanks] = useState<Bank[]>([]);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingBank, setEditingBank] = useState<Bank | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    abbreviation: '',
-    imageUrl: ''
+    acronymus: ''
   });
 
   const handleCreate = () => {
     setEditingBank(null);
-    setFormData({ name: '', abbreviation: '', imageUrl: '' });
+    setFormData({ name: '', acronymus: ''});
     setShowCreateEdit(true);
   };
 
@@ -51,14 +31,27 @@ export default function Bancos() {
     setEditingBank(bank);
     setFormData({
       name: bank.name,
-      abbreviation: bank.abbreviation,
-      imageUrl: bank.imageUrl
+      acronymus: bank.acronymus
     });
     setShowCreateEdit(true);
   };
 
+  useEffect(() => {
+    const fetchBanks = async () => {
+      const res = await getBank();
+      if (res.ok) {
+        const data = await res.json();
+        setBanks(data.records || []); // Asegúrate de que data.records exista
+      } else {
+        console.error('Error al cargar bancos');
+      }
+
+    }
+    fetchBanks();
+  }, []);
+
   const handleSave = () => {
-    if (!formData.name.trim() || !formData.abbreviation.trim()) {
+    if (!formData.name.trim() || !formData.acronymus.trim()) {
       alert('Por favor complete todos los campos requeridos');
       return;
     }
@@ -74,14 +67,13 @@ export default function Bancos() {
       // Create new bank
       const newBank: Bank = {
         id: Date.now().toString(),
-        ...formData,
-        imageUrl: formData.imageUrl || 'https://via.placeholder.com/80x80?text=BANK'
+        ...formData
       };
       setBanks([...banks, newBank]);
     }
 
     setShowCreateEdit(false);
-    setFormData({ name: '', abbreviation: '', imageUrl: '' });
+    setFormData({ name: '', acronymus: ''});
     setEditingBank(null);
   };
 
@@ -93,7 +85,7 @@ export default function Bancos() {
 
   const handleCancel = () => {
     setShowCreateEdit(false);
-    setFormData({ name: '', abbreviation: '', imageUrl: '' });
+    setFormData({ name: '', acronymus: '' });
     setEditingBank(null);
   };
 
@@ -119,39 +111,6 @@ export default function Bancos() {
           {/* Form */}
           <div className="bg-surface rounded elevation-2 p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column - Image Preview */}
-              <div>
-                <label className="text-sm text-foreground mb-2 block">
-                  Imagen del Banco
-                </label>
-                <div className="border-2 border-dashed border-border rounded p-6 flex flex-col items-center justify-center gap-4 mb-4 bg-muted/30">
-                  {formData.imageUrl ? (
-                    <img 
-                      src={formData.imageUrl} 
-                      alt="Preview" 
-                      className="w-32 h-32 object-contain rounded"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/128x128?text=ERROR';
-                      }}
-                    />
-                  ) : (
-                    <ImageIcon size={64} className="text-muted-foreground" />
-                  )}
-                  <p className="text-xs text-muted-foreground text-center">
-                    Ingrese la URL de la imagen del banco
-                  </p>
-                </div>
-
-                <MaterialInput
-                  label="URL de Imagen"
-                  type="text"
-                  placeholder="https://ejemplo.com/logo.png"
-                  fullWidth
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  helperText="URL completa de la imagen del banco (opcional)"
-                />
-              </div>
 
               {/* Right Column - Bank Details */}
               <div className="flex flex-col gap-6">
@@ -171,19 +130,11 @@ export default function Bancos() {
                   type="text"
                   placeholder="Ej: BAC"
                   fullWidth
-                  value={formData.abbreviation}
-                  onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value.toUpperCase() })}
+                  value={formData.acronymus}
+                  onChange={(e) => setFormData({ ...formData, acronymus: e.target.value.toUpperCase() })}
                   helperText="Abreviatura o código del banco"
                   required
                 />
-
-                <div className="bg-primary/5 border border-primary/20 rounded p-4">
-                  <p className="text-xs text-primary mb-2">Información</p>
-                  <p className="text-sm text-foreground">
-                    Los campos marcados con * son obligatorios. La imagen es opcional 
-                    y se mostrará en la lista de bancos.
-                  </p>
-                </div>
               </div>
             </div>
 
@@ -246,14 +197,12 @@ export default function Bancos() {
             >
               {/* Bank Image */}
               <div className="bg-muted/30 p-6 flex items-center justify-center border-b border-border">
-                <img 
-                  src={bank.imageUrl} 
-                  alt={bank.name}
-                  className="w-20 h-20 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80x80?text=BANK';
-                  }}
-                />
+                  <div className="w-48 h-48 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-primary text-lg font-bold">
+                      {bank.acronymus}
+                    </span>
+                  </div>
+
               </div>
 
               {/* Bank Info */}
@@ -261,7 +210,7 @@ export default function Bancos() {
                 <div className="mb-4">
                   <h3 className="text-foreground mb-2">{bank.name}</h3>
                   <div className="inline-block bg-primary/10 text-primary px-3 py-1 rounded">
-                    <span className="text-sm">{bank.abbreviation}</span>
+                    <span className="text-sm">{bank.acronymus}</span>
                   </div>
                 </div>
 
