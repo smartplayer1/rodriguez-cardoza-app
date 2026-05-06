@@ -3,13 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { Building2, Plus, Edit, Trash2, Save, X} from 'lucide-react';
-import { getBank } from '@/app/lib/api/bank';
-
-interface Bank {
-  id: string;
-  name: string;
-  acronymus: string
-}
+import { createBank, deleteBank, getBank, updateBank } from '@/app/lib/api/bank';
+import { Bank } from '@/app/type/bank';
 
 export default function Bancos() {
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -20,6 +15,20 @@ export default function Bancos() {
     name: '',
     acronymus: ''
   });
+
+useEffect(() => {
+    const fetchBanks = async () => {
+      const res = await getBank();
+      if (res.message) {
+        alert(res.message);
+      }
+        else {
+        setBanks(res.records || []);
+        }
+
+    }
+    fetchBanks();
+  }, []);
 
   const handleCreate = () => {
     setEditingBank(null);
@@ -36,39 +45,30 @@ export default function Bancos() {
     setShowCreateEdit(true);
   };
 
-  useEffect(() => {
-    const fetchBanks = async () => {
-      const res = await getBank();
-      if (res.ok) {
-        const data = await res.json();
-        setBanks(data.records || []); // Asegúrate de que data.records exista
-      } else {
-        console.error('Error al cargar bancos');
-      }
 
-    }
-    fetchBanks();
-  }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name.trim() || !formData.acronymus.trim()) {
       alert('Por favor complete todos los campos requeridos');
       return;
     }
 
     if (editingBank) {
-      // Update existing bank
+      
+      const result = await updateBank(editingBank.id, formData);
+      if (!result.ok) {
+        const errorData = await result.json();
+        alert('Fallo al actualizar el banco ' + (errorData.message || 'Error desconocido'));
+        return;
+      }
+      
       setBanks(banks.map(b => 
         b.id === editingBank.id 
           ? { ...b, ...formData }
           : b
       ));
     } else {
-      // Create new bank
-      const newBank: Bank = {
-        id: Date.now().toString(),
-        ...formData
-      };
+      const newBank = await createBank(formData);
       setBanks([...banks, newBank]);
     }
 
@@ -77,8 +77,9 @@ export default function Bancos() {
     setEditingBank(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm('¿Está seguro que desea eliminar este banco?')) {
+      await deleteBank(id);
       setBanks(banks.filter(b => b.id !== id));
     }
   };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MaterialButton } from './MaterialButton';
 import { MaterialInput } from './MaterialInput';
 import { Save, X, Shield, CheckSquare, Square } from 'lucide-react';
+import { Role } from '@/app/type/user';
 
 interface Permission {
   id: string;
@@ -11,14 +12,13 @@ interface Permission {
 }
 
 interface RoleDetailsProps {
-  role: any | null;
+  role: Role | null;
   onSave: (roleData: any) => void;
   onCancel: () => void;
 }
 
 export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps) {
   const [roleName, setRoleName] = useState(role?.name || '');
-  const [roleType, setRoleType] = useState(role?.type || 'Facturador');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(role?.permissions || []);
 
   const roleTypes = ['Facturador', 'Bodeguero', 'Supervisor/Coordinador', 'Administrador'];

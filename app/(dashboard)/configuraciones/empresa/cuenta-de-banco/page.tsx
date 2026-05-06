@@ -1,79 +1,64 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { Wallet, Plus, Edit, Trash2, Save, X, Building2 } from 'lucide-react';
+import { createBankAccount, deleteBankAccount, getBankAccounts, updateBankAccount } from '@/app/lib/api/company/account';
+import { Bank, BankAccount } from '@/app/type/bank';
+import { getBank } from '@/app/lib/api/bank';
 
-interface BankAccount {
-  id: string;
-  account: string;
-  description: string;
-  bankId: string;
-  bankName: string;
-  bankAbbreviation: string;
-  createdAt: string;
-}
 
-// Mock banks data - in real app, this would be fetched from the Bancos module
-const availableBanks = [
-  { id: '1', name: 'Banco de América Central', abbreviation: 'BAC' },
-  { id: '2', name: 'Banco de Finanzas', abbreviation: 'BDF' },
-  { id: '3', name: 'Banco Atlántida', abbreviation: 'BANATLÁN' }
-];
 
 export default function CuentasBanco() {
-  const [accounts, setAccounts] = useState<BankAccount[]>([
-    {
-      id: '1',
-      account: '10001234567',
-      description: 'Cuenta Principal - Operaciones',
-      bankId: '1',
-      bankName: 'Banco de América Central',
-      bankAbbreviation: 'BAC',
-      createdAt: '2025-01-10'
-    },
-    {
-      id: '2',
-      account: '20005678901',
-      description: 'Cuenta de Nómina',
-      bankId: '2',
-      bankName: 'Banco de Finanzas',
-      bankAbbreviation: 'BDF',
-      createdAt: '2025-02-15'
-    }
-  ]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+  const [availableBanks, setAvailableBanks] = useState<Bank[]>([]);
   const [formData, setFormData] = useState({
     account: '',
     description: '',
-    bankId: '1'
+    bankId: 0
   });
 
   const handleCreate = () => {
     setEditingAccount(null);
-    setFormData({ account: '', description: '', bankId: '1' });
+    setFormData({ account: '', description: '', bankId: 0 });
     setShowCreateEdit(true);
   };
 
   const handleEdit = (account: BankAccount) => {
     setEditingAccount(account);
     setFormData({
-      account: account.account,
+      account: account.accountNumber,
       description: account.description,
-      bankId: account.bankId
+      bankId: account.bank.id
     });
     setShowCreateEdit(true);
   };
 
-  const handleSave = () => {
+  useEffect(() => {
+      // Aquí podrías cargar las cuentas bancarias desde una API o almacenamiento local
+    const fetchAccounts = async () => {
+        const accounts = await getBankAccounts();
+        setAccounts(accounts.records);
+        const babksResponse = await getBank();
+        setAvailableBanks(babksResponse.records);
+    };
+
+    fetchAccounts();
+
+  },[]);
+ 
+
+  const handleSave = async () => {
     if (!formData.account.trim() || !formData.description.trim()) {
       alert('Por favor complete todos los campos requeridos');
       return;
     }
 
     const selectedBank = availableBanks.find(b => b.id === formData.bankId);
+
     if (!selectedBank) {
       alert('Por favor seleccione un banco válido');
       return;
@@ -81,6 +66,21 @@ export default function CuentasBanco() {
 
     if (editingAccount) {
       // Update existing account
+
+      const result = await updateBankAccount( 
+        {id: editingAccount.id, 
+          account: formData.account === editingAccount.accountNumber ? null : formData.account, 
+          description: formData.description === editingAccount.description ? null : formData.description, 
+          bankId: formData.bankId === editingAccount.bank.id ? null : formData.bankId
+        } );
+
+      if (!result.ok) {
+        const errorData = await result.json();
+        alert('Fallo al actualizar la cuenta bancaria ' + (errorData.message || 'Error desconocido'));
+        return;
+      }
+
+
       setAccounts(accounts.map(a => 
         a.id === editingAccount.id 
           ? { 
@@ -89,38 +89,40 @@ export default function CuentasBanco() {
               description: formData.description,
               bankId: formData.bankId,
               bankName: selectedBank.name,
-              bankAbbreviation: selectedBank.abbreviation
+              bankAbbreviation: selectedBank.acronymus
             }
           : a
       ));
     } else {
       // Create new account
-      const newAccount: BankAccount = {
-        id: Date.now().toString(),
-        account: formData.account,
+      const newAccount: BankAccount = await createBankAccount({
+        accountNumber: formData.account,
         description: formData.description,
-        bankId: formData.bankId,
-        bankName: selectedBank.name,
-        bankAbbreviation: selectedBank.abbreviation,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
+        bankId: formData.bankId
+      });
       setAccounts([...accounts, newAccount]);
     }
 
     setShowCreateEdit(false);
-    setFormData({ account: '', description: '', bankId: '1' });
+    setFormData({ account: '', description: '', bankId: 0 });
     setEditingAccount(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm('¿Está seguro que desea eliminar esta cuenta bancaria?')) {
+    const result =  await deleteBankAccount(id);
+    if (!result.ok) {
+      const errorData = await result.json();
+      alert('Fallo al eliminar la cuenta bancaria' + (errorData.message || 'Error desconocido'));
+      return;
+    }     
       setAccounts(accounts.filter(a => a.id !== id));
     }
   };
 
   const handleCancel = () => {
     setShowCreateEdit(false);
-    setFormData({ account: '', description: '', bankId: '1' });
+    setFormData({ account: '', description: '', bankId: 0 });
     setEditingAccount(null);
   };
 
@@ -155,13 +157,16 @@ export default function CuentasBanco() {
                   <Building2 size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <select
                     value={formData.bankId}
-                    onChange={(e) => setFormData({ ...formData, bankId: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, bankId: parseInt(e.target.value) })}
                     className="w-full pl-12 pr-4 py-3 bg-input-background border-b-2 border-border 
                              focus:border-primary rounded-t transition-colors outline-none"
                   >
+                      <option value="">
+                        Seleccione un banco
+                      </option>
                     {availableBanks.map(bank => (
                       <option key={bank.id} value={bank.id}>
-                        {bank.name} ({bank.abbreviation})
+                        {bank.name} ({bank.acronymus})
                       </option>
                     ))}
                   </select>
@@ -271,7 +276,7 @@ export default function CuentasBanco() {
                     <th className="px-6 py-4 text-left text-sm text-foreground">Banco</th>
                     <th className="px-6 py-4 text-left text-sm text-foreground">Número de Cuenta</th>
                     <th className="px-6 py-4 text-left text-sm text-foreground">Descripción</th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Fecha de Registro</th>
+                   {/* <th className="px-6 py-4 text-left text-sm text-foreground">Fecha de Registro</th> */}
                     <th className="px-6 py-4 text-right text-sm text-foreground">Acciones</th>
                   </tr>
                 </thead>
@@ -280,19 +285,19 @@ export default function CuentasBanco() {
                     <tr key={account.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4">
                         <div>
-                          <div className="text-foreground">{account.bankName}</div>
+                          <div className="text-foreground">{account.bank.name}</div>
                           <div className="inline-block mt-1 bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">
-                            {account.bankAbbreviation}
+                            {account.bank.acronymus}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-mono text-foreground">{account.account}</span>
+                        <span className="font-mono text-foreground">{account.accountNumber}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-foreground">{account.description}</span>
                       </td>
-                      <td className="px-6 py-4">
+                  {/*    <td className="px-6 py-4">
                         <span className="text-muted-foreground text-sm">
                           {new Date(account.createdAt).toLocaleDateString('es-NI', {
                             year: 'numeric',
@@ -300,7 +305,7 @@ export default function CuentasBanco() {
                             day: 'numeric'
                           })}
                         </span>
-                      </td>
+                      </td> */}
                       <td className="px-6 py-4">
                         <div className="flex gap-2 justify-end">
                           <MaterialButton

@@ -2,13 +2,15 @@
 import React, { useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
-import { FileText, Plus, Edit, Trash2, Save, X, TrendingDown, TrendingUp } from 'lucide-react';
+import { FileText, Plus, Edit, Trash2, Save, X, TrendingDown, TrendingUp, ListCheck } from 'lucide-react';
 
 interface Concepto {
-  id: string;
-  nombre: string;
-  tipo: 'egreso' | 'ingreso';
-  createdAt: string;
+  id: number;
+  name: string;
+  category:{
+    id: number;
+    name: string;
+  }
 }
 
 type TabType = 'egreso' | 'ingreso';
@@ -16,7 +18,7 @@ type TabType = 'egreso' | 'ingreso';
 export default function ConceptosContables() {
   const [activeTab, setActiveTab] = useState<TabType>('egreso');
   
-  const [conceptos, setConceptos] = useState<Concepto[]>([
+  const [conceptos, setConceptos] = useState<Concepto[]>([/*
     // Conceptos de Egreso
     {
       id: '1',
@@ -67,27 +69,30 @@ export default function ConceptosContables() {
       tipo: 'ingreso',
       createdAt: '2024-03-01'
     }
-  ]);
+  */]);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingConcepto, setEditingConcepto] = useState<Concepto | null>(null);
+  const [accountingConceptCategory, setAccountingConceptCategory] = useState<{ id: number; name: string } | null>(null);
   const [formData, setFormData] = useState({
-    nombre: ''
+    nombre: '',
+    categoryId: 0,
   });
 
   // Filter conceptos by active tab
-  const filteredConceptos = conceptos.filter(c => c.tipo === activeTab);
+  const filteredConceptos = conceptos.filter(c => c.category.name === activeTab);
 
   const handleCreate = () => {
     setEditingConcepto(null);
-    setFormData({ nombre: '' });
+    setFormData({ nombre: '', categoryId: 0 });
     setShowCreateEdit(true);
   };
 
   const handleEdit = (concepto: Concepto) => {
     setEditingConcepto(concepto);
     setFormData({
-      nombre: concepto.nombre
+      nombre: concepto.name,
+      categoryId: concepto.category.id
     });
     setShowCreateEdit(true);
   };
@@ -104,27 +109,30 @@ export default function ConceptosContables() {
         c.id === editingConcepto.id 
           ? { 
               ...c, 
-              nombre: formData.nombre
+              name: formData.nombre
             }
           : c
       ));
     } else {
       // Create new concepto
       const newConcepto: Concepto = {
-        id: Date.now().toString(),
-        nombre: formData.nombre,
-        tipo: activeTab,
-        createdAt: new Date().toISOString().split('T')[0]
+        id: 0,
+        name: formData.nombre,
+        category: {
+          id: activeTab === 'egreso' ? 1 : 2,
+          name: activeTab
+        },
+     
       };
       setConceptos([...conceptos, newConcepto]);
     }
 
     setShowCreateEdit(false);
-    setFormData({ nombre: '' });
+    setFormData({ nombre: '', categoryId: 0 });
     setEditingConcepto(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: number) => {
     if (confirm('¿Está seguro que desea eliminar este concepto contable?')) {
       setConceptos(conceptos.filter(c => c.id !== id));
     }
@@ -132,12 +140,12 @@ export default function ConceptosContables() {
 
   const handleCancel = () => {
     setShowCreateEdit(false);
-    setFormData({ nombre: '' });
+    setFormData({ nombre: '', categoryId: 0 });
     setEditingConcepto(null);
   };
 
   if (showCreateEdit) {
-    const isEgreso = editingConcepto ? editingConcepto.tipo === 'egreso' : activeTab === 'egreso';
+    const isEgreso = editingConcepto ? editingConcepto.category.name === 'egreso' : activeTab === 'egreso';
     const Icon = isEgreso ? TrendingDown : TrendingUp;
     const colorClass = isEgreso ? 'text-red-600' : 'text-green-600';
     const categoryName = isEgreso ? 'Egreso' : 'Ingreso';
@@ -163,15 +171,32 @@ export default function ConceptosContables() {
           {/* Form */}
           <div className="bg-surface rounded elevation-2 p-6">
             <div className="space-y-6">
-              {/* Category Badge */}
-              <div className={`${isEgreso ? 'bg-red-50' : 'bg-green-50'} border ${isEgreso ? 'border-red-200' : 'border-green-200'} rounded p-4 flex items-center gap-3`}>
-                <Icon size={20} className={colorClass} />
-                <div>
-                  <p className={`text-xs ${colorClass} mb-1`}>Categoría</p>
-                  <p className="text-foreground">Concepto de {categoryName}</p>
+             <div>
+                <label className="text-sm text-foreground mb-2 block">
+                  Categoría *
+                </label>
+                <div className="relative">
+                  <ListCheck size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <select
+                    value={formData.categoryId}
+                    onChange={(e) => setFormData({ ...formData, categoryId: parseInt(e.target.value) })}
+                    className="w-full pl-12 pr-4 py-3 bg-input-background border-b-2 border-border 
+                             focus:border-primary rounded-t transition-colors outline-none"
+                  >
+                      <option value="">
+                        Seleccione una categoría
+                      </option>
+                    {/*availableCategories.map(category => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))} */}
+                  </select>
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Seleccione la categoría del concepto contable para clasificarlo correctamente en sus registros financieros.
+                </p>
               </div>
-
               {/* Nombre */}
               <MaterialInput
                 label="Nombre del Concepto *"
@@ -259,7 +284,7 @@ export default function ConceptosContables() {
                   ? 'bg-white/20'
                   : 'bg-surface'
               }`}>
-                {conceptos.filter(c => c.tipo === 'egreso').length}
+                {conceptos.filter(c => c.category.name === 'egreso').length}
               </span>
             </button>
             <button
@@ -277,7 +302,7 @@ export default function ConceptosContables() {
                   ? 'bg-white/20'
                   : 'bg-surface'
               }`}>
-                {conceptos.filter(c => c.tipo === 'ingreso').length}
+                {conceptos.filter(c => c.category.name === 'ingreso').length}
               </span>
             </button>
           </div>
@@ -310,7 +335,7 @@ export default function ConceptosContables() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredConceptos.map((concepto) => {
-                    const isConceptoEgreso = concepto.tipo === 'egreso';
+                    const isConceptoEgreso = concepto.category.name === 'egreso';
                     const ConceptoIcon = isConceptoEgreso ? TrendingDown : TrendingUp;
                     const conceptoColorClass = isConceptoEgreso ? 'text-red-600' : 'text-green-600';
                     const conceptoBgClass = isConceptoEgreso ? 'bg-red-50' : 'bg-green-50';
@@ -322,7 +347,7 @@ export default function ConceptosContables() {
                             <div className={`w-10 h-10 rounded-full ${conceptoBgClass} flex items-center justify-center flex-shrink-0`}>
                               <ConceptoIcon size={20} className={conceptoColorClass} />
                             </div>
-                            <span className="text-foreground">{concepto.nombre}</span>
+                            <span className="text-foreground">{concepto.name}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -331,7 +356,7 @@ export default function ConceptosContables() {
                             {isConceptoEgreso ? 'Egreso' : 'Ingreso'}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                       {/* <td className="px-6 py-4">
                           <span className="text-muted-foreground text-sm">
                             {new Date(concepto.createdAt).toLocaleDateString('es-NI', {
                               year: 'numeric',
@@ -339,7 +364,7 @@ export default function ConceptosContables() {
                               day: 'numeric'
                             })}
                           </span>
-                        </td>
+                        </td> */}
                         <td className="px-6 py-4">
                           <div className="flex gap-2 justify-end">
                             <MaterialButton

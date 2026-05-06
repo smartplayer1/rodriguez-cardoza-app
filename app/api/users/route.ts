@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const body = await req.json();
- console.log('Datos recibidos para actualización:', body); // 🔍 Debug
+
   const cookieStore = await cookies(); // 🔥 importante
   const token = cookieStore.get('token');
 
