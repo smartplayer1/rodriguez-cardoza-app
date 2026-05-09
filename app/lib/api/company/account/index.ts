@@ -12,7 +12,6 @@ if (!response.ok) {
   throw new Error('Failed to fetch bank accounts');
 }
 return await response.json();
-
 };
 
 export const createBankAccount = async (accountData: { bankId: number; accountNumber: string; description: string }) => {

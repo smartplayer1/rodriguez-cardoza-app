@@ -1,8 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { FileText, Plus, Edit, Trash2, Save, X, TrendingDown, TrendingUp, ListCheck } from 'lucide-react';
+import { getAccountingConceptCategories } from '@/app/lib/api/company/accounting-concept';
 
 interface Concepto {
   id: number;
@@ -18,62 +19,11 @@ type TabType = 'egreso' | 'ingreso';
 export default function ConceptosContables() {
   const [activeTab, setActiveTab] = useState<TabType>('egreso');
   
-  const [conceptos, setConceptos] = useState<Concepto[]>([/*
-    // Conceptos de Egreso
-    {
-      id: '1',
-      nombre: 'Pago de Salarios',
-      tipo: 'egreso',
-      createdAt: '2024-01-15'
-    },
-    {
-      id: '2',
-      nombre: 'Compra de Suministros',
-      tipo: 'egreso',
-      createdAt: '2024-01-20'
-    },
-    {
-      id: '3',
-      nombre: 'Pago de Servicios Públicos',
-      tipo: 'egreso',
-      createdAt: '2024-02-10'
-    },
-    {
-      id: '4',
-      nombre: 'Alquiler de Local',
-      tipo: 'egreso',
-      createdAt: '2024-02-15'
-    },
-    // Conceptos de Ingreso
-    {
-      id: '5',
-      nombre: 'Venta de Productos',
-      tipo: 'ingreso',
-      createdAt: '2024-01-15'
-    },
-    {
-      id: '6',
-      nombre: 'Venta de Servicios',
-      tipo: 'ingreso',
-      createdAt: '2024-01-22'
-    },
-    {
-      id: '7',
-      nombre: 'Intereses Bancarios',
-      tipo: 'ingreso',
-      createdAt: '2024-02-05'
-    },
-    {
-      id: '8',
-      nombre: 'Comisiones',
-      tipo: 'ingreso',
-      createdAt: '2024-03-01'
-    }
-  */]);
+  const [conceptos, setConceptos] = useState<Concepto[]>([]);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingConcepto, setEditingConcepto] = useState<Concepto | null>(null);
-  const [accountingConceptCategory, setAccountingConceptCategory] = useState<{ id: number; name: string } | null>(null);
+  const [accountingConceptCategory, setAccountingConceptCategory] = useState<[{ id: number; name: string }]>([{ id: 0, name: '' }]);
   const [formData, setFormData] = useState({
     nombre: '',
     categoryId: 0,
@@ -144,6 +94,17 @@ export default function ConceptosContables() {
     setEditingConcepto(null);
   };
 
+  useEffect(() => {
+    // Simulate fetching conceptos contables from an API
+    const fetchConceptos = async () => {
+      const response = await getAccountingConceptCategories();
+      const data = await response.json();
+      setAccountingConceptCategory(data);
+    };
+
+    fetchConceptos();
+  }, []);
+
   if (showCreateEdit) {
     const isEgreso = editingConcepto ? editingConcepto.category.name === 'egreso' : activeTab === 'egreso';
     const Icon = isEgreso ? TrendingDown : TrendingUp;
@@ -186,11 +147,11 @@ export default function ConceptosContables() {
                       <option value="">
                         Seleccione una categoría
                       </option>
-                    {/*availableCategories.map(category => (
+                    { accountingConceptCategory.map(category => (
                       <option key={category.id} value={category.id}>
                         {category.name}
                       </option>
-                    ))} */}
+                    ))}
                   </select>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
