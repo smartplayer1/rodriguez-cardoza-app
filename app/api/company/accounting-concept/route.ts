@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 export async function GET() {
     const cookieStore = await cookies();
     const token = cookieStore.get('token');
-    console.log('Token in GET /accounting-concept:', token);
+
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -39,4 +39,25 @@ export async function POST(req: Request) {
     });
     const concept = await newConcept.json();
     return NextResponse.json(concept);
+}
+
+export async function DELETE(req: Request) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token');
+    if (!token) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const body = await req.json();
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounting-concept/${body.id}`, {
+        method: 'DELETE',
+        headers: {
+            Authorization: `Bearer ${token.value}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    if (!res.ok) {
+        const errorData = await res.json();
+        return NextResponse.json({ error: errorData.detail || 'Failed to delete accounting concept' }, { status: res.status });
+    }
+    return NextResponse.json({ message: 'Concepto contable eliminado exitosamente' });    
 }

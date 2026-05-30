@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { FileText, Plus, Edit, Trash2, Save, X, TrendingDown, TrendingUp, ListCheck } from 'lucide-react';
-import { getAccountingConceptCategories } from '@/app/lib/api/company/accounting-concept';
+import { deleteAccountingConcept, getAccountingConceptCategories, getAccountingConcepts, postAccountingConcept, updateAccountingConcept } from '@/app/lib/api/company/accounting-concept';
 
 interface Concepto {
   id: number;
@@ -14,10 +14,10 @@ interface Concepto {
   }
 }
 
-type TabType = 'egreso' | 'ingreso';
+type TabType = 'Egreso' | 'Ingreso';
 
 export default function ConceptosContables() {
-  const [activeTab, setActiveTab] = useState<TabType>('egreso');
+  const [activeTab, setActiveTab] = useState<TabType>('Egreso');
   
   const [conceptos, setConceptos] = useState<Concepto[]>([]);
 
@@ -47,14 +47,24 @@ export default function ConceptosContables() {
     setShowCreateEdit(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.nombre.trim()) {
       alert('Por favor complete el campo requerido');
       return;
     }
 
     if (editingConcepto) {
-      // Update existing concepto
+    
+    const response =  await updateAccountingConcept({
+        id: editingConcepto.id,
+        name: formData.nombre,
+        categoryId: formData.categoryId
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update accounting concept');
+      }
+
       setConceptos(conceptos.map(c => 
         c.id === editingConcepto.id 
           ? { 
@@ -64,16 +74,18 @@ export default function ConceptosContables() {
           : c
       ));
     } else {
-      // Create new concepto
-      const newConcepto: Concepto = {
-        id: 0,
+
+    const response =   await postAccountingConcept({
         name: formData.nombre,
-        category: {
-          id: activeTab === 'egreso' ? 1 : 2,
-          name: activeTab
-        },
-     
-      };
+        categoryId: formData.categoryId
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create accounting concept');
+      }
+
+
+      const newConcepto: Concepto = await response.json();
+
       setConceptos([...conceptos, newConcepto]);
     }
 
@@ -82,8 +94,12 @@ export default function ConceptosContables() {
     setEditingConcepto(null);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('¿Está seguro que desea eliminar este concepto contable?')) {
+    const response =  await deleteAccountingConcept(id);
+      if (!response.ok) {
+        throw new Error('Failed to delete accounting concept');
+      }
       setConceptos(conceptos.filter(c => c.id !== id));
     }
   };
@@ -98,15 +114,17 @@ export default function ConceptosContables() {
     // Simulate fetching conceptos contables from an API
     const fetchConceptos = async () => {
       const response = await getAccountingConceptCategories();
-      const data = await response.json();
-      setAccountingConceptCategory(data);
-    };
+      setAccountingConceptCategory(response);
+
+      const conceptosResponse = await getAccountingConcepts();
+
+      setConceptos(conceptosResponse?.records || []); };
 
     fetchConceptos();
   }, []);
 
   if (showCreateEdit) {
-    const isEgreso = editingConcepto ? editingConcepto.category.name === 'egreso' : activeTab === 'egreso';
+    const isEgreso = editingConcepto ? editingConcepto.category.name === 'Egreso' : activeTab === 'Egreso';
     const Icon = isEgreso ? TrendingDown : TrendingUp;
     const colorClass = isEgreso ? 'text-red-600' : 'text-green-600';
     const categoryName = isEgreso ? 'Egreso' : 'Ingreso';
@@ -206,7 +224,7 @@ export default function ConceptosContables() {
   }
 
   // List View
-  const isEgreso = activeTab === 'egreso';
+  const isEgreso = activeTab === 'Egreso';
   const Icon = isEgreso ? TrendingDown : TrendingUp;
   const colorClass = isEgreso ? 'text-red-600' : 'text-green-600';
   const bgColorClass = isEgreso ? 'bg-red-600' : 'bg-green-600';
@@ -231,9 +249,9 @@ export default function ConceptosContables() {
         <div className="bg-surface rounded elevation-2 mb-6 overflow-hidden">
           <div className="flex border-b border-border">
             <button
-              onClick={() => setActiveTab('egreso')}
+              onClick={() => setActiveTab('Egreso')}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all ${
-                activeTab === 'egreso'
+                activeTab === 'Egreso'
                   ? 'bg-primary text-white border-b-4 border-primary'
                   : 'bg-muted text-muted-foreground hover:bg-muted/70'
               }`}
@@ -241,17 +259,17 @@ export default function ConceptosContables() {
               <TrendingDown size={20} />
               <span>Conceptos de Egreso</span>
               <span className={`px-2 py-1 rounded text-xs ${
-                activeTab === 'egreso'
+                activeTab === 'Egreso'
                   ? 'bg-white/20'
                   : 'bg-surface'
               }`}>
-                {conceptos.filter(c => c.category.name === 'egreso').length}
+                {conceptos.filter(c => c.category.name === 'Egreso').length}
               </span>
             </button>
             <button
-              onClick={() => setActiveTab('ingreso')}
+              onClick={() => setActiveTab('Ingreso')}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all ${
-                activeTab === 'ingreso'
+                activeTab === 'Ingreso'
                   ? 'bg-primary text-white border-b-4 border-primary'
                   : 'bg-muted text-muted-foreground hover:bg-muted/70'
               }`}
@@ -259,11 +277,11 @@ export default function ConceptosContables() {
               <TrendingUp size={20} />
               <span>Conceptos de Ingreso</span>
               <span className={`px-2 py-1 rounded text-xs ${
-                activeTab === 'ingreso'
+                activeTab === 'Ingreso'
                   ? 'bg-white/20'
                   : 'bg-surface'
               }`}>
-                {conceptos.filter(c => c.category.name === 'ingreso').length}
+                {conceptos.filter(c => c.category.name === 'Ingreso').length}
               </span>
             </button>
           </div>
@@ -277,7 +295,7 @@ export default function ConceptosContables() {
             startIcon={<Plus size={18} />}
             onClick={handleCreate}
           >
-            Nuevo Concepto de {activeTab === 'egreso' ? 'Egreso' : 'Ingreso'}
+            Nuevo Concepto de {activeTab === 'Egreso' ? 'Egreso' : 'Ingreso'}
           </MaterialButton>
         </div>
 
@@ -296,7 +314,7 @@ export default function ConceptosContables() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredConceptos.map((concepto) => {
-                    const isConceptoEgreso = concepto.category.name === 'egreso';
+                    const isConceptoEgreso = concepto.category.name === 'Egreso';
                     const ConceptoIcon = isConceptoEgreso ? TrendingDown : TrendingUp;
                     const conceptoColorClass = isConceptoEgreso ? 'text-red-600' : 'text-green-600';
                     const conceptoBgClass = isConceptoEgreso ? 'bg-red-50' : 'bg-green-50';
@@ -314,7 +332,7 @@ export default function ConceptosContables() {
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs ${conceptoBgClass} ${conceptoColorClass}`}>
                             <ConceptoIcon size={14} />
-                            {isConceptoEgreso ? 'Egreso' : 'Ingreso'}
+                           <span className="text-foreground">{concepto.category.name}</span>
                           </span>
                         </td>
                        {/* <td className="px-6 py-4">
@@ -363,7 +381,7 @@ export default function ConceptosContables() {
               No hay conceptos de {activeTab} registrados
             </h3>
             <p className="text-muted-foreground mb-6">
-              Comience agregando un nuevo concepto para clasificar sus {activeTab === 'egreso' ? 'egresos' : 'ingresos'}
+              Comience agregando un nuevo concepto para clasificar sus {activeTab === 'Egreso' ? 'egresos' : 'ingresos'}
             </p>
             <MaterialButton
               variant="contained"
@@ -371,7 +389,7 @@ export default function ConceptosContables() {
               startIcon={<Plus size={18} />}
               onClick={handleCreate}
             >
-              Crear Primer Concepto de {activeTab === 'egreso' ? 'Egreso' : 'Ingreso'}
+              Crear Primer Concepto de {activeTab === 'Egreso' ? 'Egreso' : 'Ingreso'}
             </MaterialButton>
           </div>
         )}

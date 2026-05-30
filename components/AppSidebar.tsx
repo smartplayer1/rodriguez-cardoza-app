@@ -70,6 +70,7 @@ const menuItems: MenuItemType[] = [
   ]}, 
   { id: 'credito', label: 'Credito', icon: CreditCard, href: '/credito', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
   { id: 'reportes', label: 'Reportes', icon: BarChart3, href: '/reportes', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
+  {id: 'clientes', label: 'Clientes', icon: UserCircle, href: '/clientes', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
   { id: 'empleados', label: 'Empleados', icon: UserCircle, href: '/empleados', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
   { id: 'articulos', label: 'Articulos', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW, options: [
     {id: 'articulos', label: 'Articulos', href: '/articulos', icon: Package , permission: PERMISSIONS.EJEMPLO_VIEW},
