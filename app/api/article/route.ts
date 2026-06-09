@@ -40,11 +40,12 @@ export async function POST(req: Request) {
             },
             body: JSON.stringify(body)
         });
+        const response = await res.json()
         if (!res.ok) {
-            throw new Error('Failed to create article');
+            return NextResponse.json({message: 'Error al crear el articulo, ' + response.detail},{status: res.status})
         }
-        const article = await res.json();
-        return NextResponse.json(article);
+      
+        return NextResponse.json(response);
     } catch (error) {
         console.error('Error creating article:', error);
         return NextResponse.json({error: 'Failed to create article'}, {status: 500});
@@ -58,6 +59,7 @@ export async function PUT(req: Request) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
     const body = await req.json();
+    console.log(body)
     try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/article/${body.id}`, {
             method: 'PUT',
@@ -67,6 +69,7 @@ export async function PUT(req: Request) {
             },
             body: JSON.stringify(body)
         });
+        console.log(await res.json())
         if (!res.ok) {
             throw new Error('Failed to update article');
         }
