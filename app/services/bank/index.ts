@@ -30,19 +30,13 @@ export const createBank = async (bankData: { name: string; acronymus: string }) 
 };
 
 export const updateBank = async (bankId: number, bankData: { name: string; acronymus: string }) => {
-  const response = await fetch(`/api/bank`, {
+  return await fetch(`/api/bank`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({id: bankId, ...bankData }),
   });
-
-  if (!response.ok) {
-    throw new Error('Failed to update bank');
-  }
-
-  return await response.json();
 };
 
 

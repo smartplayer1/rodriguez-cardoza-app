@@ -4,7 +4,7 @@ import { MaterialButton } from '@/components/MaterialButton';
 import { Users, Plus, Edit, Trash2, User as UserIcon, Mail, Key } from 'lucide-react';
 import CreateUser from '@/components/CreateUser';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
-import { insertUser, getUsers, updateUser , updatePassword, deleteUser } from '@/app/lib/api/user';
+import { insertUser, getUsers, updateUser , updatePassword, deleteUser } from '@/app/services/user';
 import { CreateUserDto, User, UpdateUserDto, UserFormData } from '@/app/type/user';
 
 export default function UserManagement() {

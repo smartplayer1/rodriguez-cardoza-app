@@ -3,9 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { Wallet, Plus, Edit, Trash2, Save, X, Building2 } from 'lucide-react';
-import { createBankAccount, deleteBankAccount, getBankAccounts, updateBankAccount } from '@/app/lib/api/company/account';
+import { createBankAccount, deleteBankAccount, getBankAccounts, updateBankAccount } from '@/app/services/company/account';
 import { Bank, BankAccount } from '@/app/type/bank';
-import { getBank } from '@/app/lib/api/bank';
+import { getBank } from '@/app/services/bank';
 
 
 

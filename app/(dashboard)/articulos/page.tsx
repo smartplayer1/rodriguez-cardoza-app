@@ -10,7 +10,7 @@ import {
   ArticleExcel,
   ArticleResponse,
 } from "@/app/type/article";
-import { createArticle, getArticles, updateArticle, deleteArticle } from "@/app/lib/api/article";
+import { createArticle, getArticles, updateArticle, deleteArticle } from "@/app/services/article";
 
 interface ErrorResponse {
   name: string;
@@ -19,17 +19,7 @@ interface ErrorResponse {
   description: string;
   message: string;
 }
-// Product categories for cosmetics and fragrances
-const categorias = [
-  { value: "perfume", label: "Perfume" },
-  { value: "maquillaje", label: "Maquillaje" },
-  { value: "cuidado-piel", label: "Cuidado de la Piel" },
-  { value: "accesorios", label: "Accesorios de Belleza" },
-];
 
-const getCategoryLabel = (value: string) => {
-  return categorias.find((c) => c.value === value)?.label || value;
-};
 
 const getCategoryColor = (value: string) => {
   const colors: Record<string, string> = {
@@ -45,49 +35,6 @@ interface ModalArticleState {
   open: boolean;
 }
 
-/*const importarArticulos = async (data: ArticleExcel[]): Promise<ErrorResponse[]> => {
-  const results = await Promise.all(
-    data.map(async (item) => {
-      const articulo = {
-        name: item.Nombre,
-        category: item.Categoria,
-        code: item.Codigo,
-        description: 'PRODUCTOS ZERMAT',
-      };
-
-      try {
-        const response = await createArticle(articulo);
-
-        if (!response.ok) {
-          const result = await response.json();
-
-          return {
-            ...articulo,
-            message: result.message,
-          };
-        }
-
-        return null;
-      } catch (error) {
-        return {
-          ...articulo,
-          message:
-            error instanceof Error ? error.message : 'Error desconocido',
-        };
-      }
-    })
-  );
-
-  const errorResponse = results.filter(
-    (item): item is ErrorResponse => item !== null
-  );
-
-  alert(
-    `Importación finalizada. ${data.length - errorResponse.length} artículos importados y ${errorResponse.length} errores.`
-  );
-
-  return errorResponse;
-};*/
 
 export default function Articulos() {
   const [modalArticle, setModalArticle] = useState<ModalArticleState>({article: null, open: false});
@@ -144,6 +91,7 @@ export default function Articulos() {
     setImporting(true);
     setTotalRecords(data.length);
     setProcessedRecords(0);
+    
     setSuccessCount(0);
     setErrorResponse([]);
 

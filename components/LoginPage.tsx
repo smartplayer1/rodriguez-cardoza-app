@@ -10,7 +10,7 @@ import {
   MaterialCardActions,
 } from "@/components/MaterialCard";
 import { Lock, Mail, Eye, EyeOff } from "lucide-react";
-import { loginRequest } from "@/app/lib/api";
+import { loginRequest } from "@/app/services";
 import { useUserStore } from "@/app/store/useUserStore";
 import jwt from 'jsonwebtoken';
 import { mapUserFromToken, isJwtDecoded } from "@/app/utils/mapUser";

@@ -1,10 +1,9 @@
 import {NextResponse} from 'next/server';
-import { cookies } from 'next/headers';
+import { getValidToken } from '@/app/lib/helper';
 
 export async function GET() {
 
-  const cookieStore = await cookies(); // 🔥 importante
-  const token = cookieStore.get('token');
+  const token = await getValidToken();
     if (!token) {
     return NextResponse.json(
       { message: 'No autorizado' },
@@ -16,7 +15,7 @@ export async function GET() {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token.value}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 

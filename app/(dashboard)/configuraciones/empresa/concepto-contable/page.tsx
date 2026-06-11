@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { FileText, Plus, Edit, Trash2, Save, X, TrendingDown, TrendingUp, ListCheck } from 'lucide-react';
-import { deleteAccountingConcept, getAccountingConceptCategories, getAccountingConcepts, postAccountingConcept, updateAccountingConcept } from '@/app/lib/api/company/accounting-concept';
+import { deleteAccountingConcept, getAccountingConceptCategories, getAccountingConcepts, postAccountingConcept, updateAccountingConcept } from '@/app/services/company/accounting-concept';
 
 interface Concepto {
   id: number;

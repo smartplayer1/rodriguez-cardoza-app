@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { getValidToken } from '@/app/lib/helper';
 
 export async function POST(req: Request) {
   const body = await req.json();
 
-  const cookieStore = await cookies(); // 🔥 importante
-  const token = cookieStore.get('token');
+ const token = await getValidToken()
 
   if (!token) {
     return NextResponse.json(
@@ -18,7 +17,7 @@ export async function POST(req: Request) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token.value}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
   });
@@ -42,8 +41,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   const body = await req.json();
 
-  const cookieStore = await cookies(); // 🔥 importante
-  const token = cookieStore.get('token');
+ const token = await getValidToken()
 
   if (!token) {
     return NextResponse.json(
@@ -56,7 +54,7 @@ export async function PUT(req: Request) {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token.value}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
   });
@@ -78,8 +76,8 @@ export async function PUT(req: Request) {
 
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('token');
+  const token = await getValidToken()
+
   if (!token) {
     return NextResponse.json(
       { message: 'No autorizado' },
@@ -91,7 +89,7 @@ export async function GET() {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token.value}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 

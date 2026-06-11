@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getUserFromToken } from '@/app/lib/api/auth';
+import { getUserFromToken } from '@/app/services/auth';
 
 const routePermissions: Record<string, string> = {
   '/facturacion': 'ver_facturacion',

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { Building2, Plus, Edit, Trash2, Save, X} from 'lucide-react';
-import { createBank, deleteBank, getBank, updateBank } from '@/app/lib/api/bank';
+import { createBank, deleteBank, getBank, updateBank } from '@/app/services/bank';
 import { Bank } from '@/app/type/bank';
 
 export default function Bancos() {

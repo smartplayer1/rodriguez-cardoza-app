@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getValidToken } from "@/app/lib/helper";
 
 export async function GET() {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token');
+    const token = await getValidToken();
 
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -11,7 +10,7 @@ export async function GET() {
     // Simulate fetching clients from a database
     const clients = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/client`, {
         headers: {  
-            Authorization: `Bearer ${token.value}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         }
     });
@@ -20,8 +19,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token');
+    const token = await getValidToken();
 
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -30,7 +28,7 @@ export async function POST(req: Request) {
     const newClient = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/client`, {
         method: 'POST', 
         headers: {
-            Authorization: `Bearer ${token.value}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)
@@ -47,8 +45,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token');
+     const token = await getValidToken();
 
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -57,7 +54,7 @@ export async function DELETE(req: Request) {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/client/${body.id}`, {
         method: 'DELETE',
         headers: {
-            Authorization: `Bearer ${token.value}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         }
     });
@@ -69,8 +66,7 @@ export async function DELETE(req: Request) {
 }
 
 export async function PUT(req: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token');
+    const token = await getValidToken();
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }   
@@ -79,7 +75,7 @@ export async function PUT(req: Request) {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/client/${body.id}`, {
         method: 'PUT',
         headers: {
-            Authorization: `Bearer ${token.value}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)

@@ -7,85 +7,126 @@ import { MaterialInput } from '@/components/MaterialInput';
 import { Gift, Plus, Edit, Trash2, Save, X, Eye, Settings, Award, Package, TrendingUp, DollarSign, ChevronDown, Search, Filter, CheckCircle, Clock, AlertCircle, Calendar, Ticket } from 'lucide-react';
 
 // ==================== INTERFACES ====================
-interface ProductoCondicion {
-  productoId: string;
-  productoNombre: string;
-  cantidadMinima: number;
+export interface Coupon {
+  id: number;
+  name: string;
+  amount: number;
+  expirationDate: string;
+  isActive: boolean;
 }
 
-interface ProductoIncentivo {
-  productoId: string;
-  productoNombre: string;
-  cantidad: number;
+export interface ProductVolumeCondition {
+  id: number;
+  articleCode: string;
 }
 
-interface CuponIncentivo {
-  cuponId: string;
-  cuponNombre: string;
-  monto: number;
+export interface RewardProduct {
+  id: number;
+  articleCode: string;
+  quantity: number;
 }
 
-interface ReglaIncentivo {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  tipoRegla: 'productos' | 'monto';
-  activa: boolean;
-  fechaInicio: string;
-  fechaFin: string;
-  // Condiciones por productos
-  productosCondicion?: ProductoCondicion[];
-  // Condiciones por monto
-  montoMinimo?: number;
-  moneda?: string;
-  // Premios del incentivo (puede incluir ambos)
-  productosIncentivo: ProductoIncentivo[];
-  cuponesIncentivo: CuponIncentivo[];
-  createdAt: string;
+export interface RewardCoupon {
+  id: number;
+  couponId: number;
+  coupon: Coupon;
 }
 
-interface IncentivoGenerado {
-  id: string;
-  reglaId: string;
+export interface Promotion {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  withdrawalStartDate: string;
+  withdrawalDeadline: string;
+  ruleType: 'productos' | 'monto';
+  description: string;
+  isActive: boolean;
+  amountCondition: number;
+  productVolumeTargetQuantity: number;
+  maxWinsPerClient: number | null;
+  participantClientType: string;
+  currency?: string;
+  createdAt?: string;
+  productVolumeConditions: ProductVolumeCondition[];
+  rewardProducts: RewardProduct[];
+  rewardCoupons: RewardCoupon[];
+}
+
+export interface IncentivoGenerado {
+  id: number;
+  reglaId: number;
   reglaNombre: string;
-  asesorId: string;
+  asesorId: number;
   asesorNombre: string;
   fechaGeneracion: string;
   fechaEntrega?: string;
   estado: 'generado' | 'pendiente' | 'entregado';
-  productosIncentivo: ProductoIncentivo[];
-  cuponesIncentivo: CuponIncentivo[];
-  // Datos de cumplimiento
+  productosIncentivo: RewardProduct[];
+  cuponesIncentivo: RewardCoupon[];
   tipoCumplimiento: 'productos' | 'monto';
   montoComprado?: number;
-  productosComprados?: ProductoCondicion[];
+  productosComprados?: ProductVolumeCondition[];
+}
+
+export interface Paging {
+  perPage: number;
+  currentPage: number;
+  totalRecords: number;
+  totalPages: number;
+}
+
+export interface PromotionResponse {
+  records: Promotion[];
+  paging: Paging;
+}
+
+export interface CreatePromotionRequest {
+  name: string;
+  startDate: string;
+  endDate: string;
+  withdrawalStartDate: string;
+  withdrawalDeadline: string;
+  ruleType: string;
+  description: string;
+  isActive: boolean;
+  amountCondition: number;
+  productVolumeTargetQuantity: number;
+  maxWinsPerClient: number | null;
+  participantClientType: string;
+  productVolumeConditions: {
+    articleCode: string;
+  }[];
+  rewardProducts: {
+    articleCode: string;
+    quantity: number;
+  }[];
+  rewardCoupons: {
+    couponId: number;
+  }[];
 }
 
 // ==================== MOCK DATA ====================
 const articulosDisponibles = [
-  { id: '1', nombre: 'Chanel No. 5 Eau de Parfum', codigo: 'PERF-001' },
-  { id: '2', nombre: 'Set de Brochas Profesional', codigo: 'ACC-002' },
-  { id: '3', nombre: 'Serum Vitamina C Anti-Edad', codigo: 'SKIN-003' },
-  { id: '4', nombre: 'Paleta de Sombras Nude', codigo: 'MAQ-004' },
-  { id: '5', nombre: 'Perfume Dior Sauvage', codigo: 'PERF-005' },
-  { id: '6', nombre: 'Crema Hidratante La Mer', codigo: 'SKIN-006' },
-  { id: '7', nombre: 'Labial Mate Ruby Woo', codigo: 'MAQ-007' },
-  { id: '8', nombre: 'Perfume Versace Eros', codigo: 'PERF-008' }
+  { id: 1, nombre: 'Chanel No. 5 Eau de Parfum', codigo: 'PERF-001' },
+  { id: 2, nombre: 'Set de Brochas Profesional', codigo: 'ACC-002' },
+  { id: 3, nombre: 'Serum Vitamina C Anti-Edad', codigo: 'SKIN-003' },
+  { id: 4, nombre: 'Paleta de Sombras Nude', codigo: 'MAQ-004' },
+  { id: 5, nombre: 'Perfume Dior Sauvage', codigo: 'PERF-005' },
+  { id: 6, nombre: 'Crema Hidratante La Mer', codigo: 'SKIN-006' },
+  { id: 7, nombre: 'Labial Mate Ruby Woo', codigo: 'MAQ-007' },
+  { id: 8, nombre: 'Perfume Versace Eros', codigo: 'PERF-008' }
 ];
 
-const cuponesDisponibles = [
-  { id: '1', nombre: 'Cupón Bienvenida $500', monto: 500 },
-  { id: '2', nombre: 'Cupón Descuento $250', monto: 250 },
-  { id: '3', nombre: 'Cupón VIP $1000', monto: 1000 }
+const cuponesDisponibles: Coupon[] = [
+  { id: 1, name: 'Cupón Bienvenida $500', amount: 500, expirationDate: '2025-12-31', isActive: true },
+  { id: 2, name: 'Cupón Descuento $250', amount: 250, expirationDate: '2025-12-31', isActive: true },
+  { id: 3, name: 'Cupón VIP $1000', amount: 1000, expirationDate: '2025-12-31', isActive: true }
 ];
 
-const asesoresDisponibles = [
-  { id: '1', nombre: 'Carlos Hernández', tipo: 'Promotor' },
-  { id: '2', nombre: 'María García', tipo: 'Promotor' },
-  { id: '3', nombre: 'Luis Rodríguez', tipo: 'Asesor' },
-  { id: '4', nombre: 'Ana Martínez', tipo: 'Promotor' },
-  { id: '5', nombre: 'Roberto Sánchez', tipo: 'Asesor' }
-];
+const getArticuloNombre = (articleCode: string) => {
+  return articulosDisponibles.find((articulo) => articulo.codigo === articleCode)?.nombre || articleCode;
+};
 
 export default function IncentivosRetencion() {
   const [activeView, setActiveView] = useState<'reglas' | 'incentivos-generados'>('reglas');
@@ -139,7 +180,7 @@ export default function IncentivosRetencion() {
         </div>
 
         {/* Content */}
-        {activeView === 'reglas' ? <ReglasIncentivos /> : <IncentivosGenerados />}
+        {activeView === 'reglas' ? <ReglasIncentivos /> : <ReglasIncentivos />}
       </div>
     </div>
   );
@@ -147,66 +188,77 @@ export default function IncentivosRetencion() {
 
 // ==================== REGLAS DE INCENTIVOS ====================
 function ReglasIncentivos() {
-  const [reglas, setReglas] = useState<ReglaIncentivo[]>([
+  const [reglas, setReglas] = useState<Promotion[]>([
     {
-      id: '1',
-      nombre: 'Compra de Perfumes Premium',
-      descripcion: 'Comprar 5 unidades de perfumes premium',
-      tipoRegla: 'productos',
-      activa: true,
-      fechaInicio: '2024-12-01',
-      fechaFin: '2024-12-31',
-      productosCondicion: [
-        { productoId: '1', productoNombre: 'Chanel No. 5 Eau de Parfum', cantidadMinima: 3 },
-        { productoId: '5', productoNombre: 'Perfume Dior Sauvage', cantidadMinima: 2 }
+      id: 1,
+      name: 'Compra de Perfumes Premium',
+      description: 'Comprar 5 unidades de perfumes premium',
+      ruleType: 'productos',
+      isActive: true,
+      startDate: '2024-12-01',
+      endDate: '2024-12-31',
+      withdrawalStartDate: '2024-12-01',
+      withdrawalDeadline: '2024-12-31',
+      amountCondition: 0,
+      productVolumeTargetQuantity: 5,
+      maxWinsPerClient: null,
+      participantClientType: 'ALL',
+      currency: 'USD',
+      productVolumeConditions: [
+        { id: 1, articleCode: 'PERF-001' },
+        { id: 5, articleCode: 'PERF-005' }
       ],
-      productosIncentivo: [
-        { productoId: '2', productoNombre: 'Set de Brochas Profesional', cantidad: 1 }
+      rewardProducts: [
+        { id: 2, articleCode: 'ACC-002', quantity: 1 }
       ],
-      cuponesIncentivo: [
-        { cuponId: '1', cuponNombre: 'Cupón Bienvenida $500', monto: 500 }
-      ],
-      createdAt: '2024-12-01'
+      rewardCoupons: [
+        { id: 1, couponId: 1, coupon: cuponesDisponibles[0] }
+      ]
     },
     {
-      id: '2',
-      nombre: 'Meta de Ventas $5,000',
-      descripcion: 'Alcanzar ventas de $5,000 en el mes',
-      tipoRegla: 'monto',
-      activa: true,
-      fechaInicio: '2024-12-01',
-      fechaFin: '2025-01-31',
-      montoMinimo: 5000,
-      moneda: 'USD',
-      productosIncentivo: [
-        { productoId: '1', productoNombre: 'Chanel No. 5 Eau de Parfum', cantidad: 1 },
-        { productoId: '7', productoNombre: 'Labial Mate Ruby Woo', cantidad: 2 }
+      id: 2,
+      name: 'Meta de Ventas $5,000',
+      description: 'Alcanzar ventas de $5,000 en el mes',
+      ruleType: 'monto',
+      isActive: true,
+      startDate: '2024-12-01',
+      endDate: '2025-01-31',
+      withdrawalStartDate: '2024-12-01',
+      withdrawalDeadline: '2025-01-31',
+      amountCondition: 5000,
+      productVolumeTargetQuantity: 0,
+      maxWinsPerClient: null,
+      participantClientType: 'ALL',
+      currency: 'USD',
+      productVolumeConditions: [],
+      rewardProducts: [
+        { id: 1, articleCode: 'PERF-001', quantity: 1 },
+        { id: 7, articleCode: 'MAQ-007', quantity: 2 }
       ],
-      cuponesIncentivo: [
-        { cuponId: '2', cuponNombre: 'Cupón Descuento $250', monto: 250 }
-      ],
-      createdAt: '2024-12-05'
+      rewardCoupons: [
+        { id: 2, couponId: 2, coupon: cuponesDisponibles[1] }
+      ]
     }
   ]);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
-  const [editingRegla, setEditingRegla] = useState<ReglaIncentivo | null>(null);
-  const [viewingRegla, setViewingRegla] = useState<ReglaIncentivo | null>(null);
+  const [editingRegla, setEditingRegla] = useState<Promotion | null>(null);
+  const [viewingRegla, setViewingRegla] = useState<Promotion | null>(null);
 
   const [formData, setFormData] = useState({
-    nombre: '',
-    descripcion: '',
-    tipoRegla: 'productos' as 'productos' | 'monto',
-    activa: true,
-    fechaInicio: '',
-    fechaFin: '',
-    montoMinimo: 0,
-    moneda: 'USD'
+    name: '',
+    description: '',
+    ruleType: 'productos' as 'productos' | 'monto',
+    isActive: true,
+    startDate: '',
+    endDate: '',
+    amountCondition: 0,
+    currency: 'USD'
   });
 
-  const [productosCondicion, setProductosCondicion] = useState<ProductoCondicion[]>([]);
-  const [productosIncentivo, setProductosIncentivo] = useState<ProductoIncentivo[]>([]);
-  const [cuponesIncentivo, setCuponesIncentivo] = useState<CuponIncentivo[]>([]);
+  const [productosCondicion, setProductosCondicion] = useState<ProductVolumeCondition[]>([]);
+  const [productosIncentivo, setProductosIncentivo] = useState<RewardProduct[]>([]);
+  const [cuponesIncentivo, setCuponesIncentivo] = useState<RewardCoupon[]>([]);
 
   // Form states for adding products
   const [showAddCondicion, setShowAddCondicion] = useState(false);
@@ -224,14 +276,14 @@ function ReglasIncentivos() {
   const handleCreate = () => {
     setEditingRegla(null);
     setFormData({
-      nombre: '',
-      descripcion: '',
-      tipoRegla: 'productos',
-      activa: true,
-      fechaInicio: '',
-      fechaFin: '',
-      montoMinimo: 0,
-      moneda: 'USD'
+      name: '',
+      description: '',
+      ruleType: 'productos',
+      isActive: true,
+      startDate: '',
+      endDate: '',
+      amountCondition: 0,
+      currency: 'USD'
     });
     setProductosCondicion([]);
     setProductosIncentivo([]);
@@ -239,51 +291,51 @@ function ReglasIncentivos() {
     setShowCreateEdit(true);
   };
 
-  const handleEdit = (regla: ReglaIncentivo) => {
+  const handleEdit = (regla: Promotion) => {
     setEditingRegla(regla);
     setFormData({
-      nombre: regla.nombre,
-      descripcion: regla.descripcion,
-      tipoRegla: regla.tipoRegla,
-      activa: regla.activa,
-      fechaInicio: regla.fechaInicio,
-      fechaFin: regla.fechaFin,
-      montoMinimo: regla.montoMinimo || 0,
-      moneda: regla.moneda || 'USD'
+      name: regla.name,
+      description: regla.description,
+      ruleType: regla.ruleType,
+      isActive: regla.isActive,
+      startDate: regla.startDate,
+      endDate: regla.endDate,
+      amountCondition: regla.amountCondition || 0,
+      currency: regla.currency || 'USD'
     });
-    setProductosCondicion(regla.productosCondicion || []);
-    setProductosIncentivo(regla.productosIncentivo);
-    setCuponesIncentivo(regla.cuponesIncentivo);
+    setProductosCondicion(regla.productVolumeConditions || []);
+    setProductosIncentivo(regla.rewardProducts);
+    setCuponesIncentivo(regla.rewardCoupons);
     setShowCreateEdit(true);
   };
 
   const handleSave = () => {
-    if (!formData.nombre.trim()) {
+    if (!formData.name.trim()) {
       alert('Por favor ingrese el nombre de la regla');
       return;
     }
 
-    if (!formData.fechaInicio) {
+    if (!formData.startDate) {
       alert('Por favor ingrese la fecha de inicio');
       return;
     }
 
-    if (!formData.fechaFin) {
+    if (!formData.endDate) {
       alert('Por favor ingrese la fecha de fin');
       return;
     }
 
-    if (formData.fechaFin < formData.fechaInicio) {
+    if (formData.endDate < formData.startDate) {
       alert('La fecha de fin debe ser mayor o igual a la fecha de inicio');
       return;
     }
 
-    if (formData.tipoRegla === 'productos' && productosCondicion.length === 0) {
+    if (formData.ruleType === 'productos' && productosCondicion.length === 0) {
       alert('Por favor agregue al menos un producto con condición');
       return;
     }
 
-    if (formData.tipoRegla === 'monto' && formData.montoMinimo <= 0) {
+    if (formData.ruleType === 'monto' && formData.amountCondition <= 0) {
       alert('Por favor ingrese un monto mínimo válido');
       return;
     }
@@ -293,19 +345,24 @@ function ReglasIncentivos() {
       return;
     }
 
-    const nuevaRegla: ReglaIncentivo = {
-      id: editingRegla?.id || Date.now().toString(),
-      nombre: formData.nombre,
-      descripcion: formData.descripcion,
-      tipoRegla: formData.tipoRegla,
-      activa: formData.activa,
-      fechaInicio: formData.fechaInicio,
-      fechaFin: formData.fechaFin,
-      productosCondicion: formData.tipoRegla === 'productos' ? productosCondicion : undefined,
-      montoMinimo: formData.tipoRegla === 'monto' ? formData.montoMinimo : undefined,
-      moneda: formData.tipoRegla === 'monto' ? formData.moneda : undefined,
-      productosIncentivo,
-      cuponesIncentivo,
+    const nuevaRegla: Promotion = {
+      id: editingRegla?.id || Date.now(),
+      name: formData.name,
+      description: formData.description,
+      ruleType: formData.ruleType,
+      isActive: formData.isActive,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      withdrawalStartDate: formData.startDate,
+      withdrawalDeadline: formData.endDate,
+      amountCondition: formData.ruleType === 'monto' ? formData.amountCondition : 0,
+      productVolumeTargetQuantity: 0,
+      maxWinsPerClient: null,
+      participantClientType: 'ALL',
+      currency: formData.currency,
+      productVolumeConditions: formData.ruleType === 'productos' ? productosCondicion : [],
+      rewardProducts: productosIncentivo,
+      rewardCoupons: cuponesIncentivo,
       createdAt: editingRegla?.createdAt || new Date().toISOString().split('T')[0]
     };
 
@@ -318,14 +375,14 @@ function ReglasIncentivos() {
     setShowCreateEdit(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: number) => {
     if (confirm('¿Está seguro de eliminar esta regla de incentivo?')) {
       setReglas(reglas.filter(r => r.id !== id));
     }
   };
 
-  const handleToggleActiva = (id: string) => {
-    setReglas(reglas.map(r => r.id === id ? { ...r, activa: !r.activa } : r));
+  const handleToggleActiva = (id: number) => {
+    setReglas(reglas.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r));
   };
 
   const addProductoCondicion = () => {
@@ -334,10 +391,10 @@ function ReglasIncentivos() {
       return;
     }
 
-    const producto = articulosDisponibles.find(a => a.id === selectedProductoCondicion);
+    const producto = articulosDisponibles.find(a => a.id === Number(selectedProductoCondicion));
     if (!producto) return;
 
-    const exists = productosCondicion.find(p => p.productoId === selectedProductoCondicion);
+    const exists = productosCondicion.find(p => p.articleCode === producto.codigo);
     if (exists) {
       alert('Este producto ya está agregado');
       return;
@@ -346,9 +403,8 @@ function ReglasIncentivos() {
     setProductosCondicion([
       ...productosCondicion,
       {
-        productoId: producto.id,
-        productoNombre: producto.nombre,
-        cantidadMinima: cantidadCondicion
+        id: Date.now(),
+        articleCode: producto.codigo
       }
     ]);
 
@@ -357,8 +413,8 @@ function ReglasIncentivos() {
     setShowAddCondicion(false);
   };
 
-  const removeProductoCondicion = (productoId: string) => {
-    setProductosCondicion(productosCondicion.filter(p => p.productoId !== productoId));
+  const removeProductoCondicion = (articleCode: string) => {
+    setProductosCondicion(productosCondicion.filter(p => p.articleCode !== articleCode));
   };
 
   const addProductoIncentivo = () => {
@@ -367,10 +423,10 @@ function ReglasIncentivos() {
       return;
     }
 
-    const producto = articulosDisponibles.find(a => a.id === selectedProductoIncentivo);
+    const producto = articulosDisponibles.find(a => a.id === Number(selectedProductoIncentivo));
     if (!producto) return;
 
-    const exists = productosIncentivo.find(p => p.productoId === selectedProductoIncentivo);
+    const exists = productosIncentivo.find(p => p.articleCode === producto.codigo);
     if (exists) {
       alert('Este producto ya está agregado');
       return;
@@ -379,9 +435,9 @@ function ReglasIncentivos() {
     setProductosIncentivo([
       ...productosIncentivo,
       {
-        productoId: producto.id,
-        productoNombre: producto.nombre,
-        cantidad: cantidadIncentivo
+        id: Date.now(),
+        articleCode: producto.codigo,
+        quantity: cantidadIncentivo
       }
     ]);
 
@@ -390,8 +446,8 @@ function ReglasIncentivos() {
     setShowAddIncentivo(false);
   };
 
-  const removeProductoIncentivo = (productoId: string) => {
-    setProductosIncentivo(productosIncentivo.filter(p => p.productoId !== productoId));
+  const removeProductoIncentivo = (articleCode: string) => {
+    setProductosIncentivo(productosIncentivo.filter(p => p.articleCode !== articleCode));
   };
 
   const addCupon = () => {
@@ -400,10 +456,10 @@ function ReglasIncentivos() {
       return;
     }
 
-    const cupon = cuponesDisponibles.find(c => c.id === selectedCupon);
+    const cupon = cuponesDisponibles.find(c => c.id === Number(selectedCupon));
     if (!cupon) return;
 
-    const exists = cuponesIncentivo.find(c => c.cuponId === selectedCupon);
+    const exists = cuponesIncentivo.find(c => c.couponId === cupon.id);
     if (exists) {
       alert('Este cupón ya está agregado');
       return;
@@ -412,9 +468,9 @@ function ReglasIncentivos() {
     setCuponesIncentivo([
       ...cuponesIncentivo,
       {
-        cuponId: cupon.id,
-        cuponNombre: cupon.nombre,
-        monto: cupon.monto
+        id: Date.now(),
+        couponId: cupon.id,
+        coupon: cupon
       }
     ]);
 
@@ -422,17 +478,17 @@ function ReglasIncentivos() {
     setShowAddCupon(false);
   };
 
-  const removeCupon = (cuponId: string) => {
-    setCuponesIncentivo(cuponesIncentivo.filter(c => c.cuponId !== cuponId));
+  const removeCupon = (couponId: number) => {
+    setCuponesIncentivo(cuponesIncentivo.filter(c => c.couponId !== couponId));
   };
 
   // Filtering
   const filteredReglas = reglas.filter(regla => {
-    const matchesSearch = regla.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          regla.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = regla.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          regla.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesEstado = filterEstado === 'all' || 
-                          (filterEstado === 'activa' && regla.activa) ||
-                          (filterEstado === 'inactiva' && !regla.activa);
+                          (filterEstado === 'activa' && regla.isActive) ||
+                          (filterEstado === 'inactiva' && !regla.isActive);
     return matchesSearch && matchesEstado;
   });
 
@@ -462,39 +518,39 @@ function ReglasIncentivos() {
                 <div className="bg-muted/30 rounded p-4 space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Nombre:</span>
-                    <span className="text-foreground">{viewingRegla.nombre}</span>
+                    <span className="text-foreground">{viewingRegla.name}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Descripción:</span>
-                    <span className="text-foreground">{viewingRegla.descripcion}</span>
+                    <span className="text-foreground">{viewingRegla.description}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Tipo de Regla:</span>
                     <div className="flex items-center gap-2">
-                      {viewingRegla.tipoRegla === 'productos' ? (
+                      {viewingRegla.ruleType === 'productos' ? (
                         <Package size={16} className="text-primary" />
                       ) : (
                         <DollarSign size={16} className="text-green-600" />
                       )}
                       <span className="text-foreground">
-                        {viewingRegla.tipoRegla === 'productos' ? 'Por Productos' : 'Por Monto'}
+                        {viewingRegla.ruleType === 'productos' ? 'Por Productos' : 'Por Monto'}
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Periodo de Vigencia:</span>
                     <span className="text-foreground">
-                      {viewingRegla.fechaInicio} al {viewingRegla.fechaFin}
+                      {viewingRegla.startDate} al {viewingRegla.endDate}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Estado:</span>
                     <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                      viewingRegla.activa
+                      viewingRegla.isActive
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-100 text-gray-700'
                     }`}>
-                      {viewingRegla.activa ? 'Activa' : 'Inactiva'}
+                      {viewingRegla.isActive ? 'Activa' : 'Inactiva'}
                     </span>
                   </div>
                 </div>
@@ -504,18 +560,15 @@ function ReglasIncentivos() {
               <div>
                 <h4 className="text-sm text-muted-foreground mb-3">Condiciones de Cumplimiento</h4>
                 <div className="bg-muted/30 rounded p-4">
-                  {viewingRegla.tipoRegla === 'productos' ? (
+                  {viewingRegla.ruleType === 'productos' ? (
                     <div className="space-y-2">
                       <p className="text-sm text-foreground mb-3">Productos Requeridos:</p>
-                      {viewingRegla.productosCondicion?.map((producto, index) => (
+                      {viewingRegla.productVolumeConditions.map((producto, index) => (
                         <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
                           <div className="flex items-center gap-2">
                             <Package size={16} className="text-primary" />
-                            <span className="text-sm text-foreground">{producto.productoNombre}</span>
+                            <span className="text-sm text-foreground">{getArticuloNombre(producto.articleCode)}</span>
                           </div>
-                          <span className="text-sm text-muted-foreground">
-                            Cantidad mínima: <span className="text-foreground font-mono">{producto.cantidadMinima}</span>
-                          </span>
                         </div>
                       ))}
                     </div>
@@ -523,7 +576,7 @@ function ReglasIncentivos() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-foreground">Monto Mínimo de Compra:</span>
                       <span className="text-lg text-green-600 font-mono">
-                        {viewingRegla.moneda} {viewingRegla.montoMinimo?.toFixed(2)}
+                        {viewingRegla.currency} {viewingRegla.amountCondition.toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -531,18 +584,18 @@ function ReglasIncentivos() {
               </div>
 
               {/* Productos del Incentivo */}
-              {viewingRegla.productosIncentivo.length > 0 && (
+              {viewingRegla.rewardProducts.length > 0 && (
                 <div>
                   <h4 className="text-sm text-muted-foreground mb-3">Productos del Incentivo</h4>
                   <div className="bg-muted/30 rounded p-4 space-y-2">
-                    {viewingRegla.productosIncentivo.map((producto, index) => (
+                    {viewingRegla.rewardProducts.map((producto, index) => (
                       <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
                         <div className="flex items-center gap-2">
                           <Gift size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">{producto.productoNombre}</span>
+                          <span className="text-sm text-foreground">{getArticuloNombre(producto.articleCode)}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          Cantidad: <span className="text-foreground font-mono">{producto.cantidad}</span>
+                          Cantidad: <span className="text-foreground font-mono">{producto.quantity}</span>
                         </span>
                       </div>
                     ))}
@@ -551,18 +604,18 @@ function ReglasIncentivos() {
               )}
 
               {/* Cupones del Incentivo */}
-              {viewingRegla.cuponesIncentivo.length > 0 && (
+              {viewingRegla.rewardCoupons.length > 0 && (
                 <div>
                   <h4 className="text-sm text-muted-foreground mb-3">Cupones del Incentivo</h4>
                   <div className="bg-muted/30 rounded p-4 space-y-2">
-                    {viewingRegla.cuponesIncentivo.map((cupon, index) => (
+                    {viewingRegla.rewardCoupons.map((cupon, index) => (
                       <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
                         <div className="flex items-center gap-2">
                           <Ticket size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">{cupon.cuponNombre}</span>
+                          <span className="text-sm text-foreground">{cupon.coupon.name}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          Monto: <span className="text-foreground font-mono">${cupon.monto.toFixed(2)}</span>
+                          Monto: <span className="text-foreground font-mono">${cupon.coupon.amount.toFixed(2)}</span>
                         </span>
                       </div>
                     ))}
@@ -614,8 +667,8 @@ function ReglasIncentivos() {
                 <MaterialInput
                   label="Nombre de la Regla *"
                   fullWidth
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Ej: Compra de Perfumes Premium"
                 />
 
@@ -625,8 +678,8 @@ function ReglasIncentivos() {
                   </label>
                   <div className="relative">
                     <select
-                      value={formData.tipoRegla}
-                      onChange={(e) => setFormData({ ...formData, tipoRegla: e.target.value as 'productos' | 'monto' })}
+                      value={formData.ruleType}
+                      onChange={(e) => setFormData({ ...formData, ruleType: e.target.value as 'productos' | 'monto' })}
                       className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
                                focus:border-primary rounded-t transition-colors outline-none appearance-none"
                     >
@@ -641,17 +694,17 @@ function ReglasIncentivos() {
                   label="Fecha de Inicio *"
                   type="date"
                   fullWidth
-                  value={formData.fechaInicio}
-                  onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                 />
 
                 <MaterialInput
                   label="Fecha de Fin *"
                   type="date"
                   fullWidth
-                  value={formData.fechaFin}
-                  onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
-                  min={formData.fechaInicio}
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  min={formData.startDate}
                 />
 
                 <div className="md:col-span-2">
@@ -659,8 +712,8 @@ function ReglasIncentivos() {
                     Descripción
                   </label>
                   <textarea
-                    value={formData.descripcion}
-                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-4 py-3 bg-input-background border-b-2 border-border 
                              focus:border-primary rounded-t transition-colors outline-none resize-none"
                     rows={3}
@@ -672,8 +725,8 @@ function ReglasIncentivos() {
                   <input
                     type="checkbox"
                     id="activa"
-                    checked={formData.activa}
-                    onChange={(e) => setFormData({ ...formData, activa: e.target.checked })}
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                     className="w-5 h-5 text-primary border-border rounded focus:ring-primary"
                   />
                   <label htmlFor="activa" className="text-sm text-foreground">
@@ -687,7 +740,7 @@ function ReglasIncentivos() {
             <div>
               <h4 className="text-foreground mb-4">Condiciones de Cumplimiento</h4>
               <div className="bg-muted/30 rounded p-4">
-                {formData.tipoRegla === 'productos' ? (
+                {formData.ruleType=== 'productos' ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                       <Package size={16} />
@@ -698,17 +751,14 @@ function ReglasIncentivos() {
                     {productosCondicion.length > 0 && (
                       <div className="space-y-2 mb-4">
                         {productosCondicion.map((producto) => (
-                          <div key={producto.productoId} className="flex items-center justify-between bg-surface p-3 rounded">
+                          <div key={producto.articleCode} className="flex items-center justify-between bg-surface p-3 rounded">
                             <div className="flex items-center gap-2">
                               <Package size={16} className="text-primary" />
-                              <span className="text-sm text-foreground">{producto.productoNombre}</span>
+                              <span className="text-sm text-foreground">{getArticuloNombre(producto.articleCode)}</span>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="text-sm text-muted-foreground">
-                                Cantidad mínima: <span className="text-foreground font-mono">{producto.cantidadMinima}</span>
-                              </span>
                               <button
-                                onClick={() => removeProductoCondicion(producto.productoId)}
+                                onClick={() => removeProductoCondicion(producto.articleCode)}
                                 className="text-red-600 hover:text-red-700 transition-colors"
                               >
                                 <Trash2 size={16} />
@@ -736,7 +786,7 @@ function ReglasIncentivos() {
                               >
                                 <option value="">Seleccione un producto</option>
                                 {articulosDisponibles
-                                  .filter(a => !productosCondicion.find(p => p.productoId === a.id))
+                                  .filter(a => !productosCondicion.find(p => p.articleCode === a.codigo))
                                   .map(articulo => (
                                     <option key={articulo.id} value={articulo.id}>
                                       {articulo.nombre} ({articulo.codigo})
@@ -803,8 +853,8 @@ function ReglasIncentivos() {
                         label="Monto Mínimo *"
                         type="number"
                         fullWidth
-                        value={formData.montoMinimo}
-                        onChange={(e) => setFormData({ ...formData, montoMinimo: Number(e.target.value) })}
+                        value={formData.amountCondition}
+                        onChange={(e) => setFormData({ ...formData, amountCondition: Number(e.target.value) })}
                         min={0}
                         step={0.01}
                       />
@@ -815,8 +865,8 @@ function ReglasIncentivos() {
                         </label>
                         <div className="relative">
                           <select
-                            value={formData.moneda}
-                            onChange={(e) => setFormData({ ...formData, moneda: e.target.value })}
+                            value={formData.currency}
+                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                             className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
                                      focus:border-primary rounded-t transition-colors outline-none appearance-none"
                           >
@@ -828,14 +878,14 @@ function ReglasIncentivos() {
                       </div>
                     </div>
 
-                    {formData.montoMinimo > 0 && (
+                    {formData.amountCondition > 0 && (
                       <div className="bg-primary/10 border border-primary/20 rounded p-4">
                         <div className="flex items-center gap-2 text-primary mb-2">
                           <TrendingUp size={16} />
                           <span className="text-sm">Meta de Compra:</span>
                         </div>
                         <p className="text-2xl text-foreground font-mono">
-                          {formData.moneda} {formData.montoMinimo.toFixed(2)}
+                          {formData.currency} {formData.amountCondition.toFixed(2)}
                         </p>
                       </div>
                     )}
@@ -857,17 +907,17 @@ function ReglasIncentivos() {
                 {productosIncentivo.length > 0 && (
                   <div className="space-y-2 mb-4">
                     {productosIncentivo.map((producto) => (
-                      <div key={producto.productoId} className="flex items-center justify-between bg-surface p-3 rounded">
+                      <div key={producto.articleCode} className="flex items-center justify-between bg-surface p-3 rounded">
                         <div className="flex items-center gap-2">
                           <Gift size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">{producto.productoNombre}</span>
+                          <span className="text-sm text-foreground">{getArticuloNombre(producto.articleCode)}</span>
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="text-sm text-muted-foreground">
-                            Cantidad: <span className="text-foreground font-mono">{producto.cantidad}</span>
+                            Cantidad: <span className="text-foreground font-mono">{producto.quantity}</span>
                           </span>
                           <button
-                            onClick={() => removeProductoIncentivo(producto.productoId)}
+                            onClick={() => removeProductoIncentivo(producto.articleCode)}
                             className="text-red-600 hover:text-red-700 transition-colors"
                           >
                             <Trash2 size={16} />
@@ -895,7 +945,7 @@ function ReglasIncentivos() {
                           >
                             <option value="">Seleccione un producto</option>
                             {articulosDisponibles
-                              .filter(a => !productosIncentivo.find(p => p.productoId === a.id))
+                              .filter(a => !productosIncentivo.find(p => p.articleCode === a.codigo))
                               .map(articulo => (
                                 <option key={articulo.id} value={articulo.id}>
                                   {articulo.nombre} ({articulo.codigo})
@@ -969,16 +1019,16 @@ function ReglasIncentivos() {
                 {cuponesIncentivo.length > 0 && (
                   <div className="space-y-2">
                     {cuponesIncentivo.map(cupon => (
-                      <div key={cupon.cuponId} className="flex items-center justify-between bg-background p-4 rounded border border-border">
+                      <div key={cupon.couponId} className="flex items-center justify-between bg-background p-4 rounded border border-border">
                         <div className="flex items-center gap-3">
                           <Ticket size={20} className="text-primary" />
                           <div>
-                            <p className="text-foreground">{cupon.cuponNombre}</p>
-                            <p className="text-sm text-muted-foreground">Monto: ${cupon.monto.toFixed(2)}</p>
+                            <p className="text-foreground">{cupon.coupon.name}</p>
+                            <p className="text-sm text-muted-foreground">Monto: ${cupon.coupon.amount.toFixed(2)}</p>
                           </div>
                         </div>
                         <button
-                          onClick={() => removeCupon(cupon.cuponId)}
+                          onClick={() => removeCupon(cupon.couponId)}
                           className="text-red-600 hover:text-red-700 transition-colors p-2"
                         >
                           <Trash2 size={18} />
@@ -1004,10 +1054,10 @@ function ReglasIncentivos() {
                         >
                           <option value="">Seleccione un cupón</option>
                           {cuponesDisponibles
-                            .filter(c => !cuponesIncentivo.find(ci => ci.cuponId === c.id))
+                            .filter(c => !cuponesIncentivo.find(ci => ci.couponId === c.id))
                             .map(cupon => (
                               <option key={cupon.id} value={cupon.id}>
-                                {cupon.nombre} - ${cupon.monto.toFixed(2)}
+                                {cupon.name} - ${cupon.amount.toFixed(2)}
                               </option>
                             ))}
                         </select>
@@ -1129,16 +1179,16 @@ function ReglasIncentivos() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-foreground">{regla.nombre}</h3>
+                    <h3 className="text-foreground">{regla.name}</h3>
                     <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                      regla.activa
+                      regla.isActive
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-100 text-gray-700'
                     }`}>
-                      {regla.activa ? 'Activa' : 'Inactiva'}
+                      {regla.isActive ? 'Activa' : 'Inactiva'}
                     </span>
                     <div className="flex items-center gap-2 px-2 py-1 bg-primary/10 rounded text-xs text-primary">
-                      {regla.tipoRegla === 'productos' ? (
+                      {regla.ruleType === 'productos' ? (
                         <>
                           <Package size={14} />
                           <span>Por Productos</span>
@@ -1152,28 +1202,25 @@ function ReglasIncentivos() {
                     </div>
                   </div>
 
-                  <p className="text-sm text-muted-foreground mb-2">{regla.descripcion}</p>
+                  <p className="text-sm text-muted-foreground mb-2">{regla.description}</p>
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
                     <Calendar size={14} />
-                    <span>Vigencia: {regla.fechaInicio} al {regla.fechaFin}</span>
+                    <span>Vigencia: {regla.startDate} al {regla.endDate}</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Condiciones */}
                     <div className="bg-muted/30 rounded p-3">
                       <p className="text-xs text-muted-foreground mb-2">Condiciones:</p>
-                      {regla.tipoRegla === 'productos' ? (
-                        <div className="space-y-1">
-                          {regla.productosCondicion?.map((p, i) => (
-                            <div key={i} className="text-xs text-foreground">
-                              • {p.productoNombre} (mín: {p.cantidadMinima})
-                            </div>
-                          ))}
+                      {regla.ruleType === 'productos' ? (
+                        <div className="flex flex-col space-y-1 ">
+                          {regla.productVolumeConditions.map(item =>   <span key={item.id} className="text-xs text-foreground"> {item.articleCode} </span>)}
+                       
                         </div>
                       ) : (
                         <div className="text-sm text-foreground font-mono">
-                          {regla.moneda} {regla.montoMinimo?.toFixed(2)}
+                          {regla.currency} {regla.amountCondition.toFixed(2)}
                         </div>
                       )}
                     </div>
@@ -1182,14 +1229,14 @@ function ReglasIncentivos() {
                     <div className="bg-muted/30 rounded p-3">
                       <p className="text-xs text-muted-foreground mb-2">Premios:</p>
                       <div className="space-y-1">
-                        {regla.productosIncentivo.map((p, i) => (
+                        {regla.rewardProducts.map((p, i) => (
                           <div key={i} className="text-xs text-foreground">
-                            • {p.productoNombre} (x{p.cantidad})
+                            • {getArticuloNombre(p.articleCode)} (x{p.quantity})
                           </div>
                         ))}
-                        {regla.cuponesIncentivo.map((c, i) => (
+                        {regla.rewardCoupons.map((c, i) => (
                           <div key={`cupon-${i}`} className="text-xs text-foreground">
-                            • {c.cuponNombre} (${c.monto})
+                            • {c.coupon.name} (${c.coupon.amount})
                           </div>
                         ))}
                       </div>
@@ -1217,10 +1264,10 @@ function ReglasIncentivos() {
                   <MaterialButton
                     variant="text"
                     color="secondary"
-                    startIcon={regla.activa ? <X size={16} /> : <CheckCircle size={16} />}
+                    startIcon={regla.isActive ? <X size={16} /> : <CheckCircle size={16} />}
                     onClick={() => handleToggleActiva(regla.id)}
                   >
-                    {regla.activa ? 'Desactivar' : 'Activar'}
+                    {regla.isActive ? 'Desactivar' : 'Activar'}
                   </MaterialButton>
                   <button
                     onClick={() => handleDelete(regla.id)}
@@ -1258,473 +1305,3 @@ function ReglasIncentivos() {
   );
 }
 
-// ==================== INCENTIVOS GENERADOS ====================
-function IncentivosGenerados() {
-  const [incentivos, setIncentivos] = useState<IncentivoGenerado[]>([
-    {
-      id: '1',
-      reglaId: '1',
-      reglaNombre: 'Compra de Perfumes Premium',
-      asesorId: '1',
-      asesorNombre: 'Carlos Hernández',
-      fechaGeneracion: '2024-12-15',
-      estado: 'pendiente',
-      productosIncentivo: [
-        { productoId: '2', productoNombre: 'Set de Brochas Profesional', cantidad: 1 }
-      ],
-      cuponesIncentivo: [
-        { cuponId: '1', cuponNombre: 'Cupón Bienvenida $500', monto: 500 }
-      ],
-      tipoCumplimiento: 'productos',
-      productosComprados: [
-        { productoId: '1', productoNombre: 'Chanel No. 5 Eau de Parfum', cantidadMinima: 3 },
-        { productoId: '5', productoNombre: 'Perfume Dior Sauvage', cantidadMinima: 2 }
-      ]
-    },
-    {
-      id: '2',
-      reglaId: '2',
-      reglaNombre: 'Meta de Ventas $5,000',
-      asesorId: '2',
-      asesorNombre: 'María García',
-      fechaGeneracion: '2024-12-10',
-      fechaEntrega: '2024-12-12',
-      estado: 'entregado',
-      productosIncentivo: [
-        { productoId: '1', productoNombre: 'Chanel No. 5 Eau de Parfum', cantidad: 1 },
-        { productoId: '7', productoNombre: 'Labial Mate Ruby Woo', cantidad: 2 }
-      ],
-      cuponesIncentivo: [
-        { cuponId: '2', cuponNombre: 'Cupón Descuento $250', monto: 250 }
-      ],
-      tipoCumplimiento: 'monto',
-      montoComprado: 5250.00
-    },
-    {
-      id: '3',
-      reglaId: '1',
-      reglaNombre: 'Compra de Perfumes Premium',
-      asesorId: '4',
-      asesorNombre: 'Ana Martínez',
-      fechaGeneracion: '2024-12-18',
-      estado: 'generado',
-      productosIncentivo: [
-        { productoId: '2', productoNombre: 'Set de Brochas Profesional', cantidad: 1 }
-      ],
-      cuponesIncentivo: [
-        { cuponId: '3', cuponNombre: 'Cupón VIP $1000', monto: 1000 }
-      ],
-      tipoCumplimiento: 'productos',
-      productosComprados: [
-        { productoId: '1', productoNombre: 'Chanel No. 5 Eau de Parfum', cantidadMinima: 3 },
-        { productoId: '5', productoNombre: 'Perfume Dior Sauvage', cantidadMinima: 2 }
-      ]
-    }
-  ]);
-
-  const [viewingIncentivo, setViewingIncentivo] = useState<IncentivoGenerado | null>(null);
-  const [deliveringIncentivo, setDeliveringIncentivo] = useState<IncentivoGenerado | null>(null);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterEstado, setFilterEstado] = useState<'all' | 'generado' | 'pendiente' | 'entregado'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  const handleMarcarEntregado = (id: string, fechaEntrega: string) => {
-    setIncentivos(incentivos.map(inc => 
-      inc.id === id 
-        ? { ...inc, estado: 'entregado' as const, fechaEntrega }
-        : inc
-    ));
-    setDeliveringIncentivo(null);
-  };
-
-  // Filtering
-  const filteredIncentivos = incentivos.filter(incentivo => {
-    const matchesSearch = incentivo.asesorNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          incentivo.reglaNombre.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEstado = filterEstado === 'all' || incentivo.estado === filterEstado;
-    return matchesSearch && matchesEstado;
-  });
-
-  const totalPages = Math.ceil(filteredIncentivos.length / rowsPerPage);
-  const paginatedIncentivos = filteredIncentivos.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
-
-  // View Detail Modal
-  if (viewingIncentivo) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-surface rounded-lg elevation-4 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Award size={24} className="text-primary" />
-                <h3 className="text-foreground">Detalle de Incentivo Generado</h3>
-              </div>
-              <button
-                onClick={() => setViewingIncentivo(null)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              {/* Información del Asesor */}
-              <div>
-                <h4 className="text-sm text-muted-foreground mb-3">Información del Asesor</h4>
-                <div className="bg-muted/30 rounded p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Asesor:</span>
-                    <span className="text-foreground">{viewingIncentivo.asesorNombre}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Regla Aplicada:</span>
-                    <span className="text-foreground">{viewingIncentivo.reglaNombre}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Estado:</span>
-                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                      viewingIncentivo.estado === 'entregado'
-                        ? 'bg-green-100 text-green-700'
-                        : viewingIncentivo.estado === 'pendiente'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {viewingIncentivo.estado === 'entregado' ? 'Entregado' :
-                       viewingIncentivo.estado === 'pendiente' ? 'Pendiente de Entrega' : 'Generado'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Fecha de Generación:</span>
-                    <span className="text-foreground">{viewingIncentivo.fechaGeneracion}</span>
-                  </div>
-                  {viewingIncentivo.fechaEntrega && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Fecha de Entrega:</span>
-                      <span className="text-foreground">{viewingIncentivo.fechaEntrega}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Cumplimiento */}
-              <div>
-                <h4 className="text-sm text-muted-foreground mb-3">Cumplimiento de Condición</h4>
-                <div className="bg-muted/30 rounded p-4">
-                  {viewingIncentivo.tipoCumplimiento === 'productos' ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-foreground mb-3">
-                        <Package size={16} className="text-primary" />
-                        <span>Productos Comprados:</span>
-                      </div>
-                      {viewingIncentivo.productosComprados?.map((producto, index) => (
-                        <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
-                          <span className="text-sm text-foreground">{producto.productoNombre}</span>
-                          <span className="text-sm text-muted-foreground">
-                            Cantidad: <span className="text-foreground font-mono">{producto.cantidadMinima}</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <DollarSign size={16} className="text-green-600" />
-                        <span className="text-sm text-foreground">Monto Total Comprado:</span>
-                      </div>
-                      <span className="text-lg text-green-600 font-mono">
-                        ${viewingIncentivo.montoComprado?.toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Productos del Incentivo */}
-              <div>
-                <h4 className="text-sm text-muted-foreground mb-3">Productos del Incentivo</h4>
-                <div className="bg-muted/30 rounded p-4 space-y-2">
-                  {viewingIncentivo.productosIncentivo.map((producto, index) => (
-                    <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
-                      <div className="flex items-center gap-2">
-                        <Gift size={16} className="text-primary" />
-                        <span className="text-sm text-foreground">{producto.productoNombre}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        Cantidad: <span className="text-foreground font-mono">{producto.cantidad}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              {viewingIncentivo.estado !== 'entregado' && (
-                <MaterialButton
-                  variant="contained"
-                  color="primary"
-                  startIcon={<CheckCircle size={18} />}
-                  onClick={() => {
-                    setDeliveringIncentivo(viewingIncentivo);
-                    setViewingIncentivo(null);
-                  }}
-                >
-                  Marcar como Entregado
-                </MaterialButton>
-              )}
-              <MaterialButton
-                variant="outlined"
-                color="secondary"
-                onClick={() => setViewingIncentivo(null)}
-              >
-                Cerrar
-              </MaterialButton>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Delivering Modal
-  if (deliveringIncentivo) {
-    const [fechaEntrega, setFechaEntrega] = useState(new Date().toISOString().split('T')[0]);
-
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-surface rounded-lg elevation-4 max-w-md w-full">
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <CheckCircle size={24} className="text-primary" />
-              <h3 className="text-foreground">Marcar como Entregado</h3>
-            </div>
-
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                ¿Confirma que el incentivo ha sido entregado a <span className="text-foreground">{deliveringIncentivo.asesorNombre}</span>?
-              </p>
-
-              <MaterialInput
-                label="Fecha de Entrega"
-                type="date"
-                fullWidth
-                value={fechaEntrega}
-                onChange={(e) => setFechaEntrega(e.target.value)}
-              />
-
-              <div className="bg-muted/30 rounded p-4">
-                <p className="text-xs text-muted-foreground mb-2">Premios a entregar:</p>
-                {deliveringIncentivo.productosIncentivo.map((p, i) => (
-                  <div key={i} className="text-sm text-foreground">
-                    • {p.productoNombre} (x{p.cantidad})
-                  </div>
-                ))}
-                {deliveringIncentivo.cuponesIncentivo.map((c, i) => (
-                  <div key={`cupon-${i}`} className="text-sm text-foreground">
-                    • {c.cuponNombre} (${c.monto})
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <MaterialButton
-                variant="contained"
-                color="primary"
-                startIcon={<CheckCircle size={18} />}
-                onClick={() => handleMarcarEntregado(deliveringIncentivo.id, fechaEntrega)}
-              >
-                Confirmar Entrega
-              </MaterialButton>
-              <MaterialButton
-                variant="outlined"
-                color="secondary"
-                onClick={() => setDeliveringIncentivo(null)}
-              >
-                Cancelar
-              </MaterialButton>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // List View
-  return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <div className="bg-surface rounded elevation-2 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Buscar por asesor o regla..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border 
-                       focus:border-primary rounded-t transition-colors outline-none"
-            />
-          </div>
-
-          <div className="relative">
-            <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={filterEstado}
-              onChange={(e) => {
-                setFilterEstado(e.target.value as any);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-10 pr-10 py-2 bg-input-background border-b-2 border-border 
-                       focus:border-primary rounded-t transition-colors outline-none appearance-none"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="generado">Generado</option>
-              <option value="pendiente">Pendiente de Entrega</option>
-              <option value="entregado">Entregado</option>
-            </select>
-            <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          </div>
-
-          <div className="relative">
-            <select
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="w-full px-4 py-2 bg-input-background border-b-2 border-border 
-                       focus:border-primary rounded-t transition-colors outline-none appearance-none"
-            >
-              <option value={10}>10 por página</option>
-              <option value={25}>25 por página</option>
-              <option value={50}>50 por página</option>
-            </select>
-            <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          </div>
-        </div>
-      </div>
-
-      {/* Incentivos Table */}
-      {paginatedIncentivos.length > 0 ? (
-        <>
-          <div className="bg-surface rounded elevation-2 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted border-b border-border">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Asesor</th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Regla Aplicada</th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Estado</th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Fecha Generación</th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Fecha Entrega</th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Productos</th>
-                    <th className="px-6 py-4 text-right text-sm text-foreground">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {paginatedIncentivos.map((incentivo) => (
-                    <tr key={incentivo.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-6 py-4 text-sm text-foreground">{incentivo.asesorNombre}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{incentivo.reglaNombre}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                          incentivo.estado === 'entregado'
-                            ? 'bg-green-100 text-green-700'
-                            : incentivo.estado === 'pendiente'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {incentivo.estado === 'entregado' && <CheckCircle size={12} />}
-                          {incentivo.estado === 'pendiente' && <Clock size={12} />}
-                          {incentivo.estado === 'generado' && <AlertCircle size={12} />}
-                          {incentivo.estado === 'entregado' ? 'Entregado' :
-                           incentivo.estado === 'pendiente' ? 'Pendiente' : 'Generado'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-foreground">{incentivo.fechaGeneracion}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">
-                        {incentivo.fechaEntrega || '-'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
-                        {incentivo.productosIncentivo.length} producto(s)
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2 justify-end">
-                          <MaterialButton
-                            variant="text"
-                            color="primary"
-                            startIcon={<Eye size={16} />}
-                            onClick={() => setViewingIncentivo(incentivo)}
-                          >
-                            Ver Detalle
-                          </MaterialButton>
-                          {incentivo.estado !== 'entregado' && (
-                            <MaterialButton
-                              variant="text"
-                              color="primary"
-                              startIcon={<CheckCircle size={16} />}
-                              onClick={() => setDeliveringIncentivo(incentivo)}
-                            >
-                              Entregar
-                            </MaterialButton>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, filteredIncentivos.length)} de {filteredIncentivos.length} incentivos
-            </div>
-            <div className="flex gap-2">
-              <MaterialButton
-                variant="outlined"
-                color="secondary"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                Anterior
-              </MaterialButton>
-              <div className="flex items-center gap-2 px-4">
-                <span className="text-sm text-foreground">
-                  Página {currentPage} de {totalPages}
-                </span>
-              </div>
-              <MaterialButton
-                variant="outlined"
-                color="secondary"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Siguiente
-              </MaterialButton>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="bg-surface rounded elevation-2 py-16 text-center">
-          <Award size={64} className="text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-foreground mb-2">No hay incentivos generados</h3>
-          <p className="text-muted-foreground">
-            {searchTerm || filterEstado !== 'all'
-              ? 'No se encontraron incentivos con los filtros aplicados'
-              : 'Los incentivos se generarán automáticamente cuando los asesores cumplan las reglas configuradas'}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}

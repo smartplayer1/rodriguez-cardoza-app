@@ -1,4 +1,4 @@
-import { CreateUserDto, UpdateUserDto } from '../../../type/user';
+import { CreateUserDto, UpdateUserDto } from '../../type/user';
 
 export const insertUser = async (data: CreateUserDto) => {
 return await fetch('/api/users', {

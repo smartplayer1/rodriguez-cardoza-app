@@ -13,8 +13,8 @@ import {
 import { MaterialButton } from '../../../components/MaterialButton';
 import { Client, ClienteExcel, ClienteResponse, Paging, ErrorResponse, ClientErrorItem } from '@/app/type/client';
 import { ImportarClientesModal } from '@/components/excel-upload-client';
-import { createClient, getclients } from '@/app/lib/api/clients';
-import { getBranches } from '@/app/lib/api/company/branch';
+import { createClient, getclients } from '@/app/services/clients';
+import { getBranches } from '@/app/services/company/branch';
 import { BranchResponse } from '@/app/type/branch';
 import ModaleErrorCreateClient from '@/components/modal-error-create-client';
 

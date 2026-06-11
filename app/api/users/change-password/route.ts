@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { getValidToken } from '@/app/lib/helper';
 
 export async function PUT(req: Request) {
   const body = await req.json();
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get('token');
+ const token = await getValidToken()
 
   if (!token) {
     return NextResponse.json(
@@ -19,7 +18,7 @@ export async function PUT(req: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token.value}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(body),
     }

@@ -1,9 +1,8 @@
 import {NextResponse} from 'next/server';
-import {cookies} from 'next/headers';
+import { getValidToken } from '@/app/lib/helper';
 
 export async function GET(request: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+   const token = await getValidToken();
     if (!token) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
@@ -25,8 +24,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(req: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+     const token = await getValidToken();
     if (!token) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
@@ -53,8 +51,7 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+    const token = await getValidToken();
     if (!token) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
@@ -82,8 +79,7 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+    const token = await getValidToken();
     if (!token) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }

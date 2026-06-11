@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { getValidToken } from '@/app/lib/helper';
 
 export async function DELETE(
   req: Request,
@@ -16,8 +16,7 @@ export async function DELETE(
       );
     }
 
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token');
+    const token = await getValidToken()
 
     if (!token) {
       return NextResponse.json(
@@ -31,7 +30,7 @@ export async function DELETE(
       {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token.value}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );

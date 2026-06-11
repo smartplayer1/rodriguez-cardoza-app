@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { Plus, Edit, Trash2, Shield } from 'lucide-react';
 import RoleDetails from '@/components/RoleDetails';
-import { getRoles } from '@/app/lib/api/roles';
+import { getRoles } from '@/app/services/roles';
 import { Role } from '@/app/type/user';
 
 interface RoleFormData {

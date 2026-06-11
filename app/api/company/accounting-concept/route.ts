@@ -1,10 +1,9 @@
 import {NextResponse} from 'next/server';
-import { cookies } from 'next/headers';
+import { getValidToken } from '@/app/lib/helper';
 
 
 export async function GET() {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token');
+   const token = await getValidToken();
 
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -13,7 +12,7 @@ export async function GET() {
     // Simulate fetching accounting concepts from a database
     const accountingConcepts = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounting-concept`, {
         headers: {
-            Authorization: `Bearer ${token.value}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         }
     });
@@ -22,8 +21,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token');
+     const token = await getValidToken()
+
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -32,7 +31,7 @@ export async function POST(req: Request) {
     const newConcept = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounting-concept`, {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${token.value}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)
@@ -42,8 +41,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token');
+     const token = await getValidToken();
+
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -51,7 +50,7 @@ export async function DELETE(req: Request) {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounting-concept/${body.id}`, {
         method: 'DELETE',
         headers: {
-            Authorization: `Bearer ${token.value}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         }
     });

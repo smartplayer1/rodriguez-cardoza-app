@@ -3,7 +3,7 @@ import { MaterialButton } from './MaterialButton';
 import { MaterialInput } from './MaterialInput';
 import { Save, X, User, Shuffle, Eye, EyeOff, Shield, Mail} from 'lucide-react';
 import { RolesResponse, UserFormData, User as Usuario } from '@/app/type/user';
-import { getRoles } from '@/app/lib/api/roles';
+import { getRoles } from '@/app/services/roles';
 
 
 interface CreateUserProps {
