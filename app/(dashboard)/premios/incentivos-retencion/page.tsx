@@ -1,136 +1,13 @@
-/* eslint-disable react-hooks/rules-of-hooks */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import React, { useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
-import { MaterialInput } from '@/components/MaterialInput';
-import { Gift, Plus, Edit, Trash2, Save, X, Eye, Settings, Award, Package, TrendingUp, DollarSign, ChevronDown, Search, Filter, CheckCircle, Clock, AlertCircle, Calendar, Ticket } from 'lucide-react';
-
-// ==================== INTERFACES ====================
-export interface Coupon {
-  id: number;
-  name: string;
-  amount: number;
-  expirationDate: string;
-  isActive: boolean;
-}
-
-export interface ProductVolumeCondition {
-  id: number;
-  articleCode: string;
-}
-
-export interface RewardProduct {
-  id: number;
-  articleCode: string;
-  quantity: number;
-}
-
-export interface RewardCoupon {
-  id: number;
-  couponId: number;
-  coupon: Coupon;
-}
-
-export interface Promotion {
-  id: number;
-  name: string;
-  startDate: string;
-  endDate: string;
-  withdrawalStartDate: string;
-  withdrawalDeadline: string;
-  ruleType: 'productos' | 'monto';
-  description: string;
-  isActive: boolean;
-  amountCondition: number;
-  productVolumeTargetQuantity: number;
-  maxWinsPerClient: number | null;
-  participantClientType: string;
-  currency?: string;
-  createdAt?: string;
-  productVolumeConditions: ProductVolumeCondition[];
-  rewardProducts: RewardProduct[];
-  rewardCoupons: RewardCoupon[];
-}
-
-export interface IncentivoGenerado {
-  id: number;
-  reglaId: number;
-  reglaNombre: string;
-  asesorId: number;
-  asesorNombre: string;
-  fechaGeneracion: string;
-  fechaEntrega?: string;
-  estado: 'generado' | 'pendiente' | 'entregado';
-  productosIncentivo: RewardProduct[];
-  cuponesIncentivo: RewardCoupon[];
-  tipoCumplimiento: 'productos' | 'monto';
-  montoComprado?: number;
-  productosComprados?: ProductVolumeCondition[];
-}
-
-export interface Paging {
-  perPage: number;
-  currentPage: number;
-  totalRecords: number;
-  totalPages: number;
-}
-
-export interface PromotionResponse {
-  records: Promotion[];
-  paging: Paging;
-}
-
-export interface CreatePromotionRequest {
-  name: string;
-  startDate: string;
-  endDate: string;
-  withdrawalStartDate: string;
-  withdrawalDeadline: string;
-  ruleType: string;
-  description: string;
-  isActive: boolean;
-  amountCondition: number;
-  productVolumeTargetQuantity: number;
-  maxWinsPerClient: number | null;
-  participantClientType: string;
-  productVolumeConditions: {
-    articleCode: string;
-  }[];
-  rewardProducts: {
-    articleCode: string;
-    quantity: number;
-  }[];
-  rewardCoupons: {
-    couponId: number;
-  }[];
-}
-
-// ==================== MOCK DATA ====================
-const articulosDisponibles = [
-  { id: 1, nombre: 'Chanel No. 5 Eau de Parfum', codigo: 'PERF-001' },
-  { id: 2, nombre: 'Set de Brochas Profesional', codigo: 'ACC-002' },
-  { id: 3, nombre: 'Serum Vitamina C Anti-Edad', codigo: 'SKIN-003' },
-  { id: 4, nombre: 'Paleta de Sombras Nude', codigo: 'MAQ-004' },
-  { id: 5, nombre: 'Perfume Dior Sauvage', codigo: 'PERF-005' },
-  { id: 6, nombre: 'Crema Hidratante La Mer', codigo: 'SKIN-006' },
-  { id: 7, nombre: 'Labial Mate Ruby Woo', codigo: 'MAQ-007' },
-  { id: 8, nombre: 'Perfume Versace Eros', codigo: 'PERF-008' }
-];
-
-const cuponesDisponibles: Coupon[] = [
-  { id: 1, name: 'Cupón Bienvenida $500', amount: 500, expirationDate: '2025-12-31', isActive: true },
-  { id: 2, name: 'Cupón Descuento $250', amount: 250, expirationDate: '2025-12-31', isActive: true },
-  { id: 3, name: 'Cupón VIP $1000', amount: 1000, expirationDate: '2025-12-31', isActive: true }
-];
-
-const getArticuloNombre = (articleCode: string) => {
-  return articulosDisponibles.find((articulo) => articulo.codigo === articleCode)?.nombre || articleCode;
-};
+import CreateEditModal from '@/components/create-edit-modal';
+import { Gift, Plus, Edit, Trash2, X, Eye, Settings, Award, Package, DollarSign, ChevronDown, Search, Filter, CheckCircle, Calendar, Ticket } from 'lucide-react';
+import { Promotion } from '@/app/type/incentive';
 
 export default function IncentivosRetencion() {
   const [activeView, setActiveView] = useState<'reglas' | 'incentivos-generados'>('reglas');
-
+ 
   return (
     <div className="flex-1 overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
@@ -186,195 +63,38 @@ export default function IncentivosRetencion() {
   );
 }
 
-// ==================== REGLAS DE INCENTIVOS ====================
 function ReglasIncentivos() {
-  const [reglas, setReglas] = useState<Promotion[]>([
-    {
-      id: 1,
-      name: 'Compra de Perfumes Premium',
-      description: 'Comprar 5 unidades de perfumes premium',
-      ruleType: 'productos',
-      isActive: true,
-      startDate: '2024-12-01',
-      endDate: '2024-12-31',
-      withdrawalStartDate: '2024-12-01',
-      withdrawalDeadline: '2024-12-31',
-      amountCondition: 0,
-      productVolumeTargetQuantity: 5,
-      maxWinsPerClient: null,
-      participantClientType: 'ALL',
-      currency: 'USD',
-      productVolumeConditions: [
-        { id: 1, articleCode: 'PERF-001' },
-        { id: 5, articleCode: 'PERF-005' }
-      ],
-      rewardProducts: [
-        { id: 2, articleCode: 'ACC-002', quantity: 1 }
-      ],
-      rewardCoupons: [
-        { id: 1, couponId: 1, coupon: cuponesDisponibles[0] }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Meta de Ventas $5,000',
-      description: 'Alcanzar ventas de $5,000 en el mes',
-      ruleType: 'monto',
-      isActive: true,
-      startDate: '2024-12-01',
-      endDate: '2025-01-31',
-      withdrawalStartDate: '2024-12-01',
-      withdrawalDeadline: '2025-01-31',
-      amountCondition: 5000,
-      productVolumeTargetQuantity: 0,
-      maxWinsPerClient: null,
-      participantClientType: 'ALL',
-      currency: 'USD',
-      productVolumeConditions: [],
-      rewardProducts: [
-        { id: 1, articleCode: 'PERF-001', quantity: 1 },
-        { id: 7, articleCode: 'MAQ-007', quantity: 2 }
-      ],
-      rewardCoupons: [
-        { id: 2, couponId: 2, coupon: cuponesDisponibles[1] }
-      ]
-    }
-  ]);
+  const [reglas, setReglas] = useState<Promotion[]>([]);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingRegla, setEditingRegla] = useState<Promotion | null>(null);
   const [viewingRegla, setViewingRegla] = useState<Promotion | null>(null);
-
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    ruleType: 'productos' as 'productos' | 'monto',
-    isActive: true,
-    startDate: '',
-    endDate: '',
-    amountCondition: 0,
-    currency: 'USD'
-  });
-
-  const [productosCondicion, setProductosCondicion] = useState<ProductVolumeCondition[]>([]);
-  const [productosIncentivo, setProductosIncentivo] = useState<RewardProduct[]>([]);
-  const [cuponesIncentivo, setCuponesIncentivo] = useState<RewardCoupon[]>([]);
-
-  // Form states for adding products
-  const [showAddCondicion, setShowAddCondicion] = useState(false);
-  const [showAddIncentivo, setShowAddIncentivo] = useState(false);
-  const [showAddCupon, setShowAddCupon] = useState(false);
-  const [selectedProductoCondicion, setSelectedProductoCondicion] = useState('');
-  const [cantidadCondicion, setCantidadCondicion] = useState(1);
-  const [selectedProductoIncentivo, setSelectedProductoIncentivo] = useState('');
-  const [cantidadIncentivo, setCantidadIncentivo] = useState(1);
-  const [selectedCupon, setSelectedCupon] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState<'all' | 'activa' | 'inactiva'>('all');
 
   const handleCreate = () => {
     setEditingRegla(null);
-    setFormData({
-      name: '',
-      description: '',
-      ruleType: 'productos',
-      isActive: true,
-      startDate: '',
-      endDate: '',
-      amountCondition: 0,
-      currency: 'USD'
-    });
-    setProductosCondicion([]);
-    setProductosIncentivo([]);
-    setCuponesIncentivo([]);
     setShowCreateEdit(true);
   };
 
-  const handleEdit = (regla: Promotion) => {
-    setEditingRegla(regla);
-    setFormData({
-      name: regla.name,
-      description: regla.description,
-      ruleType: regla.ruleType,
-      isActive: regla.isActive,
-      startDate: regla.startDate,
-      endDate: regla.endDate,
-      amountCondition: regla.amountCondition || 0,
-      currency: regla.currency || 'USD'
+  const handleSave = (regla: Promotion) => {
+
+    setReglas(prev => {
+      const exists = prev.some(r => r.id === regla.id);
+      if (exists) {
+        return prev.map(r => r.id === regla.id ? regla : r);
+      }
+      return [...prev, regla];
     });
-    setProductosCondicion(regla.productVolumeConditions || []);
-    setProductosIncentivo(regla.rewardProducts);
-    setCuponesIncentivo(regla.rewardCoupons);
-    setShowCreateEdit(true);
   };
 
-  const handleSave = () => {
-    if (!formData.name.trim()) {
-      alert('Por favor ingrese el nombre de la regla');
-      return;
-    }
-
-    if (!formData.startDate) {
-      alert('Por favor ingrese la fecha de inicio');
-      return;
-    }
-
-    if (!formData.endDate) {
-      alert('Por favor ingrese la fecha de fin');
-      return;
-    }
-
-    if (formData.endDate < formData.startDate) {
-      alert('La fecha de fin debe ser mayor o igual a la fecha de inicio');
-      return;
-    }
-
-    if (formData.ruleType === 'productos' && productosCondicion.length === 0) {
-      alert('Por favor agregue al menos un producto con condición');
-      return;
-    }
-
-    if (formData.ruleType === 'monto' && formData.amountCondition <= 0) {
-      alert('Por favor ingrese un monto mínimo válido');
-      return;
-    }
-
-    if (productosIncentivo.length === 0 && cuponesIncentivo.length === 0) {
-      alert('Por favor agregue al menos un producto o cupón como incentivo');
-      return;
-    }
-
-    const nuevaRegla: Promotion = {
-      id: editingRegla?.id || Date.now(),
-      name: formData.name,
-      description: formData.description,
-      ruleType: formData.ruleType,
-      isActive: formData.isActive,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      withdrawalStartDate: formData.startDate,
-      withdrawalDeadline: formData.endDate,
-      amountCondition: formData.ruleType === 'monto' ? formData.amountCondition : 0,
-      productVolumeTargetQuantity: 0,
-      maxWinsPerClient: null,
-      participantClientType: 'ALL',
-      currency: formData.currency,
-      productVolumeConditions: formData.ruleType === 'productos' ? productosCondicion : [],
-      rewardProducts: productosIncentivo,
-      rewardCoupons: cuponesIncentivo,
-      createdAt: editingRegla?.createdAt || new Date().toISOString().split('T')[0]
+    const handleEdit = (regla: Promotion) => {
+      setEditingRegla(regla);
+      setShowCreateEdit(true);
     };
 
-    if (editingRegla) {
-      setReglas(reglas.map(r => r.id === editingRegla.id ? nuevaRegla : r));
-    } else {
-      setReglas([...reglas, nuevaRegla]);
-    }
-
-    setShowCreateEdit(false);
-  };
-
+  
   const handleDelete = (id: number) => {
     if (confirm('¿Está seguro de eliminar esta regla de incentivo?')) {
       setReglas(reglas.filter(r => r.id !== id));
@@ -385,102 +105,8 @@ function ReglasIncentivos() {
     setReglas(reglas.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r));
   };
 
-  const addProductoCondicion = () => {
-    if (!selectedProductoCondicion || cantidadCondicion <= 0) {
-      alert('Seleccione un producto y cantidad válida');
-      return;
-    }
 
-    const producto = articulosDisponibles.find(a => a.id === Number(selectedProductoCondicion));
-    if (!producto) return;
-
-    const exists = productosCondicion.find(p => p.articleCode === producto.codigo);
-    if (exists) {
-      alert('Este producto ya está agregado');
-      return;
-    }
-
-    setProductosCondicion([
-      ...productosCondicion,
-      {
-        id: Date.now(),
-        articleCode: producto.codigo
-      }
-    ]);
-
-    setSelectedProductoCondicion('');
-    setCantidadCondicion(1);
-    setShowAddCondicion(false);
-  };
-
-  const removeProductoCondicion = (articleCode: string) => {
-    setProductosCondicion(productosCondicion.filter(p => p.articleCode !== articleCode));
-  };
-
-  const addProductoIncentivo = () => {
-    if (!selectedProductoIncentivo || cantidadIncentivo <= 0) {
-      alert('Seleccione un producto y cantidad válida');
-      return;
-    }
-
-    const producto = articulosDisponibles.find(a => a.id === Number(selectedProductoIncentivo));
-    if (!producto) return;
-
-    const exists = productosIncentivo.find(p => p.articleCode === producto.codigo);
-    if (exists) {
-      alert('Este producto ya está agregado');
-      return;
-    }
-
-    setProductosIncentivo([
-      ...productosIncentivo,
-      {
-        id: Date.now(),
-        articleCode: producto.codigo,
-        quantity: cantidadIncentivo
-      }
-    ]);
-
-    setSelectedProductoIncentivo('');
-    setCantidadIncentivo(1);
-    setShowAddIncentivo(false);
-  };
-
-  const removeProductoIncentivo = (articleCode: string) => {
-    setProductosIncentivo(productosIncentivo.filter(p => p.articleCode !== articleCode));
-  };
-
-  const addCupon = () => {
-    if (!selectedCupon) {
-      alert('Seleccione un cupón');
-      return;
-    }
-
-    const cupon = cuponesDisponibles.find(c => c.id === Number(selectedCupon));
-    if (!cupon) return;
-
-    const exists = cuponesIncentivo.find(c => c.couponId === cupon.id);
-    if (exists) {
-      alert('Este cupón ya está agregado');
-      return;
-    }
-
-    setCuponesIncentivo([
-      ...cuponesIncentivo,
-      {
-        id: Date.now(),
-        couponId: cupon.id,
-        coupon: cupon
-      }
-    ]);
-
-    setSelectedCupon('');
-    setShowAddCupon(false);
-  };
-
-  const removeCupon = (couponId: number) => {
-    setCuponesIncentivo(cuponesIncentivo.filter(c => c.couponId !== couponId));
-  };
+  
 
   // Filtering
   const filteredReglas = reglas.filter(regla => {
@@ -556,7 +182,7 @@ function ReglasIncentivos() {
                 </div>
               </div>
 
-              {/* Condiciones */}
+              {/* Condiciones 
               <div>
                 <h4 className="text-sm text-muted-foreground mb-3">Condiciones de Cumplimiento</h4>
                 <div className="bg-muted/30 rounded p-4">
@@ -583,7 +209,7 @@ function ReglasIncentivos() {
                 </div>
               </div>
 
-              {/* Productos del Incentivo */}
+              {/* Productos del Incentivo 
               {viewingRegla.rewardProducts.length > 0 && (
                 <div>
                   <h4 className="text-sm text-muted-foreground mb-3">Productos del Incentivo</h4>
@@ -602,7 +228,7 @@ function ReglasIncentivos() {
                   </div>
                 </div>
               )}
-
+              */}
               {/* Cupones del Incentivo */}
               {viewingRegla.rewardCoupons.length > 0 && (
                 <div>
@@ -639,489 +265,13 @@ function ReglasIncentivos() {
     );
   }
 
-  // Create/Edit Form
   if (showCreateEdit) {
     return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-foreground">
-            {editingRegla ? 'Editar Regla de Incentivo' : 'Nueva Regla de Incentivo'}
-          </h3>
-          <MaterialButton
-            variant="text"
-            color="secondary"
-            startIcon={<X size={18} />}
-            onClick={() => setShowCreateEdit(false)}
-          >
-            Cancelar
-          </MaterialButton>
-        </div>
-
-        <div className="bg-surface rounded elevation-2 p-6">
-          <div className="space-y-6">
-            {/* Información Básica */}
-            <div>
-              <h4 className="text-foreground mb-4">Información Básica</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <MaterialInput
-                  label="Nombre de la Regla *"
-                  fullWidth
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ej: Compra de Perfumes Premium"
-                />
-
-                <div>
-                  <label className="text-sm text-foreground mb-2 block">
-                    Tipo de Regla *
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.ruleType}
-                      onChange={(e) => setFormData({ ...formData, ruleType: e.target.value as 'productos' | 'monto' })}
-                      className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
-                               focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                    >
-                      <option value="productos">Por Volumen de Productos</option>
-                      <option value="monto">Por Monto Total Comprado</option>
-                    </select>
-                    <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  </div>
-                </div>
-
-                <MaterialInput
-                  label="Fecha de Inicio *"
-                  type="date"
-                  fullWidth
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                />
-
-                <MaterialInput
-                  label="Fecha de Fin *"
-                  type="date"
-                  fullWidth
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  min={formData.startDate}
-                />
-
-                <div className="md:col-span-2">
-                  <label className="text-sm text-foreground mb-2 block">
-                    Descripción
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-3 bg-input-background border-b-2 border-border 
-                             focus:border-primary rounded-t transition-colors outline-none resize-none"
-                    rows={3}
-                    placeholder="Describa brevemente la regla de incentivo"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="activa"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                    className="w-5 h-5 text-primary border-border rounded focus:ring-primary"
-                  />
-                  <label htmlFor="activa" className="text-sm text-foreground">
-                    Regla Activa
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Condiciones de Cumplimiento */}
-            <div>
-              <h4 className="text-foreground mb-4">Condiciones de Cumplimiento</h4>
-              <div className="bg-muted/30 rounded p-4">
-                {formData.ruleType=== 'productos' ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                      <Package size={16} />
-                      <span>El cliente debe adquirir los siguientes productos con las cantidades mínimas:</span>
-                    </div>
-
-                    {/* Lista de productos condición */}
-                    {productosCondicion.length > 0 && (
-                      <div className="space-y-2 mb-4">
-                        {productosCondicion.map((producto) => (
-                          <div key={producto.articleCode} className="flex items-center justify-between bg-surface p-3 rounded">
-                            <div className="flex items-center gap-2">
-                              <Package size={16} className="text-primary" />
-                              <span className="text-sm text-foreground">{getArticuloNombre(producto.articleCode)}</span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <button
-                                onClick={() => removeProductoCondicion(producto.articleCode)}
-                                className="text-red-600 hover:text-red-700 transition-colors"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Formulario agregar producto */}
-                    {showAddCondicion ? (
-                      <div className="bg-surface p-4 rounded border border-border">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <label className="text-sm text-foreground mb-2 block">
-                              Producto *
-                            </label>
-                            <div className="relative">
-                              <select
-                                value={selectedProductoCondicion}
-                                onChange={(e) => setSelectedProductoCondicion(e.target.value)}
-                                className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
-                                         focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                              >
-                                <option value="">Seleccione un producto</option>
-                                {articulosDisponibles
-                                  .filter(a => !productosCondicion.find(p => p.articleCode === a.codigo))
-                                  .map(articulo => (
-                                    <option key={articulo.id} value={articulo.id}>
-                                      {articulo.nombre} ({articulo.codigo})
-                                    </option>
-                                  ))}
-                              </select>
-                              <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                            </div>
-                          </div>
-
-                          <MaterialInput
-                            label="Cantidad Mínima *"
-                            type="number"
-                            fullWidth
-                            value={cantidadCondicion}
-                            onChange={(e) => setCantidadCondicion(Number(e.target.value))}
-                            min={1}
-                          />
-                        </div>
-
-                        <div className="flex gap-3">
-                          <MaterialButton
-                            variant="contained"
-                            color="primary"
-                            startIcon={<Plus size={18} />}
-                            onClick={addProductoCondicion}
-                          >
-                            Agregar Producto
-                          </MaterialButton>
-                          <MaterialButton
-                            variant="outlined"
-                            color="secondary"
-                            startIcon={<X size={18} />}
-                            onClick={() => {
-                              setShowAddCondicion(false);
-                              setSelectedProductoCondicion('');
-                              setCantidadCondicion(1);
-                            }}
-                          >
-                            Cancelar
-                          </MaterialButton>
-                        </div>
-                      </div>
-                    ) : (
-                      <MaterialButton
-                        variant="outlined"
-                        color="primary"
-                        startIcon={<Plus size={18} />}
-                        onClick={() => setShowAddCondicion(true)}
-                      >
-                        Agregar Producto Condición
-                      </MaterialButton>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                      <DollarSign size={16} />
-                      <span>El cliente debe alcanzar el siguiente monto mínimo de compra:</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <MaterialInput
-                        label="Monto Mínimo *"
-                        type="number"
-                        fullWidth
-                        value={formData.amountCondition}
-                        onChange={(e) => setFormData({ ...formData, amountCondition: Number(e.target.value) })}
-                        min={0}
-                        step={0.01}
-                      />
-
-                      <div>
-                        <label className="text-sm text-foreground mb-2 block">
-                          Moneda *
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={formData.currency}
-                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                            className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
-                                     focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                          >
-                            <option value="USD">USD (Dólar)</option>
-                            <option value="NIO">NIO (Córdoba)</option>
-                          </select>
-                          <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {formData.amountCondition > 0 && (
-                      <div className="bg-primary/10 border border-primary/20 rounded p-4">
-                        <div className="flex items-center gap-2 text-primary mb-2">
-                          <TrendingUp size={16} />
-                          <span className="text-sm">Meta de Compra:</span>
-                        </div>
-                        <p className="text-2xl text-foreground font-mono">
-                          {formData.currency} {formData.amountCondition.toFixed(2)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Productos del Incentivo */}
-            <div>
-              <h4 className="text-foreground mb-4">Productos del Incentivo</h4>
-              <div className="bg-muted/30 rounded p-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  <Gift size={16} />
-                  <span>Productos que se entregarán al cumplir la condición:</span>
-                </div>
-
-                {/* Lista de productos incentivo */}
-                {productosIncentivo.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {productosIncentivo.map((producto) => (
-                      <div key={producto.articleCode} className="flex items-center justify-between bg-surface p-3 rounded">
-                        <div className="flex items-center gap-2">
-                          <Gift size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">{getArticuloNombre(producto.articleCode)}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm text-muted-foreground">
-                            Cantidad: <span className="text-foreground font-mono">{producto.quantity}</span>
-                          </span>
-                          <button
-                            onClick={() => removeProductoIncentivo(producto.articleCode)}
-                            className="text-red-600 hover:text-red-700 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Formulario agregar producto */}
-                {showAddIncentivo ? (
-                  <div className="bg-surface p-4 rounded border border-border">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="text-sm text-foreground mb-2 block">
-                          Producto *
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={selectedProductoIncentivo}
-                            onChange={(e) => setSelectedProductoIncentivo(e.target.value)}
-                            className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
-                                     focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                          >
-                            <option value="">Seleccione un producto</option>
-                            {articulosDisponibles
-                              .filter(a => !productosIncentivo.find(p => p.articleCode === a.codigo))
-                              .map(articulo => (
-                                <option key={articulo.id} value={articulo.id}>
-                                  {articulo.nombre} ({articulo.codigo})
-                                </option>
-                              ))}
-                          </select>
-                          <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        </div>
-                      </div>
-
-                      <MaterialInput
-                        label="Cantidad *"
-                        type="number"
-                        fullWidth
-                        value={cantidadIncentivo}
-                        onChange={(e) => setCantidadIncentivo(Number(e.target.value))}
-                        min={1}
-                      />
-                    </div>
-
-                    <div className="flex gap-3">
-                      <MaterialButton
-                        variant="contained"
-                        color="primary"
-                        startIcon={<Plus size={18} />}
-                        onClick={addProductoIncentivo}
-                      >
-                        Agregar Producto
-                      </MaterialButton>
-                      <MaterialButton
-                        variant="outlined"
-                        color="secondary"
-                        startIcon={<X size={18} />}
-                        onClick={() => {
-                          setShowAddIncentivo(false);
-                          setSelectedProductoIncentivo('');
-                          setCantidadIncentivo(1);
-                        }}
-                      >
-                        Cancelar
-                      </MaterialButton>
-                    </div>
-                  </div>
-                ) : (
-                  <MaterialButton
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<Plus size={18} />}
-                    onClick={() => setShowAddIncentivo(true)}
-                  >
-                    Agregar Producto Incentivo
-                  </MaterialButton>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Cupones del Incentivo */}
-          <div className="bg-surface rounded elevation-1 p-6">
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Ticket size={24} className="text-primary" />
-                <div className="flex-1">
-                  <h3 className="text-foreground">Cupones del Incentivo</h3>
-                  <p className="text-sm text-muted-foreground">Configure los cupones que se entregarán</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {/* Lista de Cupones Agregados */}
-                {cuponesIncentivo.length > 0 && (
-                  <div className="space-y-2">
-                    {cuponesIncentivo.map(cupon => (
-                      <div key={cupon.couponId} className="flex items-center justify-between bg-background p-4 rounded border border-border">
-                        <div className="flex items-center gap-3">
-                          <Ticket size={20} className="text-primary" />
-                          <div>
-                            <p className="text-foreground">{cupon.coupon.name}</p>
-                            <p className="text-sm text-muted-foreground">Monto: ${cupon.coupon.amount.toFixed(2)}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => removeCupon(cupon.couponId)}
-                          className="text-red-600 hover:text-red-700 transition-colors p-2"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Formulario para Agregar Cupón */}
-                {showAddCupon ? (
-                  <div className="bg-background p-4 rounded border-2 border-primary/50">
-                    <div className="mb-4">
-                      <label className="block text-sm text-muted-foreground mb-2">
-                        Seleccionar Cupón *
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={selectedCupon}
-                          onChange={(e) => setSelectedCupon(e.target.value)}
-                          className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
-                                   focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                        >
-                          <option value="">Seleccione un cupón</option>
-                          {cuponesDisponibles
-                            .filter(c => !cuponesIncentivo.find(ci => ci.couponId === c.id))
-                            .map(cupon => (
-                              <option key={cupon.id} value={cupon.id}>
-                                {cupon.name} - ${cupon.amount.toFixed(2)}
-                              </option>
-                            ))}
-                        </select>
-                        <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <MaterialButton
-                        variant="contained"
-                        color="primary"
-                        startIcon={<Plus size={18} />}
-                        onClick={addCupon}
-                      >
-                        Agregar Cupón
-                      </MaterialButton>
-                      <MaterialButton
-                        variant="outlined"
-                        color="secondary"
-                        startIcon={<X size={18} />}
-                        onClick={() => {
-                          setShowAddCupon(false);
-                          setSelectedCupon('');
-                        }}
-                      >
-                        Cancelar
-                      </MaterialButton>
-                    </div>
-                  </div>
-                ) : (
-                  <MaterialButton
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<Plus size={18} />}
-                    onClick={() => setShowAddCupon(true)}
-                  >
-                    Agregar Cupón
-                  </MaterialButton>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 mt-8 pt-6 border-t border-border">
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Save size={18} />}
-              onClick={handleSave}
-            >
-              {editingRegla ? 'Actualizar Regla' : 'Crear Regla'}
-            </MaterialButton>
-            <MaterialButton
-              variant="outlined"
-              color="secondary"
-              startIcon={<X size={18} />}
-              onClick={() => setShowCreateEdit(false)}
-            >
-              Cancelar
-            </MaterialButton>
-          </div>
-        </div>
-      </div>
+      <CreateEditModal
+        initialRule={editingRegla}
+        onClose={() => setShowCreateEdit(false)}
+        onSave={handleSave}
+      />
     );
   }
 
@@ -1225,7 +375,7 @@ function ReglasIncentivos() {
                       )}
                     </div>
 
-                    {/* Incentivos */}
+                    {/* Incentivos 
                     <div className="bg-muted/30 rounded p-3">
                       <p className="text-xs text-muted-foreground mb-2">Premios:</p>
                       <div className="space-y-1">
@@ -1241,6 +391,7 @@ function ReglasIncentivos() {
                         ))}
                       </div>
                     </div>
+                    */}
                   </div>
                 </div>
 
