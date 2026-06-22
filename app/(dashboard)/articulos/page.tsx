@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { MaterialButton } from "../../../components/MaterialButton";
 import { Package, Plus, Edit, Trash2, Sparkles, Import } from "lucide-react";
 import { CrearArticulo } from "./modals/CrearArticulo";
@@ -47,16 +47,24 @@ export default function Articulos() {
   const [articulos, setArticulos] = useState<ArticleRecord[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(true);
 
-  const [search, setSearch] = useState("");
+  const [filterName, setFilterName] = useState("");
+  const [filterCode, setFilterCode] = useState("");
+  const [filterDescription, setFilterDescription] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const loadArticles = async () => {
+  const loadArticles = useCallback(async () => {
     try {
       setLoadingArticles(true);
 
-      const result: ArticleResponse = await getArticles();
+      const result: ArticleResponse = await getArticles({
+        name: filterName || undefined,
+        code: filterCode || undefined,
+        description: filterDescription || undefined,
+        category: filterCategory !== "all" ? filterCategory : undefined,
+      });
 
       setArticulos(result.records ?? []);
     } catch (error) {
@@ -64,11 +72,16 @@ export default function Articulos() {
     } finally {
       setLoadingArticles(false);
     }
-  };
+  }, [filterName, filterCode, filterDescription, filterCategory]);
 
   useEffect(() => {
-    loadArticles();
-  }, []);
+    const timer = setTimeout(() => {
+      loadArticles();
+      setCurrentPage(1);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [loadArticles]);
   const handleCreate = () => {
     setModalArticle({article: null, open: true});
   };
@@ -147,15 +160,9 @@ export default function Articulos() {
   };
 
 
-  const filteredArticles = articulos.filter(
-    (article) =>
-      article.name.toLowerCase().includes(search.toLowerCase()) ||
-      article.code.toLowerCase().includes(search.toLowerCase()),
-  );
+  const totalPages = Math.max(1, Math.ceil(articulos.length / pageSize));
 
-  const totalPages = Math.ceil(filteredArticles.length / pageSize);
-
-  const paginatedArticles = filteredArticles.slice(
+  const paginatedArticles = articulos.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   );
@@ -183,13 +190,13 @@ const handleChange = async (article: ArticleRecord) => {
       <div className="mx-auto p-6">
         {/* Header */}
         <div className="bg-surface rounded-lg p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
             <input
               type="text"
-              placeholder="Buscar por código o nombre..."
-              value={search}
+              placeholder="Nombre..."
+              value={filterName}
               onChange={(e) => {
-                setSearch(e.target.value);
+                setFilterName(e.target.value);
                 setCurrentPage(1);
               }}
               className="
@@ -200,6 +207,57 @@ const handleChange = async (article: ArticleRecord) => {
                 rounded-lg
               "
             />
+            <input
+              type="text"
+              placeholder="Código..."
+              value={filterCode}
+              onChange={(e) => {
+                setFilterCode(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="
+                flex-1
+                px-4
+                py-2
+                border
+                rounded-lg
+              "
+            />
+            <input
+              type="text"
+              placeholder="Descripción..."
+              value={filterDescription}
+              onChange={(e) => {
+                setFilterDescription(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="
+                flex-1
+                px-4
+                py-2
+                border
+                rounded-lg
+              "
+            />
+            <select
+              value={filterCategory}
+              onChange={(e) => {
+                setFilterCategory(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="
+                px-4
+                py-2
+                border
+                rounded-lg
+              "
+            >
+              <option value="all">Todas las categorías</option>
+              <option value="perfume">Perfume</option>
+              <option value="maquillaje">Maquillaje</option>
+              <option value="cuidado-piel">Cuidado piel</option>
+              <option value="accesorios">Accesorios</option>
+            </select>
 
             <select
               value={pageSize}
@@ -220,6 +278,8 @@ const handleChange = async (article: ArticleRecord) => {
               <option value={100}>100</option>
             </select>
 
+          </div>
+          <div className="flex justify-end mt-4">
             <MaterialButton
               variant="contained"
               color="primary"
@@ -310,7 +370,7 @@ const handleChange = async (article: ArticleRecord) => {
           <div className="bg-surface rounded-xl py-20 text-center">
             Cargando artículos...
           </div>
-        ) : filteredArticles.length > 0 ? (
+        ) : articulos.length > 0 ? (
           <div className="bg-surface rounded elevation-2 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -399,7 +459,7 @@ const handleChange = async (article: ArticleRecord) => {
               {/* PAGINACIÓN */}
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t">
                 <div className="text-sm text-muted-foreground">
-                  {filteredArticles.length} registros encontrados
+                  {articulos.length} registros encontrados
                 </div>
 
                 <div className="flex items-center gap-2">

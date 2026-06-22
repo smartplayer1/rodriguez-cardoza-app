@@ -14,19 +14,33 @@ import {
   X,
 } from "lucide-react";
 import {
-  Coupon,
+  CreatePromotionRequest,
   ProductVolumeCondition,
   Promotion,
   RewardCoupon,
   RewardProduct,
 } from "@/app/type/incentive";
 import { getArticles } from "@/app/services/article";
-import { ArticleResponse, ArticleRecord } from "@/app/type/article";
-import { CouponResponse, CouponRecord } from "@/app/type/reward";
+import { ArticleRecord } from "@/app/type/article";
+import { CouponRecord } from "@/app/type/reward";
 import { getRewardCoupon } from "@/app/services/coupon";
 const generateUniqueId = () => Date.now();
 
-type RuleType = "productos" | "monto";
+const toDateInputValue = (value?: string) => {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().split("T")[0];
+};
+
+type RuleType = "ProductVolume" | "AmountPurchased" | "Mixed";
+type ClientType = "Ambos" | "Promotor" | "Asesor";
 
 interface FormData {
   name: string;
@@ -37,11 +51,10 @@ interface FormData {
   ruleType: RuleType;
   description: string;
   isActive: boolean;
-  currency: string;
   amountCondition: number;
   productVolumeTargetQuantity: number;
   maxWinsPerClient: number | null;
-  participantClientType: string;
+  participantClientType: ClientType;
   productVolumeConditions: ProductVolumeCondition[];
   rewardProducts: RewardProduct[];
   rewardCoupons: RewardCoupon[];
@@ -50,7 +63,7 @@ interface FormData {
 interface CreateEditModalProps {
   initialRule: Promotion | null;
   onClose: () => void;
-  onSave: (rule: Promotion) => void;
+  onSave: (rule: CreatePromotionRequest) => void;
 }
 
 export default function CreateEditModal({
@@ -82,25 +95,26 @@ export default function CreateEditModal({
   const [selectedCupon, setSelectedCupon] = useState("");
   const [articles, setArticles] = useState<ArticleRecord[]>([]);
   const [coupones, setCoupones] = useState<CouponRecord[]>([]);
-  const [isLoadingResources, setIsLoadingResources] = useState(false);
+  const [, setIsLoadingResources] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    name: "",
-    startDate: "",
-    endDate: "",
-    withdrawalStartDate: "",
-    withdrawalDeadline: "",
-    ruleType: "productos",
-    description: "",
-    isActive: true,
-    currency: "NIO",
-    amountCondition: 0,
-    productVolumeTargetQuantity: 0,
-    maxWinsPerClient: null,
-    participantClientType: "ALL",
-    productVolumeConditions: [],
-    rewardProducts: [],
-    rewardCoupons: [],
+    name: initialRule?.name || "",
+    startDate: initialRule?.startDate || "",
+    endDate: initialRule?.endDate || "",
+    withdrawalStartDate: initialRule?.withdrawalStartDate || "",
+    withdrawalDeadline: initialRule?.withdrawalDeadline || "",
+    ruleType: initialRule?.ruleType || "ProductVolume",
+    description: initialRule?.description || "",
+    isActive: initialRule?.isActive ?? true,
+    amountCondition: initialRule?.amountCondition || 0,
+    productVolumeTargetQuantity: initialRule?.productVolumeTargetQuantity || 0,
+    maxWinsPerClient: initialRule?.maxWinsPerClient ?? null,
+    participantClientType: initialRule?.participantClientType || "Ambos",
+    productVolumeConditions: initialRule?.productVolumeConditions || [],
+    rewardProducts: initialRule?.rewardProducts || [],
+    rewardCoupons: initialRule?.rewardCoupons || [],
   });
+
+
 
   useEffect(() => {
     let mounted = true;
@@ -129,10 +143,6 @@ export default function CreateEditModal({
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    console.log("Articulos: " + articles);
-  }, [articles, coupones]);
 
   const getArticuloNombre = (articleCode: string) => {
     return (
@@ -220,7 +230,7 @@ export default function CreateEditModal({
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name.trim()) {
       alert("Por favor ingrese el nombre de la regla");
       return;
@@ -241,12 +251,12 @@ export default function CreateEditModal({
       return;
     }
 
-    if (formData.ruleType === "productos" && productosCondicion.length === 0) {
+    if (formData.ruleType === "ProductVolume" && productosCondicion.length === 0) {
       alert("Por favor agregue al menos un producto con condición");
       return;
     }
 
-    if (formData.ruleType === "monto" && formData.amountCondition <= 0) {
+    if (formData.ruleType === "AmountPurchased" && formData.amountCondition <= 0) {
       alert("Por favor ingrese un monto mínimo válido");
       return;
     }
@@ -256,32 +266,32 @@ export default function CreateEditModal({
       return;
     }
 
-    const nuevaRegla: Promotion = {
-      id: editingRegla?.id || Date.now(),
+    const nuevaRegla: CreatePromotionRequest = {
       name: formData.name,
       description: formData.description,
       ruleType: formData.ruleType,
       isActive: formData.isActive,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      withdrawalStartDate: formData.startDate,
-      withdrawalDeadline: formData.endDate,
+      startDate: new Date(formData.startDate).toISOString(),
+      endDate: new Date(formData.endDate).toISOString(),
+      withdrawalStartDate: new Date(formData.withdrawalStartDate).toISOString(),
+      withdrawalDeadline: new Date(formData.withdrawalDeadline).toISOString(),
       amountCondition:
-        formData.ruleType === "monto" ? formData.amountCondition : 0,
-      productVolumeTargetQuantity: 0,
+      formData.ruleType === "AmountPurchased" ? formData.amountCondition : 0,
+      productVolumeTargetQuantity: formData.ruleType === "ProductVolume" ? formData.productVolumeTargetQuantity : 0,
       maxWinsPerClient: null,
-      participantClientType: "ALL",
-      currency: formData.currency,
+      participantClientType: formData.participantClientType,
       productVolumeConditions:
-        formData.ruleType === "productos" ? productosCondicion : [],
-      rewardProducts: productosIncentivo,
-      rewardCoupons: cuponesIncentivo,
-      createdAt:
-        editingRegla?.createdAt || new Date().toISOString().split("T")[0],
+        formData.ruleType === "ProductVolume" ? productosCondicion : [],
+      rewardProducts: productosIncentivo.map((p) => ({
+        articleCode: p.articleCode,
+        quantity: p.quantity,
+      })),
+      rewardCoupons: cuponesIncentivo.map((c) => ({
+        couponId: c.couponId
+      })),
     };
 
-    onSave(nuevaRegla);
-    onClose();
+   await onSave(nuevaRegla);
   };
 
   const addProductoCondicion = () => {
@@ -362,14 +372,14 @@ export default function CreateEditModal({
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        ruleType: e.target.value as "productos" | "monto",
+                        ruleType: e.target.value as "ProductVolume" | "AmountPurchased",
                       })
                     }
                     className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
                                focus:border-primary rounded-t transition-colors outline-none appearance-none"
                   >
-                    <option value="productos">Por Volumen de Productos</option>
-                    <option value="monto">Por Monto Total Comprado</option>
+                    <option value="ProductVolume">Por Volumen de Productos</option>
+                    <option value="AmountPurchased">Por Monto Total Comprado</option>
                   </select>
                   <ChevronDown
                     size={20}
@@ -377,7 +387,7 @@ export default function CreateEditModal({
                   />
                 </div>
               </div>
-              { formData.ruleType === "productos" ?
+              { formData.ruleType === "ProductVolume" ?
               <MaterialInput
                 label="Cantidad Acumular *"
                 type="number"
@@ -413,7 +423,7 @@ export default function CreateEditModal({
                 label="Fecha de Inicio *"
                 type="date"
                 fullWidth
-                value={formData.startDate}
+                value={toDateInputValue(formData.startDate)}
                 onChange={(e) =>
                   setFormData({ ...formData, startDate: e.target.value })
                 }
@@ -422,37 +432,37 @@ export default function CreateEditModal({
                 label="Fecha de Fin *"
                 type="date"
                 fullWidth
-                value={formData.endDate}
+                value={toDateInputValue(formData.endDate)}
                 onChange={(e) =>
                   setFormData({ ...formData, endDate: e.target.value })
                 }
-                min={formData.startDate}
+                min={toDateInputValue(formData.startDate)}
               />
               <MaterialInput
                 label="Fecha de  Inicio de Entrega *"
                 type="date"
                 fullWidth
-                value={formData.withdrawalStartDate}
+                value={toDateInputValue(formData.withdrawalStartDate)}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
                     withdrawalStartDate: e.target.value,
                   })
                 }
-                min={formData.endDate}
+                min={toDateInputValue(formData.endDate)}
               />
               <MaterialInput
                 label="Fecha de Fin de Entrega *"
                 type="date"
                 fullWidth
-                value={formData.withdrawalDeadline}
+                value={toDateInputValue(formData.withdrawalDeadline)}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
                     withdrawalDeadline: e.target.value,
                   })
                 }
-                min={formData.withdrawalStartDate}
+                min={toDateInputValue(formData.withdrawalStartDate)}
               />
               <div className="md:col-span-2">
                 <label className="text-sm text-foreground mb-2 block">
@@ -493,7 +503,7 @@ export default function CreateEditModal({
               Condiciones de Cumplimiento
             </h4>
             <div className="bg-muted/30 rounded p-4">
-              {formData.ruleType === "productos" ? (
+              {formData.ruleType === "ProductVolume" ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                     <Package size={16} />
@@ -633,22 +643,23 @@ export default function CreateEditModal({
 
                     <div>
                       <label className="text-sm text-foreground mb-2 block">
-                        Moneda *
+                        Dirigido a *
                       </label>
                       <div className="relative">
                         <select
-                          value={formData.currency}
+                          value={formData.participantClientType}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              currency: e.target.value,
+                              participantClientType: e.target.value as ClientType,
                             })
                           }
                           className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
                                      focus:border-primary rounded-t transition-colors outline-none appearance-none"
                         >
-                          <option value="USD">USD (Dólar)</option>
-                          <option value="NIO">NIO (Córdoba)</option>
+                          <option value="Ambos">Ambos</option>
+                          <option value="Promotor">Promotor</option>
+                          <option value="Asesor">Asesor</option>
                         </select>
                         <ChevronDown
                           size={20}
@@ -665,7 +676,6 @@ export default function CreateEditModal({
                         <span className="text-sm">Meta de Compra:</span>
                       </div>
                       <p className="text-2xl text-foreground font-mono">
-                        {formData.currency}{" "}
                         {formData.amountCondition.toFixed(2)}
                       </p>
                     </div>

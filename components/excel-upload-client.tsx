@@ -12,18 +12,32 @@ import {
   X
 } from 'lucide-react';
 
-
+export interface ClientErrorResponse {
+  name: string;
+  code: string;
+  message: string;
+}
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (clientes: ClienteExcel[]) => void;
+  onImport: (clientes: ClienteExcel[]) => Promise<void>;
+  loadingImport?: boolean;
+  processed?: number;
+  total?: number;
+  successCount?: number;
+  errorsImport?: ClientErrorResponse[];
 }
 
 export function ImportarClientesModal({
   isOpen,
   onClose,
-  onImport
+  onImport,
+  loadingImport = false,
+  processed = 0,
+  total = 0,
+  successCount = 0,
+  errorsImport = []
 }: Props) {
   const [clientes, setClientes] = useState<ClienteExcel[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -48,7 +62,17 @@ export function ImportarClientesModal({
         `Fila ${index}: Nombre requerido`
       );
     }
+ if (!row['Cliente']) {
+      rowErrors.push(
+        `Fila ${index}: Código cliente requerido`
+      );
+    }
 
+    if (!row['Prom']) {
+      rowErrors.push(
+        `Fila ${index}: Promotor requerido`
+      );
+    }
     return rowErrors;
   };
 
@@ -164,9 +188,9 @@ export function ImportarClientesModal({
     }
   };
 
-  const handleImport = () => {
-    if (errors.length > 0) return;
-    onImport(clientes);
+  const handleImport = async () => {
+    if (clientes.length === 0 || errors.length > 0 || loadingImport) return;
+    await onImport(clientes);
   };
 
   return (
@@ -234,10 +258,12 @@ export function ImportarClientesModal({
 
           <button
             onClick={onClose}
+            disabled={loadingImport}
             className="
               p-2
               rounded-lg
               hover:bg-gray-100
+              disabled:opacity-50
             "
           >
             <X size={20} />
@@ -280,6 +306,7 @@ export function ImportarClientesModal({
               accept=".xlsx,.xls"
               className="hidden"
               onChange={handleFile}
+              disabled={loadingImport}
             />
           </label>
 
@@ -322,6 +349,77 @@ export function ImportarClientesModal({
                     {error}
                   </p>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Progreso de importación */}
+          {loadingImport && (
+            <div className="mt-6 border rounded-xl p-4 bg-blue-50">
+              <div className="flex justify-between mb-2">
+                <span className="font-medium">
+                  Importando clientes...
+                </span>
+                <span>
+                  {processed} / {total}
+                </span>
+              </div>
+
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${
+                      total > 0
+                        ? (processed / total) * 100
+                        : 0
+                    }%`
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
+                <div>
+                  <strong>Procesados</strong>
+                  <div>{processed}</div>
+                </div>
+                <div>
+                  <strong>Exitosos</strong>
+                  <div>{successCount}</div>
+                </div>
+                <div>
+                  <strong>Pendientes</strong>
+                  <div>{total - processed}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Errores API */}
+          {errorsImport.length > 0 && (
+            <div className="mt-6 border border-red-200 bg-red-50 rounded-xl p-4">
+              <h4 className="font-medium text-red-700 mb-3">
+                Errores de importación ({errorsImport.length})
+              </h4>
+              <div className="max-h-64 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left p-2">Código</th>
+                      <th className="text-left p-2">Nombre</th>
+                      <th className="text-left p-2">Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {errorsImport.map((item, index) => (
+                      <tr key={index} className="border-t">
+                        <td className="p-2">{item.code}</td>
+                        <td className="p-2">{item.name}</td>
+                        <td className="p-2 text-red-600">{item.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -390,6 +488,9 @@ export function ImportarClientesModal({
                         <th className="px-4 py-3 text-left text-sm">
                           Zona
                         </th>
+                        <th className="px-4 py-3 text-left text-sm">
+                          Codigo Promotor
+                        </th>
                       </tr>
                     </thead>
 
@@ -418,6 +519,9 @@ export function ImportarClientesModal({
 
                             <td className="px-4 py-3 text-sm">
                               {cliente.zoneCode}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {cliente.promoterCode}
                             </td>
                           </tr>
                         ))}
@@ -457,7 +561,8 @@ export function ImportarClientesModal({
             onClick={handleImport}
             disabled={
               clientes.length === 0 ||
-              errors.length > 0
+              errors.length > 0 ||
+              loadingImport
             }
             className="
               px-5
@@ -468,7 +573,7 @@ export function ImportarClientesModal({
               disabled:opacity-50
             "
           >
-            Importar Clientes
+            {loadingImport ? 'Importando...' : 'Importar Clientes'}
           </button>
         </div>
       </div>

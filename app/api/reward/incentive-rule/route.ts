@@ -1,24 +1,26 @@
 import { getValidToken } from "@/app/lib/helper";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: Request) {
   const token = await getValidToken();
-
   if (!token) {
     return NextResponse.json({ message: "No autorizado" }, { status: 401 });
   }
 
+  const requestUrl = new URL(req.url);
+  const queryString = requestUrl.searchParams.toString();
+
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/v1/reward/incentive-rule`,
+    `${process.env.NEXT_PUBLIC_API_URL}/v1/reward/incentive-rule${queryString ? `?${queryString}` : ''}`,
     {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     },
   );
-
+console.log(res)
   if (!res.ok) {
     const errorData = await res.json();
     return NextResponse.json(
@@ -40,7 +42,6 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/reward/incentive-rule`, {
     method: "POST",
     headers: {

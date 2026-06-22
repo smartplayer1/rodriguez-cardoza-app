@@ -1,4 +1,15 @@
+
 // ==================== INTERFACES ====================
+export interface IncentiveResponse {
+  records: Promotion[];
+  paging: {
+    perPage: number;
+    currentPage: number;
+    totalRecords: number;
+    totalPages: number;
+  };
+}
+
 export interface Coupon {
   id: number;
   name: string;
@@ -24,6 +35,7 @@ export interface RewardCoupon {
   coupon: Coupon;
 }
 
+
 export interface Promotion {
   id: number;
   name: string;
@@ -31,13 +43,13 @@ export interface Promotion {
   endDate: string;
   withdrawalStartDate: string;
   withdrawalDeadline: string;
-  ruleType: 'productos' | 'monto';
+  ruleType: 'ProductVolume' | 'AmountPurchased' | 'Mixed';
   description: string;
   isActive: boolean;
   amountCondition: number;
   productVolumeTargetQuantity: number;
   maxWinsPerClient: number | null;
-  participantClientType: string;
+  participantClientType: 'Promotor'|'Asesor' | 'Ambos';
   currency?: string;
   createdAt?: string;
   productVolumeConditions: ProductVolumeCondition[];
@@ -79,13 +91,13 @@ export interface CreatePromotionRequest {
   endDate: string;
   withdrawalStartDate: string;
   withdrawalDeadline: string;
-  ruleType: string;
+  ruleType: 'ProductVolume' | 'AmountPurchased' | 'Mixed';
   description: string;
   isActive: boolean;
   amountCondition: number;
   productVolumeTargetQuantity: number;
   maxWinsPerClient: number | null;
-  participantClientType: string;
+  participantClientType: 'Promotor'|'Asesor' | 'Ambos';
   productVolumeConditions: {
     articleCode: string;
   }[];
@@ -96,4 +108,24 @@ export interface CreatePromotionRequest {
   rewardCoupons: {
     couponId: number;
   }[];
+}
+
+
+export interface Incentive {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  withdrawalStartDate: string;
+  withdrawalDeadline: string;
+  ruleType: 'ProductVolume' | 'AmountPurchased' | 'Mixed';
+  description: string;
+  isActive: boolean;
+  amountCondition: number;
+  productVolumeTargetQuantity: number;
+  maxWinsPerClient: number | null;
+  participantClientType: 'Promotor'|'Asesor' | 'Ambos';
+  productVolumeConditions: ProductVolumeCondition[];
+  rewardProducts: RewardProduct[];
+  rewardCoupons: RewardCoupon[];
 }

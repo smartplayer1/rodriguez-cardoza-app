@@ -1,13 +1,14 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import CreateEditModal from '@/components/create-edit-modal';
-import { Gift, Plus, Edit, Trash2, X, Eye, Settings, Award, Package, DollarSign, ChevronDown, Search, Filter, CheckCircle, Calendar, Ticket } from 'lucide-react';
-import { Promotion } from '@/app/type/incentive';
+import { Gift, Plus, Edit, Trash2, X, Eye, Settings, Award, Package, DollarSign, ChevronDown, Search, Filter, Calendar, Ticket } from 'lucide-react';
+import { CreatePromotionRequest, Promotion } from '@/app/type/incentive';
+import { createRewardIncentiveRule, updateRewardIncentiveRule, deleteRewardIncentiveRule, getRewardIncentiveRules } from '@/app/services/reward/incentive';
 
 export default function IncentivosRetencion() {
   const [activeView, setActiveView] = useState<'reglas' | 'incentivos-generados'>('reglas');
- 
+
   return (
     <div className="flex-1 overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
@@ -72,51 +73,95 @@ function ReglasIncentivos() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState<'all' | 'activa' | 'inactiva'>('all');
+  const [filterRuleType, setFilterRuleType] = useState<'all' | 'ProductVolume' | 'AmountPurchased' | 'Mixed'>('all');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterWithdrawalStartDate, setFilterWithdrawalStartDate] = useState('');
+  const [filterWithdrawalDeadline, setFilterWithdrawalDeadline] = useState('');
 
   const handleCreate = () => {
     setEditingRegla(null);
     setShowCreateEdit(true);
   };
 
-  const handleSave = (regla: Promotion) => {
+  const fetchReglas = useCallback(async () => {
+    try {
+      const data = await getRewardIncentiveRules({
+        name: searchTerm || undefined,
+        ruleType: filterRuleType !== 'all' ? filterRuleType : undefined,
+        isActive:
+          filterEstado === 'all'
+            ? undefined
+            : filterEstado === 'activa',
+        startDate: filterStartDate ? new Date(filterStartDate).toISOString() : undefined,
+        endDate: filterEndDate ? new Date(filterEndDate).toISOString() : undefined,
+        withdrawalStartDate: filterWithdrawalStartDate ? new Date(filterWithdrawalStartDate).toISOString() : undefined,
+        withdrawalDeadline: filterWithdrawalDeadline ? new Date(filterWithdrawalDeadline).toISOString() : undefined,
+      });
+      setReglas(data.records);
+    } catch (error) {
+      console.error('Error fetching reglas:', error);
+    }
+  }, [
+    searchTerm,
+    filterEstado,
+    filterRuleType,
+    filterStartDate,
+    filterEndDate,
+    filterWithdrawalStartDate,
+    filterWithdrawalDeadline,
+  ]);
 
-    setReglas(prev => {
-      const exists = prev.some(r => r.id === regla.id);
-      if (exists) {
-        return prev.map(r => r.id === regla.id ? regla : r);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchReglas();
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [fetchReglas]);
+
+  const handleSave = async (regla: CreatePromotionRequest) => {
+    try {
+      if (editingRegla) {
+        const result = await updateRewardIncentiveRule({ ...regla, id: editingRegla.id } as CreatePromotionRequest & { id: number });
+        setReglas(prev => prev.map(r => r.id === result.id ? result : r));
+      } else {
+        const result = await createRewardIncentiveRule(regla);
+        setReglas(prev => [...prev, result]);
       }
-      return [...prev, regla];
-    });
-  };
-
-    const handleEdit = (regla: Promotion) => {
-      setEditingRegla(regla);
-      setShowCreateEdit(true);
-    };
-
-  
-  const handleDelete = (id: number) => {
-    if (confirm('¿Está seguro de eliminar esta regla de incentivo?')) {
-      setReglas(reglas.filter(r => r.id !== id));
+      setShowCreateEdit(false);
+      setEditingRegla(null);
+      await fetchReglas();
+    } catch (error) {
+      console.error('Error saving regla:', error);
     }
   };
 
-  const handleToggleActiva = (id: number) => {
-    setReglas(reglas.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r));
+  const handleEdit = (regla: Promotion) => {
+    setEditingRegla(regla);
+    setShowCreateEdit(true);
   };
 
+  const handleDelete = async (id: number) => {
+    if (confirm('¿Está seguro de eliminar esta regla de incentivo?')) {
+      try {
+        await deleteRewardIncentiveRule(id);
+        setReglas(reglas.filter(r => r.id !== id));
+        await fetchReglas();
+      } catch (error) {
+        console.error('Error deleting regla:', error);
+      }
+    }
+  };
 
-  
-
-  // Filtering
-  const filteredReglas = reglas.filter(regla => {
-    const matchesSearch = regla.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          regla.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEstado = filterEstado === 'all' || 
-                          (filterEstado === 'activa' && regla.isActive) ||
-                          (filterEstado === 'inactiva' && !regla.isActive);
-    return matchesSearch && matchesEstado;
-  });
+  const hasAnyFilter =
+    !!searchTerm ||
+    filterEstado !== 'all' ||
+    filterRuleType !== 'all' ||
+    !!filterStartDate ||
+    !!filterEndDate ||
+    !!filterWithdrawalStartDate ||
+    !!filterWithdrawalDeadline;
 
   // View Detail Modal
   if (viewingRegla) {
@@ -138,7 +183,6 @@ function ReglasIncentivos() {
             </div>
 
             <div className="space-y-6">
-              {/* Información Básica */}
               <div>
                 <h4 className="text-sm text-muted-foreground mb-3">Información Básica</h4>
                 <div className="bg-muted/30 rounded p-4 space-y-3">
@@ -153,20 +197,20 @@ function ReglasIncentivos() {
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Tipo de Regla:</span>
                     <div className="flex items-center gap-2">
-                      {viewingRegla.ruleType === 'productos' ? (
+                      {viewingRegla.ruleType === 'ProductVolume' ? (
                         <Package size={16} className="text-primary" />
                       ) : (
                         <DollarSign size={16} className="text-green-600" />
                       )}
                       <span className="text-foreground">
-                        {viewingRegla.ruleType === 'productos' ? 'Por Productos' : 'Por Monto'}
+                        {viewingRegla.ruleType === 'ProductVolume' ? 'Por Productos' : 'Por Monto'}
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Periodo de Vigencia:</span>
                     <span className="text-foreground">
-                      {viewingRegla.startDate} al {viewingRegla.endDate}
+                      {new Date(viewingRegla.startDate).toLocaleDateString()} al {new Date(viewingRegla.endDate).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -182,43 +226,47 @@ function ReglasIncentivos() {
                 </div>
               </div>
 
-              {/* Condiciones 
-              <div>
-                <h4 className="text-sm text-muted-foreground mb-3">Condiciones de Cumplimiento</h4>
-                <div className="bg-muted/30 rounded p-4">
-                  {viewingRegla.ruleType === 'productos' ? (
-                    <div className="space-y-2">
-                      <p className="text-sm text-foreground mb-3">Productos Requeridos:</p>
-                      {viewingRegla.productVolumeConditions.map((producto, index) => (
-                        <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
-                          <div className="flex items-center gap-2">
-                            <Package size={16} className="text-primary" />
-                            <span className="text-sm text-foreground">{getArticuloNombre(producto.articleCode)}</span>
-                          </div>
+              {viewingRegla.ruleType === 'ProductVolume' && viewingRegla.productVolumeConditions.length > 0 && (
+                <div>
+                  <h4 className="text-sm text-muted-foreground mb-3">Productos Requeridos</h4>
+                  <div className="bg-muted/30 rounded p-4 space-y-2">
+                    {viewingRegla.productVolumeConditions.map((product, index) => (
+                      <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
+                        <div className="flex items-center gap-2">
+                          <Package size={16} className="text-primary" />
+                          <span className="text-sm text-foreground">Código: {product.articleCode}</span>
                         </div>
-                      ))}
+                      </div>
+                    ))}
+                    <div className="flex justify-between bg-surface p-3 rounded mt-2">
+                      <span className="text-sm text-muted-foreground">Cantidad Requerida:</span>
+                      <span className="text-foreground font-semibold">{viewingRegla.productVolumeTargetQuantity}</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground">Monto Mínimo de Compra:</span>
-                      <span className="text-lg text-green-600 font-mono">
-                        {viewingRegla.currency} {viewingRegla.amountCondition.toFixed(2)}
-                      </span>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Productos del Incentivo 
-              {viewingRegla.rewardProducts.length > 0 && (
+              {viewingRegla.ruleType === 'AmountPurchased' && viewingRegla.amountCondition > 0 && (
+                <div>
+                  <h4 className="text-sm text-muted-foreground mb-3">Condición de Monto</h4>
+                  <div className="bg-muted/30 rounded p-4">
+                    <div className="flex justify-between bg-surface p-3 rounded">
+                      <span className="text-sm text-muted-foreground">Monto Mínimo Requerido:</span>
+                      <span className="text-foreground font-semibold">{viewingRegla.currency || '$'} {viewingRegla.amountCondition.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+{viewingRegla.rewardProducts.length > 0 && (
                 <div>
                   <h4 className="text-sm text-muted-foreground mb-3">Productos del Incentivo</h4>
                   <div className="bg-muted/30 rounded p-4 space-y-2">
                     {viewingRegla.rewardProducts.map((producto, index) => (
                       <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
                         <div className="flex items-center gap-2">
-                          <Gift size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">{getArticuloNombre(producto.articleCode)}</span>
+                          <Ticket size={16} className="text-primary" />
+                          <span className="text-sm text-foreground">{producto.articleCode}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
                           Cantidad: <span className="text-foreground font-mono">{producto.quantity}</span>
@@ -228,8 +276,6 @@ function ReglasIncentivos() {
                   </div>
                 </div>
               )}
-              */}
-              {/* Cupones del Incentivo */}
               {viewingRegla.rewardCoupons.length > 0 && (
                 <div>
                   <h4 className="text-sm text-muted-foreground mb-3">Cupones del Incentivo</h4>
@@ -265,11 +311,15 @@ function ReglasIncentivos() {
     );
   }
 
+
   if (showCreateEdit) {
     return (
       <CreateEditModal
         initialRule={editingRegla}
-        onClose={() => setShowCreateEdit(false)}
+        onClose={() => {
+          setShowCreateEdit(false);
+          setEditingRegla(null);
+        }}
         onSave={handleSave}
       />
     );
@@ -279,7 +329,7 @@ function ReglasIncentivos() {
   return (
     <div className="space-y-6">
       {/* Actions Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -310,6 +360,22 @@ function ReglasIncentivos() {
             <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           </div>
 
+          <div className="relative">
+            <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <select
+              value={filterRuleType}
+              onChange={(e) => setFilterRuleType(e.target.value as 'all' | 'ProductVolume' | 'AmountPurchased' | 'Mixed')}
+              className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border 
+                       focus:border-primary rounded-t transition-colors outline-none appearance-none"
+            >
+              <option value="all">Todos los tipos</option>
+              <option value="ProductVolume">Por Productos</option>
+              <option value="AmountPurchased">Por Monto</option>
+              <option value="Mixed">Mixto</option>
+            </select>
+            <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          </div>
+
           <MaterialButton
             variant="contained"
             color="primary"
@@ -321,10 +387,49 @@ function ReglasIncentivos() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div>
+          <label className="text-sm text-muted-foreground">Inicio vigencia</label>
+          <input
+            type="date"
+            value={filterStartDate}
+            onChange={(e) => setFilterStartDate(e.target.value)}
+            className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-muted-foreground">Fin vigencia</label>
+          <input
+            type="date"
+            value={filterEndDate}
+            onChange={(e) => setFilterEndDate(e.target.value)}
+            className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-muted-foreground">Inicio retiro</label>
+          <input
+            type="date"
+            value={filterWithdrawalStartDate}
+            onChange={(e) => setFilterWithdrawalStartDate(e.target.value)}
+            className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-muted-foreground">Fin retiro</label>
+          <input
+            type="date"
+            value={filterWithdrawalDeadline}
+            onChange={(e) => setFilterWithdrawalDeadline(e.target.value)}
+            className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+          />
+        </div>
+      </div>
+
       {/* Reglas List */}
-      {filteredReglas.length > 0 ? (
+      {reglas.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
-          {filteredReglas.map((regla) => (
+          {reglas.map((regla) => (
             <div key={regla.id} className="bg-surface rounded elevation-2 p-6 hover:elevation-4 transition-all">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -338,7 +443,7 @@ function ReglasIncentivos() {
                       {regla.isActive ? 'Activa' : 'Inactiva'}
                     </span>
                     <div className="flex items-center gap-2 px-2 py-1 bg-primary/10 rounded text-xs text-primary">
-                      {regla.ruleType === 'productos' ? (
+                      {regla.ruleType === 'ProductVolume' ? (
                         <>
                           <Package size={14} />
                           <span>Por Productos</span>
@@ -351,80 +456,43 @@ function ReglasIncentivos() {
                       )}
                     </div>
                   </div>
+                  <p className="text-sm text-muted-foreground mb-4">{regla.description}</p>
 
-                  <p className="text-sm text-muted-foreground mb-2">{regla.description}</p>
-
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-                    <Calendar size={14} />
-                    <span>Vigencia: {regla.startDate} al {regla.endDate}</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Condiciones */}
-                    <div className="bg-muted/30 rounded p-3">
-                      <p className="text-xs text-muted-foreground mb-2">Condiciones:</p>
-                      {regla.ruleType === 'productos' ? (
-                        <div className="flex flex-col space-y-1 ">
-                          {regla.productVolumeConditions.map(item =>   <span key={item.id} className="text-xs text-foreground"> {item.articleCode} </span>)}
-                       
-                        </div>
-                      ) : (
-                        <div className="text-sm text-foreground font-mono">
-                          {regla.currency} {regla.amountCondition.toFixed(2)}
-                        </div>
-                      )}
+                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} />
+                      <span>Vigencia: {regla.startDate} - {regla.endDate}</span>
                     </div>
-
-                    {/* Incentivos 
-                    <div className="bg-muted/30 rounded p-3">
-                      <p className="text-xs text-muted-foreground mb-2">Premios:</p>
-                      <div className="space-y-1">
-                        {regla.rewardProducts.map((p, i) => (
-                          <div key={i} className="text-xs text-foreground">
-                            • {getArticuloNombre(p.articleCode)} (x{p.quantity})
-                          </div>
-                        ))}
-                        {regla.rewardCoupons.map((c, i) => (
-                          <div key={`cupon-${i}`} className="text-xs text-foreground">
-                            • {c.coupon.name} (${c.coupon.amount})
-                          </div>
-                        ))}
+                    {regla.rewardCoupons.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Ticket size={14} />
+                        <span>{regla.rewardCoupons.length} cupón(es)</span>
                       </div>
-                    </div>
-                    */}
+                    )}
                   </div>
                 </div>
 
-                <div className="flex gap-2 ml-4">
-                  <MaterialButton
-                    variant="text"
-                    color="primary"
-                    startIcon={<Eye size={16} />}
+                <div className="flex items-center gap-2 ml-4">
+                  <button
                     onClick={() => setViewingRegla(regla)}
+                    className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    title="Ver detalle"
                   >
-                    Ver
-                  </MaterialButton>
-                  <MaterialButton
-                    variant="text"
-                    color="primary"
-                    startIcon={<Edit size={16} />}
+                    <Eye size={18} />
+                  </button>
+                  <button
                     onClick={() => handleEdit(regla)}
+                    className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+                    title="Editar"
                   >
-                    Editar
-                  </MaterialButton>
-                  <MaterialButton
-                    variant="text"
-                    color="secondary"
-                    startIcon={regla.isActive ? <X size={16} /> : <CheckCircle size={16} />}
-                    onClick={() => handleToggleActiva(regla.id)}
-                  >
-                    {regla.isActive ? 'Desactivar' : 'Activar'}
-                  </MaterialButton>
+                    <Edit size={18} />
+                  </button>
                   <button
                     onClick={() => handleDelete(regla.id)}
-                    className="text-red-600 hover:text-red-700 transition-colors p-2"
+                    className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-destructive"
+                    title="Eliminar"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>
@@ -432,22 +500,22 @@ function ReglasIncentivos() {
           ))}
         </div>
       ) : (
-        <div className="bg-surface rounded elevation-2 py-16 text-center">
-          <Settings size={64} className="text-muted-foreground mx-auto mb-4" />
+        <div className="text-center py-12">
+          <Gift size={48} className="mx-auto text-muted-foreground mb-4" />
           <h3 className="text-foreground mb-2">No hay reglas de incentivos</h3>
           <p className="text-muted-foreground mb-6">
-            {searchTerm || filterEstado !== 'all'
+            {hasAnyFilter
               ? 'No se encontraron reglas con los filtros aplicados'
-              : 'Comience creando una nueva regla de incentivo'}
+              : 'Cree su primera regla de incentivo para comenzar'}
           </p>
-          {!searchTerm && filterEstado === 'all' && (
+          {!hasAnyFilter && (
             <MaterialButton
               variant="contained"
               color="primary"
               startIcon={<Plus size={18} />}
               onClick={handleCreate}
             >
-              Crear Primera Regla
+              Nueva Regla
             </MaterialButton>
           )}
         </div>
@@ -455,4 +523,3 @@ function ReglasIncentivos() {
     </div>
   );
 }
-

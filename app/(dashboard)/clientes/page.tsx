@@ -79,7 +79,7 @@ export default function ClientesPage () {
     creator: 'admin',
   }))
   .sort((a, b) => Number(a.promotorCode || 0) - Number(b.promotorCode || 0));
-
+console.log('Data procesada para importación:', dataProcessed[0]);
     dataProcessed.forEach(async (client, index) => {
       try {
       const response = await createClient(client);

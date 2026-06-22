@@ -31,7 +31,6 @@ export async function refreshToken() {
   if (!refreshToken) {
     throw new Error('Refresh token not found');
   }
-
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/v1/authentication/refresh-session`,
     {
@@ -44,6 +43,8 @@ export async function refreshToken() {
       }),
     }
   );
+
+  console.log('Refresh token response:', response);
 
   if (!response.ok) {
     throw new Error('Failed to refresh token');
