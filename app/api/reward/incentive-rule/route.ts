@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     },
     },
   );
-console.log(res)
+
   if (!res.ok) {
     const errorData = await res.json();
     return NextResponse.json(

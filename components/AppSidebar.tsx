@@ -73,10 +73,10 @@ const menuItems: MenuItemType[] = [
   {id: 'clientes', label: 'Clientes', icon: UserCircle, href: '/clientes', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
   { id: 'empleados', label: 'Empleados', icon: UserCircle, href: '/empleados', permission: PERMISSIONS.EJEMPLO_VIEW, options:null },
   { id: 'articulos', label: 'Articulos', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW, options: [
-    {id: 'articulos', label: 'Articulos', href: '/articulos', icon: Package , permission: PERMISSIONS.EJEMPLO_VIEW},
-    {id: 'categorias', label: 'Categorias', href: '/articulos/categorias', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'articulos', label: 'Lista de Articulos', href: '/articulos', icon: Package , permission: PERMISSIONS.EJEMPLO_VIEW}
+    /*{id: 'categorias', label: 'Categorias', href: '/articulos/categorias', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW},
     {id: 'marcas', label: 'Marcas', href: '/articulos/marcas', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW},
-    {id: 'clasificaciones', label: 'Clasificaciones', href: '/articulos/clasificaciones', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW}
+    {id: 'clasificaciones', label: 'Clasificaciones', href: '/articulos/clasificaciones', icon: Package, permission: PERMISSIONS.EJEMPLO_VIEW}*/
   ]}
 ];
 

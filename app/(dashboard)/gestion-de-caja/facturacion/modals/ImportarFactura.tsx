@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
-import { FacturaDetalleExcel } from "../types/factura";
+import { Factura, FacturaDetalleExcel } from "../types/factura";
 import { mapExcelToFactura } from "../mappers/excel.mapper";
+import { createInvoices } from "@/app/services/invoice";
+import { InvoiceBatchPostResponse, ServerInvoicePayload } from "@/app/type/invoice";
 
 const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO"];
 
@@ -12,14 +14,272 @@ interface Props {
   onClose: () => void;
 }
 
+interface UploadProgress {
+  total: number;
+  sent: number;
+  success: number;
+}
+
+interface InvoiceUploadError {
+  document: string;
+  message: string;
+  details: string[];
+}
+
 export default function ImportarFactura({ open , onClose } : Props) {
   const [data, setData] = useState<FacturaDetalleExcel[]>([]);
   const [errors, setErrors] = useState<{ fila: number; errores: string[] }[]>([]);
   const [structureError, setStructureError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<InvoiceUploadError[]>([]);
   const [fileName, setFileName] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [expandedFacturas, setExpandedFacturas] = useState<Record<string, boolean>>({})
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const groupedFacturas = useMemo<Factura[]>(() => {
+    const facturasMap = new Map<string, Factura>()
+
+    data.forEach((row) => {
+      const documento = row.documento || "SIN_DOCUMENTO"
+
+      if (!facturasMap.has(documento)) {
+        facturasMap.set(documento, {
+          encabezado: {
+            documento,
+            estado_cobro: row.estado_cobro,
+            cliente: row.cliente,
+            bodega: row.bodega,
+            sucursal: row.sucursal,
+            cajero: row.cajero,
+            fecha: row.fecha,
+            tienda: row.tienda,
+            promotora: row.promotora,
+            nivel_precio: row.nivel_precio,
+            cupon: row.cupon,
+            total_bruto: 0,
+            total_descuento_linea: 0,
+            total_descuento_general: 0,
+            total_impuesto1: 0,
+            total_impuesto2: 0,
+            total_neto: 0,
+            total_items: 0,
+          },
+          detalle: [],
+        })
+      }
+
+      const factura = facturasMap.get(documento)
+
+      if (!factura) {
+        return
+      }
+
+      factura.detalle.push({
+        articulo: row.articulo,
+        cantidad: row.cantidad,
+        precio_venta: row.precio_venta,
+        precio: row.precio,
+        impuesto1: row.impuesto1,
+        impuesto2: row.impuesto2,
+        desc_linea: row.desc_linea,
+        desc_gen: row.desc_gen,
+        exento: row.exento,
+      })
+
+      factura.encabezado.total_bruto += row.precio_venta * row.cantidad
+      factura.encabezado.total_descuento_linea += row.desc_linea
+      factura.encabezado.total_descuento_general += row.desc_gen
+      factura.encabezado.total_impuesto1 += row.impuesto1
+      factura.encabezado.total_impuesto2 += row.impuesto2
+      factura.encabezado.total_neto += row.precio * row.cantidad
+      factura.encabezado.total_items += row.cantidad
+    })
+
+    return Array.from(facturasMap.values())
+  }, [data])
+
+  const toggleFactura = useCallback((documento: string) => {
+    setExpandedFacturas((prev) => ({
+      ...prev,
+      [documento]: !prev[documento],
+    }))
+  }, [])
+
+  const formatAmount = useCallback((value: number) => {
+    return new Intl.NumberFormat("es-NI", {
+      style: "currency",
+      currency: "NIO",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value || 0)
+  }, [])
+
+  const serverPayload = useMemo<ServerInvoicePayload[]>(() => {
+    return groupedFacturas.map((factura) => ({
+      header: {
+        document: factura.encabezado.documento,
+        chargeStatus: factura.encabezado.estado_cobro,
+        clientCode: factura.encabezado.cliente,
+        warehouse: Number(factura.encabezado.bodega) || 0,
+        branchCode: "SC002", //factura.encabezado.sucursal,
+        cashier: factura.encabezado.cajero,
+        issuedAt: factura.encabezado.fecha,
+        store: factura.encabezado.tienda,
+        promoterCode: factura.encabezado.promotora,
+        priceLevel: factura.encabezado.nivel_precio,
+        coupon: Number(factura.encabezado.cupon) || 0,
+      },
+      details: factura.detalle.map((detalle) => ({
+        article: detalle.articulo,
+        quantity: Number(detalle.cantidad) || 0,
+        salePrice: Number(detalle.precio_venta) || 0,
+        price: Number(detalle.precio) || 0,
+        tax1: Number(detalle.impuesto1) || 0,
+        tax2: Number(detalle.impuesto2) || 0,
+        lineDiscount: Number(detalle.desc_linea) || 0,
+        generalDiscount: Number(detalle.desc_gen) || 0,
+        isExempt: detalle.exento,
+      })),
+    }))
+  }, [groupedFacturas])
+
+  const clearFile = useCallback(() => {
+    setFileName(null)
+    setData([])
+    setErrors([])
+    setStructureError(null)
+    setUploadProgress(null)
+    setUploadErrors([])
+    setExpandedFacturas({})
+    if (inputRef.current) inputRef.current.value = ""
+  }, [])
+
+  const extractErrorDetails = useCallback((errorPayload: unknown) => {
+    if (!errorPayload || typeof errorPayload !== "object") {
+      return [];
+    }
+
+    const payload = errorPayload as {
+      title?: string;
+      detail?: string;
+      message?: string;
+      errors?: Record<string, string[]>;
+    };
+
+    const details: string[] = [];
+
+    if (payload.title) details.push(payload.title);
+    if (payload.detail) details.push(payload.detail);
+    if (payload.message) details.push(payload.message);
+
+    if (payload.errors && typeof payload.errors === "object") {
+      for (const [field, messages] of Object.entries(payload.errors)) {
+        messages.forEach((message) => {
+          details.push(`${field}: ${message}`);
+        });
+      }
+    }
+
+    return details;
+  }, [])
+
+  const extractErrorMessage = useCallback((errorPayload: unknown, fallback: string) => {
+    if (!errorPayload || typeof errorPayload !== "object") {
+      return fallback;
+    }
+
+    const payload = errorPayload as { message?: string; title?: string; detail?: string };
+    return payload.message || payload.title || payload.detail || fallback;
+  }, [])
+
+  const handleSaveData = useCallback(async () => {
+    if (serverPayload.length === 0) {
+      alert("No hay facturas válidas para guardar");
+      return;
+    }
+console.log("serverPayload", serverPayload);
+    setSaving(true);
+    setUploadProgress({ total: serverPayload.length, sent: 0, success: 0 });
+    setUploadErrors([]);
+
+    let sent = 0;
+    let success = 0;
+    const createdDocuments: string[] = [];
+    const failedInvoices: InvoiceUploadError[] = [];
+
+    try {
+      for (const invoice of serverPayload) {
+        try {
+          const response = await createInvoices([invoice]);
+          const rawResponseData = (await response.json().catch(() => ({}))) as Partial<InvoiceBatchPostResponse> & {
+            error?: unknown;
+            message?: string;
+            title?: string;
+            detail?: string;
+          };
+          const failedCount = Number(rawResponseData.failed || 0);
+          const isSuccess = response.ok && response.status !== 207 && failedCount === 0;
+
+          if (isSuccess) {
+            success += 1;
+            const currentDocument = (rawResponseData.results || [])[0]?.invoice?.header?.document
+              || (rawResponseData.results || [])[0]?.document
+              || invoice.header.document;
+            createdDocuments.push(currentDocument);
+          } else {
+            const errorPayload = rawResponseData.error ?? rawResponseData;
+            failedInvoices.push({
+              document: invoice.header.document,
+              message: extractErrorMessage(errorPayload, "La factura no se pudo procesar"),
+              details: extractErrorDetails(errorPayload),
+            });
+          }
+        } catch (error) {
+          console.error("Error al guardar factura:", error);
+          failedInvoices.push({
+            document: invoice.header.document,
+            message: "Error inesperado al enviar la factura",
+            details: [error instanceof Error ? error.message : "Error desconocido"],
+          });
+        } finally {
+          sent += 1;
+          setUploadProgress({
+            total: serverPayload.length,
+            sent,
+            success,
+          });
+        }
+      }
+
+      setUploadErrors(failedInvoices);
+
+      const failed = serverPayload.length - success;
+
+      if (failed > 0) {
+        alert(`Carga parcial: ${success} facturas guardadas y ${failed} con error`);
+        return;
+      }
+
+      const documents = createdDocuments.join(", ");
+
+      alert(
+        documents
+          ? `Facturas guardadas correctamente: ${documents}`
+          : `Facturas guardadas correctamente: ${serverPayload.length}`
+      );
+      clearFile();
+      onClose();
+    } catch (error) {
+      console.error("Error al guardar facturas:", error);
+      alert("Ocurrió un error al enviar las facturas");
+    } finally {
+      setSaving(false);
+    }
+  }, [serverPayload, clearFile, onClose, extractErrorDetails, extractErrorMessage])
+
   const validateStructure = (headers: string[]) => {
     return REQUIRED_COLUMNS.filter(col => !headers.includes(col));
   };
@@ -134,7 +394,10 @@ export default function ImportarFactura({ open , onClose } : Props) {
 const handleFileUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
-      if (file) processFile(file)
+      if (file) {
+        setFileName(file.name)
+        processFile(file)
+      }
     },
     [processFile]
   )
@@ -144,7 +407,10 @@ const handleFileUpload = useCallback(
       e.preventDefault()
       setIsDragging(false)
       const file = e.dataTransfer.files?.[0]
-      if (file) processFile(file)
+      if (file) {
+        setFileName(file.name)
+        processFile(file)
+      }
     },
     [processFile]
   )
@@ -157,13 +423,6 @@ const handleFileUpload = useCallback(
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-  }, [])
-
-  const clearFile = useCallback(() => {
-    setFileName(null)
-    setData([])
-    setErrors([])
-    if (inputRef.current) inputRef.current.value = ""
   }, [])
 
 
@@ -233,11 +492,63 @@ const handleFileUpload = useCallback(
           </div>
         )}
 
+        {fileName && (
+          <div className="mb-4 flex items-center justify-between rounded-lg border bg-gray-50 px-3 py-2">
+            <p className="text-sm text-gray-700">Archivo cargado: {fileName}</p>
+            <button
+              type="button"
+              onClick={clearFile}
+              disabled={saving}
+              className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+            >
+              Limpiar
+            </button>
+          </div>
+        )}
+
         {/* LOADING */}
         {loading && (
           <p className="text-blue-600 mt-4">
             Procesando archivo...
           </p>
+        )}
+
+        {saving && (
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+            <p className="font-semibold">Guardando facturas...</p>
+            <p>Enviadas: {uploadProgress?.sent ?? 0} de {uploadProgress?.total ?? 0}</p>
+            <p>Con éxito: {uploadProgress?.success ?? 0}</p>
+            <p>Restantes: {Math.max((uploadProgress?.total ?? 0) - (uploadProgress?.sent ?? 0), 0)}</p>
+          </div>
+        )}
+
+        {!saving && uploadErrors.length > 0 && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <p className="font-semibold mb-2">
+              Facturas con error ({uploadErrors.length})
+            </p>
+
+            <div className="space-y-3 max-h-56 overflow-auto pr-1">
+              {uploadErrors.map((error) => (
+                <div key={error.document} className="rounded-md border border-red-200 bg-white p-3">
+                  <p className="font-medium">
+                    Factura: {error.document}
+                  </p>
+                  <p className="text-red-700">
+                    {error.message}
+                  </p>
+
+                  {error.details.length > 0 && (
+                    <ul className="mt-2 list-disc pl-5 text-red-600">
+                      {error.details.map((detail, index) => (
+                        <li key={`${error.document}-${index}`}>{detail}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* ERROR ESTRUCTURA */}
@@ -277,34 +588,78 @@ const handleFileUpload = useCallback(
         {data.length > 0 && (
           <div className="mt-6">
             <h3 className="text-green-600 font-semibold mb-2">
-              Datos válidos ({data.length})
+              Datos válidos ({data.length}) - Facturas ({groupedFacturas.length})
             </h3>
 
-            {/* 🔥 ALTURA FIJA */}
-            <div className="border rounded overflow-auto max-h-[300px]">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 sticky top-0 z-10">
-                  <tr>
-                    {Object.keys(data[0]).map((key) => (
-                      <th key={key} className="p-2 border">
-                        {key}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
+            <div className="space-y-3 max-h-[360px] overflow-auto pr-1">
+              {groupedFacturas.map((factura) => {
+                const documento = factura.encabezado.documento
+                const isExpanded = !!expandedFacturas[documento]
 
-                <tbody>
-                  {data.map((row, i) => (
-                    <tr key={i}>
-                      {Object.values(row).map((val, j) => (
-                        <td key={j} className="p-2 border">
-                          {val}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                return (
+                  <div key={documento} className="border rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleFactura(documento)}
+                      className="w-full bg-gray-50 hover:bg-gray-100 transition p-3 text-left"
+                    >
+                      <div className="flex justify-between items-center gap-2">
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            Factura: {documento}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            Cliente: {factura.encabezado.cliente} | Fecha: {factura.encabezado.fecha} | Ítems: {factura.encabezado.total_items}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="font-semibold text-green-700">
+                            {formatAmount(factura.encabezado.total_neto)}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            {isExpanded ? "Contraer" : "Expandir"}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t overflow-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-white sticky top-0 z-10">
+                            <tr>
+                              <th className="p-2 border">Artículo</th>
+                              <th className="p-2 border">Cantidad</th>
+                              <th className="p-2 border">Precio Venta</th>
+                              <th className="p-2 border">Descuento Línea</th>
+                              <th className="p-2 border">Descuento General</th>
+                              <th className="p-2 border">Impuesto1</th>
+                              <th className="p-2 border">Impuesto2</th>
+                              <th className="p-2 border">Precio Neto</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {factura.detalle.map((detalle, index) => (
+                              <tr key={`${documento}-${detalle.articulo}-${index}`}>
+                                <td className="p-2 border">{detalle.articulo}</td>
+                                <td className="p-2 border">{detalle.cantidad}</td>
+                                <td className="p-2 border">{formatAmount(detalle.precio_venta)}</td>
+                                <td className="p-2 border">{formatAmount(detalle.desc_linea)}</td>
+                                <td className="p-2 border">{formatAmount(detalle.desc_gen)}</td>
+                                <td className="p-2 border">{formatAmount(detalle.impuesto1)}</td>
+                                <td className="p-2 border">{formatAmount(detalle.impuesto2)}</td>
+                                <td className="p-2 border">{formatAmount(detalle.precio)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
@@ -314,16 +669,18 @@ const handleFileUpload = useCallback(
       <div className="border-t p-4 flex justify-end gap-2">
         <button
           onClick={onClose}
-          className="px-4 py-2 border rounded"
+          disabled={saving}
+          className="px-4 py-2 border rounded disabled:opacity-50"
         >
           Cerrar
         </button>
 
         <button
-          disabled={data.length === 0}
+          disabled={data.length === 0 || saving}
+          onClick={handleSaveData}
           className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
         >
-          Guardar Datos
+          {saving ? "Guardando..." : "Guardar Datos"}
         </button>
       </div>
     </div>

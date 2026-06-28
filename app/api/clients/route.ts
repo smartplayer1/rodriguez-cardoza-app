@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const body = await req.json();
-    console.log(body)
+
     const newClient = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/client`, {
         method: 'POST', 
         headers: {

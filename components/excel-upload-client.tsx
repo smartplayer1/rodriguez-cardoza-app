@@ -68,11 +68,6 @@ export function ImportarClientesModal({
       );
     }
 
-    if (!row['Prom']) {
-      rowErrors.push(
-        `Fila ${index}: Promotor requerido`
-      );
-    }
     return rowErrors;
   };
 
@@ -133,7 +128,9 @@ export function ImportarClientesModal({
             name: String(
               row['Nombre'] || ''
             ).trim(),
-            branchName: 'CHINANDEGA',
+            branchName: String(
+              row['Sucursal'] || ''
+            ).trim(),
             phoneNumber:
               String(
                 row['Tel1'] ||

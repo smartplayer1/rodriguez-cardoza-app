@@ -11,6 +11,7 @@ export async function getValidToken() {
     throw new Error('Unauthorized');
   }
 
+
   const expired =
     await isTokenExpired();
 

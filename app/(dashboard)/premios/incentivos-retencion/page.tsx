@@ -1,13 +1,36 @@
-'use client';
-import React, { useCallback, useEffect, useState } from 'react';
-import { MaterialButton } from '@/components/MaterialButton';
-import CreateEditModal from '@/components/create-edit-modal';
-import { Gift, Plus, Edit, Trash2, X, Eye, Settings, Award, Package, DollarSign, ChevronDown, Search, Filter, Calendar, Ticket } from 'lucide-react';
-import { CreatePromotionRequest, Promotion } from '@/app/type/incentive';
-import { createRewardIncentiveRule, updateRewardIncentiveRule, deleteRewardIncentiveRule, getRewardIncentiveRules } from '@/app/services/reward/incentive';
+"use client";
+import React, { useCallback, useEffect, useState } from "react";
+import { MaterialButton } from "@/components/MaterialButton";
+import CreateEditModal from "@/components/create-edit-modal";
+import {
+  Gift,
+  Plus,
+  Edit,
+  Trash2,
+  X,
+  Eye,
+  Settings,
+  Award,
+  Package,
+  DollarSign,
+  ChevronDown,
+  Search,
+  Filter,
+  Calendar,
+  Ticket,
+} from "lucide-react";
+import { CreatePromotionRequest, Promotion } from "@/app/type/incentive";
+import {
+  createRewardIncentiveRule,
+  updateRewardIncentiveRule,
+  deleteRewardIncentiveRule,
+  getRewardIncentiveRules,
+} from "@/app/services/reward/incentive";
 
 export default function IncentivosRetencion() {
-  const [activeView, setActiveView] = useState<'reglas' | 'incentivos-generados'>('reglas');
+  const [activeView, setActiveView] = useState<
+    "reglas" | "incentivos-generados"
+  >("reglas");
 
   return (
     <div className="flex-1 overflow-auto">
@@ -16,10 +39,13 @@ export default function IncentivosRetencion() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Gift size={32} className="text-primary" />
-            <h2 className="text-foreground">Incentivo por Acumulación de Producto</h2>
+            <h2 className="text-foreground">
+              Incentivo por Acumulación de Producto
+            </h2>
           </div>
           <p className="text-muted-foreground">
-            Configure reglas automáticas de incentivos y gestione incentivos generados
+            Configure reglas automáticas de incentivos y gestione incentivos
+            generados
           </p>
         </div>
 
@@ -27,30 +53,30 @@ export default function IncentivosRetencion() {
         <div className="bg-surface rounded elevation-2 mb-6">
           <div className="flex border-b border-border">
             <button
-              onClick={() => setActiveView('reglas')}
+              onClick={() => setActiveView("reglas")}
               className={`flex items-center gap-2 px-6 py-4 transition-colors relative ${
-                activeView === 'reglas'
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
+                activeView === "reglas"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Settings size={20} />
               <span>Reglas de Incentivos</span>
-              {activeView === 'reglas' && (
+              {activeView === "reglas" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
             <button
-              onClick={() => setActiveView('incentivos-generados')}
+              onClick={() => setActiveView("incentivos-generados")}
               className={`flex items-center gap-2 px-6 py-4 transition-colors relative ${
-                activeView === 'incentivos-generados'
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
+                activeView === "incentivos-generados"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Award size={20} />
               <span>Incentivos Generados</span>
-              {activeView === 'incentivos-generados' && (
+              {activeView === "incentivos-generados" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
@@ -58,7 +84,7 @@ export default function IncentivosRetencion() {
         </div>
 
         {/* Content */}
-        {activeView === 'reglas' ? <ReglasIncentivos /> : <ReglasIncentivos />}
+        {activeView === "reglas" ? <ReglasIncentivos /> : <ReglasIncentivos />}
       </div>
     </div>
   );
@@ -71,13 +97,18 @@ function ReglasIncentivos() {
   const [editingRegla, setEditingRegla] = useState<Promotion | null>(null);
   const [viewingRegla, setViewingRegla] = useState<Promotion | null>(null);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterEstado, setFilterEstado] = useState<'all' | 'activa' | 'inactiva'>('all');
-  const [filterRuleType, setFilterRuleType] = useState<'all' | 'ProductVolume' | 'AmountPurchased' | 'Mixed'>('all');
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
-  const [filterWithdrawalStartDate, setFilterWithdrawalStartDate] = useState('');
-  const [filterWithdrawalDeadline, setFilterWithdrawalDeadline] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterEstado, setFilterEstado] = useState<
+    "all" | "activa" | "inactiva"
+  >("all");
+  const [filterRuleType, setFilterRuleType] = useState<
+    "all" | "ProductVolume" | "AmountPurchased" | "Mixed"
+  >("all");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  const [filterWithdrawalStartDate, setFilterWithdrawalStartDate] =
+    useState("");
+  const [filterWithdrawalDeadline, setFilterWithdrawalDeadline] = useState("");
 
   const handleCreate = () => {
     setEditingRegla(null);
@@ -88,19 +119,25 @@ function ReglasIncentivos() {
     try {
       const data = await getRewardIncentiveRules({
         name: searchTerm || undefined,
-        ruleType: filterRuleType !== 'all' ? filterRuleType : undefined,
+        ruleType: 'AmountPurchased', // filterRuleType === "all" ? undefined : filterRuleType,
         isActive:
-          filterEstado === 'all'
-            ? undefined
-            : filterEstado === 'activa',
-        startDate: filterStartDate ? new Date(filterStartDate).toISOString() : undefined,
-        endDate: filterEndDate ? new Date(filterEndDate).toISOString() : undefined,
-        withdrawalStartDate: filterWithdrawalStartDate ? new Date(filterWithdrawalStartDate).toISOString() : undefined,
-        withdrawalDeadline: filterWithdrawalDeadline ? new Date(filterWithdrawalDeadline).toISOString() : undefined,
+          filterEstado === "all" ? undefined : filterEstado === "activa",
+        startDate: filterStartDate
+          ? new Date(filterStartDate).toISOString()
+          : undefined,
+        endDate: filterEndDate
+          ? new Date(filterEndDate).toISOString()
+          : undefined,
+        withdrawalStartDate: filterWithdrawalStartDate
+          ? new Date(filterWithdrawalStartDate).toISOString()
+          : undefined,
+        withdrawalDeadline: filterWithdrawalDeadline
+          ? new Date(filterWithdrawalDeadline).toISOString()
+          : undefined,
       });
       setReglas(data.records);
     } catch (error) {
-      console.error('Error fetching reglas:', error);
+      console.error("Error fetching reglas:", error);
     }
   }, [
     searchTerm,
@@ -123,17 +160,20 @@ function ReglasIncentivos() {
   const handleSave = async (regla: CreatePromotionRequest) => {
     try {
       if (editingRegla) {
-        const result = await updateRewardIncentiveRule({ ...regla, id: editingRegla.id } as CreatePromotionRequest & { id: number });
-        setReglas(prev => prev.map(r => r.id === result.id ? result : r));
+        const result = await updateRewardIncentiveRule({
+          ...regla,
+          id: editingRegla.id,
+        } as CreatePromotionRequest & { id: number });
+        setReglas((prev) => prev.map((r) => (r.id === result.id ? result : r)));
       } else {
         const result = await createRewardIncentiveRule(regla);
-        setReglas(prev => [...prev, result]);
+        setReglas((prev) => [...prev, result]);
       }
       setShowCreateEdit(false);
       setEditingRegla(null);
       await fetchReglas();
     } catch (error) {
-      console.error('Error saving regla:', error);
+      console.error("Error saving regla:", error);
     }
   };
 
@@ -143,21 +183,21 @@ function ReglasIncentivos() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('¿Está seguro de eliminar esta regla de incentivo?')) {
+    if (confirm("¿Está seguro de eliminar esta regla de incentivo?")) {
       try {
         await deleteRewardIncentiveRule(id);
-        setReglas(reglas.filter(r => r.id !== id));
+        setReglas(reglas.filter((r) => r.id !== id));
         await fetchReglas();
       } catch (error) {
-        console.error('Error deleting regla:', error);
+        console.error("Error deleting regla:", error);
       }
     }
   };
 
   const hasAnyFilter =
     !!searchTerm ||
-    filterEstado !== 'all' ||
-    filterRuleType !== 'all' ||
+    filterEstado !== "all" ||
+    filterRuleType !== "all" ||
     !!filterStartDate ||
     !!filterEndDate ||
     !!filterWithdrawalStartDate ||
@@ -172,7 +212,9 @@ function ReglasIncentivos() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <Settings size={24} className="text-primary" />
-                <h3 className="text-foreground">Detalle de Regla de Incentivo</h3>
+                <h3 className="text-foreground">
+                  Detalle de Regla de Incentivo
+                </h3>
               </div>
               <button
                 onClick={() => setViewingRegla(null)}
@@ -184,92 +226,143 @@ function ReglasIncentivos() {
 
             <div className="space-y-6">
               <div>
-                <h4 className="text-sm text-muted-foreground mb-3">Información Básica</h4>
+                <h4 className="text-sm text-muted-foreground mb-3">
+                  Información Básica
+                </h4>
                 <div className="bg-muted/30 rounded p-4 space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Nombre:</span>
+                    <span className="text-sm text-muted-foreground">
+                      Nombre:
+                    </span>
                     <span className="text-foreground">{viewingRegla.name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Descripción:</span>
-                    <span className="text-foreground">{viewingRegla.description}</span>
+                    <span className="text-sm text-muted-foreground">
+                      Descripción:
+                    </span>
+                    <span className="text-foreground">
+                      {viewingRegla.description}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Tipo de Regla:</span>
+                    <span className="text-sm text-muted-foreground">
+                      Tipo de Regla:
+                    </span>
                     <div className="flex items-center gap-2">
-                      {viewingRegla.ruleType === 'ProductVolume' ? (
+                      {viewingRegla.ruleType === "ProductVolume" ? (
                         <Package size={16} className="text-primary" />
                       ) : (
                         <DollarSign size={16} className="text-green-600" />
                       )}
                       <span className="text-foreground">
-                        {viewingRegla.ruleType === 'ProductVolume' ? 'Por Productos' : 'Por Monto'}
+                        {viewingRegla.ruleType === "ProductVolume"
+                          ? "Por Productos"
+                          : "Por Monto"}
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Periodo de Vigencia:</span>
+                    <span className="text-sm text-muted-foreground">
+                      Periodo de Vigencia:
+                    </span>
                     <span className="text-foreground">
-                      {new Date(viewingRegla.startDate).toLocaleDateString()} al {new Date(viewingRegla.endDate).toLocaleDateString()}
+                      {new Date(viewingRegla.startDate).toLocaleDateString()} al{" "}
+                      {new Date(viewingRegla.endDate).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Estado:</span>
-                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                      viewingRegla.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {viewingRegla.isActive ? 'Activa' : 'Inactiva'}
+                    <span className="text-sm text-muted-foreground">
+                      Estado:
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded text-xs ${
+                        viewingRegla.isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {viewingRegla.isActive ? "Activa" : "Inactiva"}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {viewingRegla.ruleType === 'ProductVolume' && viewingRegla.productVolumeConditions.length > 0 && (
-                <div>
-                  <h4 className="text-sm text-muted-foreground mb-3">Productos Requeridos</h4>
-                  <div className="bg-muted/30 rounded p-4 space-y-2">
-                    {viewingRegla.productVolumeConditions.map((product, index) => (
-                      <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
-                        <div className="flex items-center gap-2">
-                          <Package size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">Código: {product.articleCode}</span>
-                        </div>
+              {viewingRegla.ruleType === "ProductVolume" &&
+                viewingRegla.productVolumeConditions.length > 0 && (
+                  <div>
+                    <h4 className="text-sm text-muted-foreground mb-3">
+                      Productos Requeridos
+                    </h4>
+                    <div className="bg-muted/30 rounded p-4 space-y-2">
+                      {viewingRegla.productVolumeConditions.map(
+                        (product, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between bg-surface p-3 rounded"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Package size={16} className="text-primary" />
+                              <span className="text-sm text-foreground">
+                                Código: {product.articleCode}
+                              </span>
+                            </div>
+                          </div>
+                        ),
+                      )}
+                      <div className="flex justify-between bg-surface p-3 rounded mt-2">
+                        <span className="text-sm text-muted-foreground">
+                          Cantidad Requerida:
+                        </span>
+                        <span className="text-foreground font-semibold">
+                          {viewingRegla.productVolumeTargetQuantity}
+                        </span>
                       </div>
-                    ))}
-                    <div className="flex justify-between bg-surface p-3 rounded mt-2">
-                      <span className="text-sm text-muted-foreground">Cantidad Requerida:</span>
-                      <span className="text-foreground font-semibold">{viewingRegla.productVolumeTargetQuantity}</span>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {viewingRegla.ruleType === 'AmountPurchased' && viewingRegla.amountCondition > 0 && (
-                <div>
-                  <h4 className="text-sm text-muted-foreground mb-3">Condición de Monto</h4>
-                  <div className="bg-muted/30 rounded p-4">
-                    <div className="flex justify-between bg-surface p-3 rounded">
-                      <span className="text-sm text-muted-foreground">Monto Mínimo Requerido:</span>
-                      <span className="text-foreground font-semibold">{viewingRegla.currency || '$'} {viewingRegla.amountCondition.toFixed(2)}</span>
+              {viewingRegla.ruleType === "AmountPurchased" &&
+                viewingRegla.amountCondition > 0 && (
+                  <div>
+                    <h4 className="text-sm text-muted-foreground mb-3">
+                      Condición de Monto
+                    </h4>
+                    <div className="bg-muted/30 rounded p-4">
+                      <div className="flex justify-between bg-surface p-3 rounded">
+                        <span className="text-sm text-muted-foreground">
+                          Monto Mínimo Requerido:
+                        </span>
+                        <span className="text-foreground font-semibold">
+                          {viewingRegla.currency || "$"}{" "}
+                          {viewingRegla.amountCondition.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-{viewingRegla.rewardProducts.length > 0 && (
+              {viewingRegla.rewardProducts.length > 0 && (
                 <div>
-                  <h4 className="text-sm text-muted-foreground mb-3">Productos del Incentivo</h4>
+                  <h4 className="text-sm text-muted-foreground mb-3">
+                    Productos del Incentivo
+                  </h4>
                   <div className="bg-muted/30 rounded p-4 space-y-2">
                     {viewingRegla.rewardProducts.map((producto, index) => (
-                      <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
+                      <div
+                        key={index}
+                        className="flex items-center justify-between bg-surface p-3 rounded"
+                      >
                         <div className="flex items-center gap-2">
                           <Ticket size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">{producto.articleCode}</span>
+                          <span className="text-sm text-foreground">
+                            {producto.articleCode}
+                          </span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          Cantidad: <span className="text-foreground font-mono">{producto.quantity}</span>
+                          Cantidad:{" "}
+                          <span className="text-foreground font-mono">
+                            {producto.quantity}
+                          </span>
                         </span>
                       </div>
                     ))}
@@ -278,16 +371,26 @@ function ReglasIncentivos() {
               )}
               {viewingRegla.rewardCoupons.length > 0 && (
                 <div>
-                  <h4 className="text-sm text-muted-foreground mb-3">Cupones del Incentivo</h4>
+                  <h4 className="text-sm text-muted-foreground mb-3">
+                    Cupones del Incentivo
+                  </h4>
                   <div className="bg-muted/30 rounded p-4 space-y-2">
                     {viewingRegla.rewardCoupons.map((cupon, index) => (
-                      <div key={index} className="flex items-center justify-between bg-surface p-3 rounded">
+                      <div
+                        key={index}
+                        className="flex items-center justify-between bg-surface p-3 rounded"
+                      >
                         <div className="flex items-center gap-2">
                           <Ticket size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">{cupon.coupon.name}</span>
+                          <span className="text-sm text-foreground">
+                            {cupon.coupon.name}
+                          </span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          Monto: <span className="text-foreground font-mono">${cupon.coupon.amount.toFixed(2)}</span>
+                          Monto:{" "}
+                          <span className="text-foreground font-mono">
+                            ${cupon.coupon.amount.toFixed(2)}
+                          </span>
                         </span>
                       </div>
                     ))}
@@ -311,11 +414,11 @@ function ReglasIncentivos() {
     );
   }
 
-
   if (showCreateEdit) {
     return (
       <CreateEditModal
         initialRule={editingRegla}
+        type={editingRegla?.ruleType || "AmountPurchased"}
         onClose={() => {
           setShowCreateEdit(false);
           setEditingRegla(null);
@@ -332,7 +435,10 @@ function ReglasIncentivos() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 max-w-md">
           <div className="relative">
-            <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search
+              size={20}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               type="text"
               placeholder="Buscar por nombre o descripción..."
@@ -346,10 +452,15 @@ function ReglasIncentivos() {
 
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Filter
+              size={20}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <select
               value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value as 'all' | 'activa' | 'inactiva')}
+              onChange={(e) =>
+                setFilterEstado(e.target.value as "all" | "activa" | "inactiva")
+              }
               className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border 
                        focus:border-primary rounded-t transition-colors outline-none appearance-none"
             >
@@ -357,9 +468,12 @@ function ReglasIncentivos() {
               <option value="activa">Activas</option>
               <option value="inactiva">Inactivas</option>
             </select>
-            <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <ChevronDown
+              size={20}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
           </div>
-
+          {/*
           <div className="relative">
             <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <select
@@ -375,7 +489,7 @@ function ReglasIncentivos() {
             </select>
             <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           </div>
-
+          */}
           <MaterialButton
             variant="contained"
             color="primary"
@@ -389,7 +503,9 @@ function ReglasIncentivos() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
         <div>
-          <label className="text-sm text-muted-foreground">Inicio vigencia</label>
+          <label className="text-sm text-muted-foreground">
+            Inicio vigencia
+          </label>
           <input
             type="date"
             value={filterStartDate}
@@ -430,20 +546,25 @@ function ReglasIncentivos() {
       {reglas.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
           {reglas.map((regla) => (
-            <div key={regla.id} className="bg-surface rounded elevation-2 p-6 hover:elevation-4 transition-all">
+            <div
+              key={regla.id}
+              className="bg-surface rounded elevation-2 p-6 hover:elevation-4 transition-all"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-foreground">{regla.name}</h3>
-                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                      regla.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {regla.isActive ? 'Activa' : 'Inactiva'}
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded text-xs ${
+                        regla.isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {regla.isActive ? "Activa" : "Inactiva"}
                     </span>
                     <div className="flex items-center gap-2 px-2 py-1 bg-primary/10 rounded text-xs text-primary">
-                      {regla.ruleType === 'ProductVolume' ? (
+                      {regla.ruleType === "ProductVolume" ? (
                         <>
                           <Package size={14} />
                           <span>Por Productos</span>
@@ -456,12 +577,16 @@ function ReglasIncentivos() {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">{regla.description}</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {regla.description}
+                  </p>
 
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Calendar size={14} />
-                      <span>Vigencia: {regla.startDate} - {regla.endDate}</span>
+                      <span>
+                        Vigencia: {regla.startDate} - {regla.endDate}
+                      </span>
                     </div>
                     {regla.rewardCoupons.length > 0 && (
                       <div className="flex items-center gap-2">
@@ -505,8 +630,8 @@ function ReglasIncentivos() {
           <h3 className="text-foreground mb-2">No hay reglas de incentivos</h3>
           <p className="text-muted-foreground mb-6">
             {hasAnyFilter
-              ? 'No se encontraron reglas con los filtros aplicados'
-              : 'Cree su primera regla de incentivo para comenzar'}
+              ? "No se encontraron reglas con los filtros aplicados"
+              : "Cree su primera regla de incentivo para comenzar"}
           </p>
           {!hasAnyFilter && (
             <MaterialButton

@@ -62,6 +62,7 @@ interface FormData {
 
 interface CreateEditModalProps {
   initialRule: Promotion | null;
+  type: RuleType;
   onClose: () => void;
   onSave: (rule: CreatePromotionRequest) => void;
 }
@@ -70,6 +71,7 @@ export default function CreateEditModal({
   initialRule,
   onClose,
   onSave,
+  type,
 }: CreateEditModalProps) {
   const [showAddCondicion, setShowAddCondicion] = useState(false);
   const [showAddIncentivo, setShowAddIncentivo] = useState(false);
@@ -102,7 +104,7 @@ export default function CreateEditModal({
     endDate: initialRule?.endDate || "",
     withdrawalStartDate: initialRule?.withdrawalStartDate || "",
     withdrawalDeadline: initialRule?.withdrawalDeadline || "",
-    ruleType: initialRule?.ruleType || "ProductVolume",
+    ruleType: type,
     description: initialRule?.description || "",
     isActive: initialRule?.isActive ?? true,
     amountCondition: initialRule?.amountCondition || 0,
@@ -113,7 +115,6 @@ export default function CreateEditModal({
     rewardProducts: initialRule?.rewardProducts || [],
     rewardCoupons: initialRule?.rewardCoupons || [],
   });
-
 
 
   useEffect(() => {
@@ -362,7 +363,7 @@ export default function CreateEditModal({
                   placeholder="Ej: Compra de Perfumes Premium"
                 />
               </div>
-              <div>
+             {/* <div>
                 <label className="text-sm text-foreground mb-2 block">
                   Tipo de Regla *
                 </label>
@@ -387,6 +388,7 @@ export default function CreateEditModal({
                   />
                 </div>
               </div>
+             */}
               { formData.ruleType === "ProductVolume" ?
               <MaterialInput
                 label="Cantidad Acumular *"
