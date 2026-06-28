@@ -1,11 +1,13 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { Receipt, ChevronDown, ChevronUp, Search, Filter, Eye, CreditCard } from 'lucide-react';
 // import Cobros from '@/components/Cobros';
 import { Upload } from 'lucide-react';
 import VerDetalle from './modals/VerDetalle';
 import ImportarFactura from './modals/ImportarFactura';
+import { getInvoices } from '@/app/services/invoice';
+import { ServerInvoiceResponse } from '@/app/type/invoice';
 
 // Interfaces
 interface FacturaDetalle {
@@ -25,7 +27,9 @@ interface Factura {
   cajaNombre: string;
   asesorId: string;
   asesorNombre: string;
+  clientName: string;
   asesorTipo: 'promotor' | 'empleado';
+  promoterName: string;
   fecha: string;
   usuarioGenero: string;
   moneda: string;
@@ -38,73 +42,12 @@ interface Factura {
   bonificacionesAplicadas?: string[]; // NEW: IDs of bonifications applied
 }
 
-// NEW: Bonification interface
-interface Bonificacion {
-  id: string;
-  promotorId: string;
-  reglaNombre: string;
-  productos: {
-    productoId: string;
-    productoNombre: string;
-    cantidad: number;
-  }[];
-  estado: 'disponible' | 'redimida';
-  fechaCompletado: string;
-}
-
-
-
-
-
 export default function Facturacion() {
-  const [facturas, setFacturas] = useState<Factura[]>([
-    {
-      id: '1',
-      numeroFactura: 'FACT-001',
-      cajaId: '1',
-      cajaNombre: 'Caja Principal - Sucursal Central',
-      asesorId: 'P1',
-      asesorNombre: 'Laura Martínez Hernández',
-      asesorTipo: 'promotor',
-      fecha: '2024-12-09',
-      usuarioGenero: 'Admin',
-      moneda: 'NIO (Córdoba)',
-      tipoPago: 'Contado',
-      detalles: [
-        { id: '1', articuloId: 'ART001', articuloNombre: 'Perfume Chanel N°5 - 100ml', precioVendido: 2500, cantidad: 1, subtotal: 2500 },
-        { id: '2', articuloId: 'ART002', articuloNombre: 'Labial MAC Ruby Woo', precioVendido: 450, cantidad: 2, subtotal: 900 }
-      ],
-      subtotal: 3400,
-      iva: 510,
-      total: 3910,
-      createdAt: '2024-12-09'
-    },
-    {
-      id: '2',
-      numeroFactura: 'FACT-002',
-      cajaId: '3',
-      cajaNombre: 'Caja Principal - Sucursal León',
-      asesorId: 'E2',
-      asesorNombre: 'María José López García',
-      asesorTipo: 'empleado',
-      fecha: '2024-12-09',
-      usuarioGenero: 'Admin',
-      moneda: 'USD (Dólar)',
-      tipoPago: 'Crédito',
-      detalles: [
-        { id: '1', articuloId: 'ART004', articuloNombre: 'Base de Maquillaje Estée Lauder', precioVendido: 1200, cantidad: 1, subtotal: 1200 }
-      ],
-      subtotal: 1200,
-      iva: 180,
-      total: 1380,
-      createdAt: '2024-12-09'
-    }
-  ]);
+  const [facturas, setFacturas] = useState<Factura[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
 
   const [showDetail, setShowDetail] = useState(false);
   const [editingFactura, setEditingFactura] = useState<Factura | null>(null);
-  const [showGenerarCobro, setShowGenerarCobro] = useState(false);
-  const [facturaParaCobro, setFacturaParaCobro] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipoPago, setFilterTipoPago] = useState<'todos' | 'Contado' | 'Crédito'>('todos');
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,7 +57,69 @@ export default function Facturacion() {
 
   //state importmodal
   const [showImportModal, setShowImportModal] = useState(false)
-    const [importFileName, setImportFileName] = useState<string | null>(null)
+
+  const mapChargeStatusToTipoPago = useCallback((chargeStatus: string): 'Contado' | 'Crédito' => {
+    const normalized = (chargeStatus || '').toLowerCase();
+    return normalized.includes('credit') || normalized.includes('cr') ? 'Crédito' : 'Contado';
+  }, []);
+
+  const formatDate = useCallback((isoDate: string) => {
+    if (!isoDate) return '';
+    const date = new Date(isoDate);
+    if (isNaN(date.getTime())) return isoDate;
+    return date.toISOString().slice(0, 10);
+  }, []);
+
+  const mapInvoiceToFactura = useCallback((invoice: ServerInvoiceResponse): Factura => {
+    const subtotal = Number(invoice.header.grossTotal || 0);
+    const iva = Number((invoice.header.tax1Total || 0) + (invoice.header.tax2Total || 0));
+    const total = Number(invoice.header.netTotal || 0);
+
+    return {
+      id: String(invoice.header.id),
+      numeroFactura: invoice.header.document,
+      cajaId: String(invoice.header.warehouse),
+      cajaNombre: invoice.header.branchCode || 'Sin sucursal',
+      asesorId: invoice.header.promoterCode || 'N/A',
+      asesorNombre: invoice.header.promoterName || 'Sin asesor',
+      asesorTipo: 'promotor',
+      clientName: invoice.header.clientName || 'Sin cliente',
+      fecha: formatDate(invoice.header.issuedAt),
+      usuarioGenero: invoice.header.cashier || 'N/A',
+      moneda: 'NIO (Córdoba)',
+      tipoPago: mapChargeStatusToTipoPago(invoice.header.chargeStatus),
+      detalles: invoice.details.map((detail) => ({
+        id: String(detail.id),
+        articuloId: detail.article,
+        articuloNombre: detail.article,
+        precioVendido: Number(detail.salePrice || 0),
+        cantidad: Number(detail.quantity || 0),
+        subtotal: Number(detail.price || 0) * Number(detail.quantity || 0),
+      })),
+      subtotal,
+      iva,
+      total,
+      createdAt: invoice.header.issuedAt,
+    };
+  }, [formatDate, mapChargeStatusToTipoPago]);
+
+  const loadFacturas = useCallback(async () => {
+    setLoadingInvoices(true);
+    try {
+      const response = await getInvoices();
+      const mapped = (response.records || []).map(mapInvoiceToFactura);
+      setFacturas(mapped);
+    } catch (error) {
+      console.error('Error al cargar facturas:', error);
+      setFacturas([]);
+    } finally {
+      setLoadingInvoices(false);
+    }
+  }, [mapInvoiceToFactura]);
+
+  useEffect(() => {
+    loadFacturas();
+  }, [loadFacturas]);
 
 
   const handleViewDetail = (factura: Factura) => {
@@ -126,14 +131,16 @@ export default function Facturacion() {
   const handleCancel = () => {
     setShowDetail(false);
     setEditingFactura(null);
-    setShowGenerarCobro(false);
-    setFacturaParaCobro(null);
   };
 
   const handleGenerarCobro = (facturaId: string) => {
-    setFacturaParaCobro(facturaId);
-    setShowGenerarCobro(true);
+    console.log('Generar cobro para factura:', facturaId);
   };
+
+  const handleCloseImportModal = useCallback(() => {
+    setShowImportModal(false);
+    loadFacturas();
+  }, [loadFacturas]);
 
 
   // Filtering and sorting
@@ -201,7 +208,6 @@ export default function Facturacion() {
               color='secondary'
               className="gap-2 ml-0.5 mr-0.5"
               onClick={() => {
-              setImportFileName(null)
                setShowImportModal(true)
                
               }}
@@ -278,7 +284,12 @@ export default function Facturacion() {
         </div>
 
         {/* Facturas Table */}
-        {paginatedFacturas.length > 0 ? (
+        {loadingInvoices ? (
+          <div className="bg-surface rounded elevation-2 py-16 text-center">
+            <h3 className="text-foreground mb-2">Cargando facturas...</h3>
+            <p className="text-muted-foreground">Espere un momento</p>
+          </div>
+        ) : paginatedFacturas.length > 0 ? (
           <>
             <div className="bg-surface rounded elevation-2 overflow-hidden mb-6">
               <div className="overflow-x-auto">
@@ -428,7 +439,7 @@ export default function Facturacion() {
               isOpen={showDetail}
               onClose={handleCancel}
             />
-            <ImportarFactura open={showImportModal} onClose={() => setShowImportModal(false)} />
+            <ImportarFactura open={showImportModal} onClose={handleCloseImportModal} />
           </>
         ) : (
           // Empty State
@@ -446,7 +457,6 @@ export default function Facturacion() {
               color='secondary'
               className="gap-2 ml-0.5 mr-0.5"
               onClick={() => {
-              setImportFileName(null)
                setShowImportModal(true)
               }}
             >

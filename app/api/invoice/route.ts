@@ -1,10 +1,25 @@
 import { NextResponse } from "next/server";
 import { getValidToken } from "@/app/lib/helper";
 import {
+  InvoiceGetFilters,
   InvoiceBatchPostResponse,
+  InvoiceListResponse,
   ServerInvoicePayload,
   ServerInvoiceResponse,
 } from "@/app/type/invoice";
+
+const buildQueryString = (filters: InvoiceGetFilters) => {
+  const params = new URLSearchParams();
+
+  if (filters.document?.trim()) params.set("document", filters.document.trim());
+  if (filters.chargeStatus?.trim()) params.set("chargeStatus", filters.chargeStatus.trim());
+  if (filters.clientCode?.trim()) params.set("clientCode", filters.clientCode.trim());
+  if (filters.branchCode?.trim()) params.set("branchCode", filters.branchCode.trim());
+  if (filters.issuedAt?.trim()) params.set("issuedAt", filters.issuedAt.trim());
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+};
 
 const readErrorMessage = (body: unknown) => {
   if (!body || typeof body !== "object") {
@@ -52,6 +67,52 @@ const sendInvoice = async (token: string, invoice: ServerInvoicePayload) => {
     message: null,
   };
 };
+
+export async function GET(request: Request) {
+  const token = await getValidToken();
+
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const requestUrl = new URL(request.url);
+
+    const filters: InvoiceGetFilters = {
+      document: requestUrl.searchParams.get("document") ?? undefined,
+      chargeStatus: requestUrl.searchParams.get("chargeStatus") ?? undefined,
+      clientCode: requestUrl.searchParams.get("clientCode") ?? undefined,
+      branchCode: requestUrl.searchParams.get("branchCode") ?? undefined,
+      issuedAt: requestUrl.searchParams.get("issuedAt") ?? undefined,
+    };
+
+    const query = buildQueryString(filters);
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/invoice${query}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const responseBody = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          message: readErrorMessage(responseBody),
+          error: responseBody,
+        },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(responseBody as InvoiceListResponse);
+  } catch (error) {
+    console.error("Error fetching invoices:", error);
+    return NextResponse.json({ error: "Failed to fetch invoices" }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   const token = await getValidToken();

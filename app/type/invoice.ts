@@ -31,12 +31,14 @@ export interface ServerInvoiceResponse {
     document: string;
     chargeStatus: string;
     clientCode: string;
+    clientName: string;
     warehouse: number;
     branchCode: string;
     cashier: string;
     issuedAt: string;
     store: string;
     promoterCode: string;
+    promoterName: string;
     priceLevel: string;
     coupon: number;
     grossTotal: number;
@@ -77,4 +79,24 @@ export interface InvoiceBatchPostResponse {
   success?: number;
   failed?: number;
   results: InvoicePostResult[];
+}
+
+export interface InvoicePaging {
+  perPage: number;
+  currentPage: number;
+  totalRecords: number;
+  totalPages: number;
+}
+
+export interface InvoiceListResponse {
+  records: ServerInvoiceResponse[];
+  paging: InvoicePaging;
+}
+
+export interface InvoiceGetFilters {
+  document?: string;
+  chargeStatus?: string;
+  clientCode?: string;
+  branchCode?: string;
+  issuedAt?: string;
 }
