@@ -29,7 +29,6 @@ interface Factura {
   asesorNombre: string;
   clientName: string;
   asesorTipo: 'promotor' | 'empleado';
-  promoterName: string;
   fecha: string;
   usuarioGenero: string;
   moneda: string;

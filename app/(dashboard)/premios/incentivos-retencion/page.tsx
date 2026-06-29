@@ -10,7 +10,6 @@ import {
   X,
   Eye,
   Settings,
-  Award,
   Package,
   DollarSign,
   ChevronDown,
@@ -28,66 +27,7 @@ import {
 } from "@/app/services/reward/incentive";
 
 export default function IncentivosRetencion() {
-  const [activeView, setActiveView] = useState<
-    "reglas" | "incentivos-generados"
-  >("reglas");
-
-  return (
-    <div className="flex-1 overflow-auto">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Gift size={32} className="text-primary" />
-            <h2 className="text-foreground">
-              Incentivo por Acumulación de Producto
-            </h2>
-          </div>
-          <p className="text-muted-foreground">
-            Configure reglas automáticas de incentivos y gestione incentivos
-            generados
-          </p>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="bg-surface rounded elevation-2 mb-6">
-          <div className="flex border-b border-border">
-            <button
-              onClick={() => setActiveView("reglas")}
-              className={`flex items-center gap-2 px-6 py-4 transition-colors relative ${
-                activeView === "reglas"
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Settings size={20} />
-              <span>Reglas de Incentivos</span>
-              {activeView === "reglas" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveView("incentivos-generados")}
-              className={`flex items-center gap-2 px-6 py-4 transition-colors relative ${
-                activeView === "incentivos-generados"
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Award size={20} />
-              <span>Incentivos Generados</span>
-              {activeView === "incentivos-generados" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        {activeView === "reglas" ? <ReglasIncentivos /> : <ReglasIncentivos />}
-      </div>
-    </div>
-  );
+  return <ReglasIncentivos />;
 }
 
 function ReglasIncentivos() {
@@ -119,7 +59,7 @@ function ReglasIncentivos() {
     try {
       const data = await getRewardIncentiveRules({
         name: searchTerm || undefined,
-        ruleType: 'AmountPurchased', // filterRuleType === "all" ? undefined : filterRuleType,
+        ruleType: filterRuleType === "all" ? undefined : filterRuleType,
         isActive:
           filterEstado === "all" ? undefined : filterEstado === "activa",
         startDate: filterStartDate
@@ -473,12 +413,22 @@ function ReglasIncentivos() {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
             />
           </div>
-          {/*
           <div className="relative">
-            <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Filter
+              size={20}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <select
               value={filterRuleType}
-              onChange={(e) => setFilterRuleType(e.target.value as 'all' | 'ProductVolume' | 'AmountPurchased' | 'Mixed')}
+              onChange={(e) =>
+                setFilterRuleType(
+                  e.target.value as
+                    | "all"
+                    | "ProductVolume"
+                    | "AmountPurchased"
+                    | "Mixed",
+                )
+              }
               className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border 
                        focus:border-primary rounded-t transition-colors outline-none appearance-none"
             >
@@ -487,9 +437,11 @@ function ReglasIncentivos() {
               <option value="AmountPurchased">Por Monto</option>
               <option value="Mixed">Mixto</option>
             </select>
-            <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <ChevronDown
+              size={20}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
           </div>
-          */}
           <MaterialButton
             variant="contained"
             color="primary"

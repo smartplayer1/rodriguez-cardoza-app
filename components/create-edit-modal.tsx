@@ -98,6 +98,9 @@ export default function CreateEditModal({
   const [articles, setArticles] = useState<ArticleRecord[]>([]);
   const [coupones, setCoupones] = useState<CouponRecord[]>([]);
   const [, setIsLoadingResources] = useState(false);
+  const [isMaxWinsUnlimited, setIsMaxWinsUnlimited] = useState(
+    initialRule?.maxWinsPerClient == null,
+  );
   const [formData, setFormData] = useState<FormData>({
     name: initialRule?.name || "",
     startDate: initialRule?.startDate || "",
@@ -262,6 +265,11 @@ export default function CreateEditModal({
       return;
     }
 
+    if (!isMaxWinsUnlimited && (!formData.maxWinsPerClient || formData.maxWinsPerClient <= 0)) {
+      alert("Por favor ingrese una cantidad válida de victorias máximas por cliente");
+      return;
+    }
+
     if (productosIncentivo.length === 0 && cuponesIncentivo.length === 0) {
       alert("Por favor agregue al menos un producto o cupón como incentivo");
       return;
@@ -279,7 +287,7 @@ export default function CreateEditModal({
       amountCondition:
       formData.ruleType === "AmountPurchased" ? formData.amountCondition : 0,
       productVolumeTargetQuantity: formData.ruleType === "ProductVolume" ? formData.productVolumeTargetQuantity : 0,
-      maxWinsPerClient: null,
+      maxWinsPerClient: isMaxWinsUnlimited ? null : formData.maxWinsPerClient,
       participantClientType: formData.participantClientType,
       productVolumeConditions:
         formData.ruleType === "ProductVolume" ? productosCondicion : [],
@@ -421,6 +429,45 @@ export default function CreateEditModal({
                 min={1}
               /> 
               }
+              <div className="space-y-2">
+                <MaterialInput
+                label="Victorias máximas por cliente"
+                type="number"
+                fullWidth
+                value={formData.maxWinsPerClient ?? ""}
+                disabled={isMaxWinsUnlimited}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    maxWinsPerClient: e.target.value
+                      ? Number.parseInt(e.target.value, 10)
+                      : null,
+                  })
+                }
+                min={1}
+              />
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="maxWinsUnlimited"
+                    checked={isMaxWinsUnlimited}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsMaxWinsUnlimited(checked);
+                      setFormData({
+                        ...formData,
+                        maxWinsPerClient: checked
+                          ? null
+                          : (formData.maxWinsPerClient ?? 1),
+                      });
+                    }}
+                    className="w-5 h-5 text-primary border-border rounded focus:ring-primary"
+                  />
+                  <label htmlFor="maxWinsUnlimited" className="text-sm text-foreground">
+                    Ilimitado
+                  </label>
+                </div>
+              </div>
               <MaterialInput
                 label="Fecha de Inicio *"
                 type="date"

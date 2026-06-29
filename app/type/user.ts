@@ -75,6 +75,49 @@ export interface Role {
   createdAt: string; // puedes usar Date si lo parseas
 }
 
+export interface RolePermission {
+  id: number | null;
+  permissionName: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+export interface RoleModule {
+  id: number;
+  moduleName: string;
+  modulePermission: RolePermission[];
+}
+
+export interface RoleDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  userCount: number;
+  permissionCount: number;
+  modules: RoleModule[];
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface RoleModulesResponse {
+  records: RoleModule[][];
+  paging: {
+    perPage: number;
+    currentPage: number;
+    totalRecords: number;
+    totalPages: number;
+  };
+}
+
+export interface RoleUpdatePayload {
+  description: string | null;
+  roleName: string | null;
+  permissions: {
+    permissionId: number;
+    isActive: boolean;
+  }[];
+}
+
 export interface User {
   id: string;
   name: string;

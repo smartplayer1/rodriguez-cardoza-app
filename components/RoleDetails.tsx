@@ -1,166 +1,219 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { MaterialButton } from './MaterialButton';
 import { MaterialInput } from './MaterialInput';
 import { Save, X, Shield, CheckSquare, Square } from 'lucide-react';
-import { Role } from '@/app/type/user';
-
-interface Permission {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-}
+import {
+  Role,
+  RoleDetail,
+  RoleModule,
+  RoleUpdatePayload,
+} from '@/app/type/user';
+import { getRoleById, getRoleModules } from '@/app/services/roles';
 
 interface RoleDetailsProps {
   role: Role | null;
-  onSave: (roleData: any) => void;
+  onSave: (roleData: {
+    roleName: string;
+    description: string | null;
+    permissions: RoleUpdatePayload['permissions'];
+  }) => void | Promise<void>;
   onCancel: () => void;
 }
 
 export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps) {
   const [roleName, setRoleName] = useState(role?.name || '');
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(role?.permissions || []);
+  const [description, setDescription] = useState('');
+  const [allModules, setAllModules] = useState<RoleModule[]>([]);
+  const [moduleEnabled, setModuleEnabled] = useState<Record<number, boolean>>({});
+  const [permissionEnabled, setPermissionEnabled] = useState<Record<number, boolean>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const roleTypes = ['Facturador', 'Bodeguero', 'Supervisor/Coordinador', 'Administrador'];
+  const buildDefaultPermissionMap = (modules: RoleModule[]) => {
+    const map: Record<number, boolean> = {};
+    modules.forEach((moduleItem) => {
+      moduleItem.modulePermission.forEach((permission) => {
+        if (typeof permission.id === 'number') {
+          map[permission.id] = false;
+        }
+      });
+    });
+    return map;
+  };
 
-  const allPermissions: Permission[] = [
-    // Users & Security
-    { id: 'users.view', name: 'Ver Usuarios', description: 'Ver lista de usuarios', category: 'Usuarios y Seguridad' },
-    { id: 'users.create', name: 'Crear Usuarios', description: 'Crear nuevos usuarios', category: 'Usuarios y Seguridad' },
-    { id: 'users.edit', name: 'Editar Usuarios', description: 'Modificar usuarios existentes', category: 'Usuarios y Seguridad' },
-    { id: 'users.delete', name: 'Eliminar Usuarios', description: 'Eliminar usuarios del sistema', category: 'Usuarios y Seguridad' },
-    { id: 'roles.manage', name: 'Gestionar Roles', description: 'Administrar roles y permisos', category: 'Usuarios y Seguridad' },
+  const buildDefaultModuleMap = (modules: RoleModule[]) => {
+    const map: Record<number, boolean> = {};
+    modules.forEach((moduleItem) => {
+      map[moduleItem.id] = false;
+    });
+    return map;
+  };
 
-    // Invoicing
-    { id: 'invoices.view', name: 'Ver Facturas', description: 'Ver facturas existentes', category: 'Facturación' },
-    { id: 'invoices.create', name: 'Crear Facturas', description: 'Crear nuevas facturas', category: 'Facturación' },
-    { id: 'invoices.edit', name: 'Editar Facturas', description: 'Modificar facturas', category: 'Facturación' },
-    { id: 'invoices.cancel', name: 'Anular Facturas', description: 'Anular facturas emitidas', category: 'Facturación' },
-    { id: 'invoices.export', name: 'Exportar Facturas', description: 'Exportar facturas a PDF/Excel', category: 'Facturación' },
+  const syncModuleFlags = (modules: RoleModule[], permissionState: Record<number, boolean>) => {
+    const nextModuleState: Record<number, boolean> = {};
 
-    // Inventory
-    { id: 'inventory.view', name: 'Ver Inventario', description: 'Ver productos y stock', category: 'Inventario' },
-    { id: 'inventory.create', name: 'Crear Productos', description: 'Añadir nuevos productos', category: 'Inventario' },
-    { id: 'inventory.edit', name: 'Editar Productos', description: 'Modificar productos existentes', category: 'Inventario' },
-    { id: 'inventory.adjust', name: 'Ajustar Stock', description: 'Realizar ajustes de inventario', category: 'Inventario' },
-    { id: 'inventory.transfer', name: 'Transferir Productos', description: 'Transferir entre bodegas', category: 'Inventario' },
+    modules.forEach((moduleItem) => {
+      const permissionIds = moduleItem.modulePermission
+        .map((permission) => permission.id)
+        .filter((id): id is number => typeof id === 'number');
 
-    // Reports
-    { id: 'reports.sales', name: 'Reportes de Ventas', description: 'Ver reportes de ventas', category: 'Reportes' },
-    { id: 'reports.inventory', name: 'Reportes de Inventario', description: 'Ver reportes de inventario', category: 'Reportes' },
-    { id: 'reports.financial', name: 'Reportes Financieros', description: 'Ver reportes financieros', category: 'Reportes' },
-    { id: 'reports.export', name: 'Exportar Reportes', description: 'Exportar reportes a archivos', category: 'Reportes' },
+      nextModuleState[moduleItem.id] = permissionIds.some((id) => permissionState[id]);
+    });
 
-    // Configuration
-    { id: 'config.view', name: 'Ver Configuraciones', description: 'Ver configuraciones del sistema', category: 'Configuración' },
-    { id: 'config.edit', name: 'Editar Configuraciones', description: 'Modificar configuraciones', category: 'Configuración' },
-    { id: 'config.currency', name: 'Gestionar Monedas', description: 'Configurar tasas de cambio', category: 'Configuración' },
-    { id: 'config.company', name: 'Datos de Empresa', description: 'Modificar información de la empresa', category: 'Configuración' },
-  ];
-
-  const defaultPermissionsByType: { [key: string]: string[] } = {
-    'Facturador': [
-      'invoices.view',
-      'invoices.create',
-      'invoices.edit',
-      'invoices.export',
-      'inventory.view',
-      'reports.sales'
-    ],
-    'Bodeguero': [
-      'inventory.view',
-      'inventory.create',
-      'inventory.edit',
-      'inventory.adjust',
-      'inventory.transfer',
-      'reports.inventory'
-    ],
-    'Supervisor/Coordinador': [
-      'users.view',
-      'invoices.view',
-      'invoices.create',
-      'invoices.edit',
-      'invoices.export',
-      'inventory.view',
-      'inventory.adjust',
-      'reports.sales',
-      'reports.inventory',
-      'reports.financial',
-      'reports.export'
-    ],
-    'Administrador': allPermissions.map(p => p.id)
+    setModuleEnabled(nextModuleState);
   };
 
   useEffect(() => {
-    if (!role) {
-      // When creating new role, pre-select based on role type
-      setSelectedPermissions(defaultPermissionsByType[roleType] || []);
-    }
-  }, [roleType, role]);
+    let mounted = true;
 
-  const handleRoleTypeChange = (newType: string) => {
-    setRoleType(newType);
-    // Auto-select default permissions for the role type
-    if (!role) {
-      setSelectedPermissions(defaultPermissionsByType[newType] || []);
-    }
+    const load = async () => {
+      setLoading(true);
+      setLoadError(null);
+
+      try {
+        const modulesData = await getRoleModules();
+
+        if (!mounted) {
+          return;
+        }
+
+        setAllModules(modulesData);
+        const defaultPermissionMap = buildDefaultPermissionMap(modulesData);
+        const defaultModuleMap = buildDefaultModuleMap(modulesData);
+
+        setPermissionEnabled(defaultPermissionMap);
+        setModuleEnabled(defaultModuleMap);
+
+        if (role?.id) {
+          const roleDetail: RoleDetail = await getRoleById(role.id);
+          if (!mounted) {
+            return;
+          }
+
+          setRoleName(roleDetail.name || role.name || '');
+          setDescription(roleDetail.description || '');
+
+          const permissionMap = { ...defaultPermissionMap };
+          roleDetail.modules.forEach((moduleItem) => {
+            moduleItem.modulePermission.forEach((permission) => {
+              if (typeof permission.id === 'number') {
+                permissionMap[permission.id] = permission.isActive;
+              }
+            });
+          });
+
+          setPermissionEnabled(permissionMap);
+          syncModuleFlags(modulesData, permissionMap);
+        }
+      } catch (error) {
+        console.error('Error al cargar datos del rol', error);
+        if (mounted) {
+          setLoadError('No se pudo cargar la configuracion de modulos y permisos');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [role]);
+
+  const totalPermissions = useMemo(() => {
+    return allModules.reduce((acc, moduleItem) => {
+      const valid = moduleItem.modulePermission.filter((permission) => typeof permission.id === 'number').length;
+      return acc + valid;
+    }, 0);
+  }, [allModules]);
+
+  const selectedPermissionsCount = useMemo(() => {
+    return Object.values(permissionEnabled).filter(Boolean).length;
+  }, [permissionEnabled]);
+
+  const togglePermission = (moduleId: number, permissionId: number) => {
+    setPermissionEnabled((prev) => {
+      const next = {
+        ...prev,
+        [permissionId]: !prev[permissionId],
+      };
+
+      const moduleDef = allModules.find((moduleItem) => moduleItem.id === moduleId);
+      if (moduleDef) {
+        const permissionIds = moduleDef.modulePermission
+          .map((permission) => permission.id)
+          .filter((id): id is number => typeof id === 'number');
+        const anyEnabled = permissionIds.some((id) => next[id]);
+        setModuleEnabled((prevModuleState) => ({
+          ...prevModuleState,
+          [moduleId]: anyEnabled,
+        }));
+      }
+
+      return next;
+    });
   };
 
-  const togglePermission = (permissionId: string) => {
-    setSelectedPermissions(prev =>
-      prev.includes(permissionId)
-        ? prev.filter(id => id !== permissionId)
-        : [...prev, permissionId]
-    );
+  const toggleModule = (module: RoleModule) => {
+    const nextEnabled = !moduleEnabled[module.id];
+
+    setModuleEnabled((prev) => ({
+      ...prev,
+      [module.id]: nextEnabled,
+    }));
+
+    setPermissionEnabled((prev) => {
+      const next = { ...prev };
+      module.modulePermission.forEach((permission) => {
+        if (typeof permission.id === 'number') {
+          next[permission.id] = nextEnabled;
+        }
+      });
+      return next;
+    });
   };
 
-  const toggleCategory = (category: string) => {
-    const categoryPermissions = allPermissions
-      .filter(p => p.category === category)
-      .map(p => p.id);
-
-    const allSelected = categoryPermissions.every(id => selectedPermissions.includes(id));
-
-    if (allSelected) {
-      setSelectedPermissions(prev => prev.filter(id => !categoryPermissions.includes(id)));
-    } else {
-      setSelectedPermissions(prev => [...new Set([...prev, ...categoryPermissions])]);
-    }
-  };
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!roleName.trim()) {
       alert('Por favor ingrese un nombre para el rol');
       return;
     }
 
-    if (selectedPermissions.length === 0) {
+    const payloadPermissions = allModules
+      .flatMap((moduleItem) => {
+        const moduleIsEnabled = !!moduleEnabled[moduleItem.id];
+
+        return moduleItem.modulePermission
+          .map((permission) => permission.id)
+          .filter((id): id is number => typeof id === 'number')
+          .map((permissionId) => ({
+            permissionId,
+            isActive: moduleIsEnabled ? !!permissionEnabled[permissionId] : false,
+          }));
+      });
+
+    const activeCount = payloadPermissions.filter((permission) => permission.isActive).length;
+
+    if (activeCount === 0) {
       alert('Por favor seleccione al menos un permiso');
       return;
     }
 
-    onSave({
-      name: roleName,
-      type: roleType,
-      permissions: selectedPermissions
-    });
-  };
-
-  const categories = Array.from(new Set(allPermissions.map(p => p.category)));
-
-  const isCategoryFullySelected = (category: string) => {
-    const categoryPermissions = allPermissions
-      .filter(p => p.category === category)
-      .map(p => p.id);
-    return categoryPermissions.every(id => selectedPermissions.includes(id));
-  };
-
-  const isCategoryPartiallySelected = (category: string) => {
-    const categoryPermissions = allPermissions
-      .filter(p => p.category === category)
-      .map(p => p.id);
-    return categoryPermissions.some(id => selectedPermissions.includes(id)) &&
-           !categoryPermissions.every(id => selectedPermissions.includes(id));
+    try {
+      setSaving(true);
+      await onSave({
+        roleName: roleName.trim(),
+        description: description.trim() || null,
+        permissions: payloadPermissions,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -174,6 +227,12 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
           Configure los detalles y permisos del rol
         </p>
       </div>
+
+      {loadError && (
+        <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Role Details Form */}
@@ -196,25 +255,15 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
                 helperText="Ingrese un nombre descriptivo para el rol"
               />
 
-              {/* Role Type */}
-              <div>
-                <label className="text-sm text-foreground mb-2 block">
-                  Tipo de Rol
-                </label>
-                <select
-                  value={roleType}
-                  onChange={(e) => handleRoleTypeChange(e.target.value)}
-                  className="w-full px-4 py-3 bg-input-background border-b-2 border-border 
-                           focus:border-primary rounded-t transition-colors outline-none"
-                >
-                  {roleTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Los permisos se preseleccionan según el tipo de rol
-                </p>
-              </div>
+              <MaterialInput
+                label="Descripcion"
+                type="text"
+                placeholder="Descripcion del rol"
+                fullWidth
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                helperText="Puede dejarlo vacio si no aplica"
+              />
 
               {/* Permissions Summary */}
               <div className="bg-muted rounded p-4">
@@ -222,10 +271,10 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
                   Permisos Seleccionados
                 </p>
                 <p className="text-2xl text-foreground">
-                  {selectedPermissions.length}
+                  {selectedPermissionsCount}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  de {allPermissions.length} disponibles
+                  de {totalPermissions} disponibles
                 </p>
               </div>
 
@@ -237,8 +286,9 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
                   fullWidth
                   startIcon={<Save size={18} />}
                   onClick={handleSave}
+                  disabled={saving || loading}
                 >
-                  Guardar Rol
+                  {saving ? 'Guardando...' : 'Guardar Rol'}
                 </MaterialButton>
                 <MaterialButton
                   variant="outlined"
@@ -257,30 +307,38 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
         {/* Permissions Selection */}
         <div className="lg:col-span-2">
           <div className="bg-surface rounded elevation-2 p-6">
-            <h3 className="text-foreground mb-4">Permisos del Sistema</h3>
+            <h3 className="text-foreground mb-4">Modulos y Permisos</h3>
             <p className="text-sm text-muted-foreground mb-6">
-              Seleccione los permisos que tendrá este rol. 
-              Los permisos están organizados por categorías.
+              Active o desactive modulos completos, o ajuste permisos individuales.
             </p>
 
             <div className="space-y-6">
-              {categories.map(category => {
-                const categoryPermissions = allPermissions.filter(p => p.category === category);
-                const isFullySelected = isCategoryFullySelected(category);
-                const isPartiallySelected = isCategoryPartiallySelected(category);
+              {loading ? (
+                <div className="text-sm text-muted-foreground">Cargando modulos...</div>
+              ) : allModules.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No hay modulos disponibles</div>
+              ) : (
+                allModules.map((moduleItem) => {
+                const permissionIds = moduleItem.modulePermission
+                  .map((permission) => permission.id)
+                  .filter((id): id is number => typeof id === 'number');
+
+                const checkedCount = permissionIds.filter((id) => permissionEnabled[id]).length;
+                const isFullySelected = checkedCount > 0 && checkedCount === permissionIds.length;
+                const isPartiallySelected = checkedCount > 0 && checkedCount < permissionIds.length;
 
                 return (
-                  <div key={category} className="border border-border rounded p-4">
+                  <div key={moduleItem.id} className="border border-border rounded p-4">
                     {/* Category Header */}
                     <div 
                       className="flex items-center gap-3 mb-4 cursor-pointer hover:bg-muted 
                                p-2 rounded transition-colors"
-                      onClick={() => toggleCategory(category)}
+                      onClick={() => toggleModule(moduleItem)}
                     >
                       <div className="flex items-center justify-center">
-                        {isFullySelected ? (
+                        {moduleEnabled[moduleItem.id] && isFullySelected ? (
                           <CheckSquare size={20} className="text-primary" />
-                        ) : isPartiallySelected ? (
+                        ) : moduleEnabled[moduleItem.id] && isPartiallySelected ? (
                           <div className="w-5 h-5 border-2 border-primary rounded flex items-center justify-center">
                             <div className="w-2 h-2 bg-primary rounded"></div>
                           </div>
@@ -288,24 +346,28 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
                           <Square size={20} className="text-muted-foreground" />
                         )}
                       </div>
-                      <h4 className="text-foreground">{category}</h4>
+                      <h4 className="text-foreground">{moduleItem.moduleName}</h4>
                       <span className="text-xs text-muted-foreground ml-auto">
-                        {categoryPermissions.filter(p => selectedPermissions.includes(p.id)).length}/
-                        {categoryPermissions.length}
+                        {checkedCount}/{permissionIds.length}
                       </span>
                     </div>
 
                     {/* Permissions in Category */}
                     <div className="space-y-2 pl-8">
-                      {categoryPermissions.map(permission => {
-                        const isSelected = selectedPermissions.includes(permission.id);
+                      {moduleItem.modulePermission.map((permission, index) => {
+                        const permissionId = permission.id;
+                        const isSelected = typeof permissionId === 'number' && permissionEnabled[permissionId];
 
                         return (
                           <div
-                            key={permission.id}
+                            key={permissionId ?? `${moduleItem.id}-${index}`}
                             className="flex items-start gap-3 p-2 rounded hover:bg-muted 
                                      transition-colors cursor-pointer"
-                            onClick={() => togglePermission(permission.id)}
+                            onClick={() => {
+                              if (typeof permissionId === 'number') {
+                                togglePermission(moduleItem.id, permissionId);
+                              }
+                            }}
                           >
                             <div className="flex items-center justify-center mt-1">
                               {isSelected ? (
@@ -315,9 +377,9 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
                               )}
                             </div>
                             <div className="flex-1">
-                              <p className="text-sm text-foreground">{permission.name}</p>
+                              <p className="text-sm text-foreground">{permission.permissionName}</p>
                               <p className="text-xs text-muted-foreground">
-                                {permission.description}
+                                {permission.description || 'Sin descripcion'}
                               </p>
                             </div>
                           </div>
@@ -326,7 +388,7 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         </div>

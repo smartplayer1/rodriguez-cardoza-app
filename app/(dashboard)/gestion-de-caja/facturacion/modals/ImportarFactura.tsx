@@ -26,6 +26,24 @@ interface InvoiceUploadError {
   details: string[];
 }
 
+const toIssuedAtIso = (dateValue: string) => {
+  const normalized = (dateValue || "").trim();
+  const isoDate = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (isoDate) {
+    return `${isoDate[1]}-${isoDate[2]}-${isoDate[3]}T00:00:00.000Z`;
+  }
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return new Date(
+    Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()),
+  ).toISOString();
+};
+
 export default function ImportarFactura({ open , onClose } : Props) {
   const [data, setData] = useState<FacturaDetalleExcel[]>([]);
   const [errors, setErrors] = useState<{ fila: number; errores: string[] }[]>([]);
@@ -126,7 +144,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
         warehouse: Number(factura.encabezado.bodega) || 0,
         branchCode: "SC002", //factura.encabezado.sucursal,
         cashier: factura.encabezado.cajero,
-        issuedAt: new Date(factura.encabezado.fecha).toISOString(),
+        issuedAt: toIssuedAtIso(factura.encabezado.fecha),
         store: factura.encabezado.tienda,
         promoterCode: String(factura.encabezado.promotora),
         priceLevel: factura.encabezado.nivel_precio,

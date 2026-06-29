@@ -80,3 +80,45 @@ export interface ClienteExcel {
   promoterCode: string;
   branchName: string | null;
 }
+
+export interface ClientRewardProgress {
+  incentiveRuleId: number;
+  incentiveRuleName: string;
+  ruleType: string;
+  amountProgress: number;
+  amountCondition: number;
+  productVolumeProgress: number;
+  productVolumeTargetQuantity: number;
+  winsCount: number;
+  maxWinsPerClient: number | null;
+}
+
+export interface ClientEarnedReward {
+  id: number;
+  incentiveRuleId: number;
+  incentiveRuleName: string;
+  sourceInvoiceId: number;
+  sourceInvoiceDocument: string;
+  sequence: number;
+  rewardType: string;
+  status: string;
+  articleCode: string | null;
+  quantity: number;
+  couponId: number | null;
+  couponName: string | null;
+  couponAmount: number;
+}
+
+export interface ClientCouponMovement {
+  id: number;
+  movementType: string;
+  incentiveRuleId: number | null;
+  incentiveRuleName: string | null;
+  invoiceId: number;
+  invoiceDocument: string;
+  couponId: number;
+  couponName: string;
+  amount: number;
+  remainingAmount: number | null;
+  appliedAt: string;
+}

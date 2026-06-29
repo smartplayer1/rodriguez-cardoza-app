@@ -129,3 +129,48 @@ export interface Incentive {
   rewardProducts: RewardProduct[];
   rewardCoupons: RewardCoupon[];
 }
+
+export interface IncentiveProgressRecord {
+  incentiveRuleId: number;
+  incentiveRuleName: string;
+  ruleType: string;
+  participantClientType: string;
+  isActive: boolean;
+  startDate: string;
+  endDate: string;
+  withdrawalStartDate: string;
+  withdrawalDeadline: string;
+  amountCondition: number;
+  productVolumeTargetQuantity: number;
+  maxWinsPerClient: number | null;
+  clientCount: number;
+  amountProgressTotal: number;
+  productVolumeProgressTotal: number;
+  winsCountTotal: number;
+  contributionCount: number;
+  lastContributionDate: string | null;
+}
+
+export interface IncentiveProgressResponse {
+  records: IncentiveProgressRecord[];
+  paging: Paging;
+}
+
+export type IncentiveProgressFilters = {
+  clientCode?: string;
+  incentiveRuleId?: number;
+  incentiveRuleName?: string;
+  ruleType?: string;
+  participantClientType?: string;
+  isActive?: boolean;
+  startDateFrom?: string;
+  startDateTo?: string;
+  endDateFrom?: string;
+  endDateTo?: string;
+  withdrawalStartDateFrom?: string;
+  withdrawalStartDateTo?: string;
+  withdrawalDeadlineFrom?: string;
+  withdrawalDeadlineTo?: string;
+  contributionDateFrom?: string;
+  contributionDateTo?: string;
+};

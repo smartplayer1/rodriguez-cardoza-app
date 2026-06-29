@@ -4,13 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { Plus, Edit, Trash2, Shield } from 'lucide-react';
 import RoleDetails from '@/components/RoleDetails';
-import { getRoles } from '@/app/services/roles';
-import { Role } from '@/app/type/user';
+import { createRole, getRoles, updateRole } from '@/app/services/roles';
+import { Role, RoleUpdatePayload } from '@/app/type/user';
 
 interface RoleFormData {
-  name: string;
-  type: string;
-  permissions: string[];
+  roleName: string;
+  description: string | null;
+  permissions: RoleUpdatePayload['permissions'];
 }
 
 export default function RolesScreen() {
@@ -35,29 +35,31 @@ export default function RolesScreen() {
     }
   };
 
-  const handleSaveRole = (roleData: RoleFormData) => {
-    if (editingRole) {
-      setRoles(roles.map(r => 
-        r.id === editingRole.id
-          ? {
-              ...r,
-              name: roleData.name,
-              type: roleData.type,
-              permissions: roleData.permissions.length
-            }
-          : r
-      ));
-    } else {
-      const newRole: Role = {
-        id: Date.now().toString(),
-        name: roleData.name,
-        permissions: roleData.permissions.length,
-        users: 0,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setRoles([...roles, newRole]);
+  const handleSaveRole = async (roleData: RoleFormData) => {
+    try {
+      if (editingRole) {
+        await updateRole(editingRole.id, {
+          description: roleData.description,
+          roleName: roleData.roleName,
+          permissions: roleData.permissions,
+        });
+
+      } else {
+        await createRole({
+          description: roleData.description,
+          roleName: roleData.roleName,
+          permissions: roleData.permissions,
+        });
+      }
+
+      const data = await getRoles();
+      setRoles(data.records || []);
+      setShowRoleDetails(false);
+      setEditingRole(null);
+    } catch (error) {
+      console.error('Error guardando rol:', error);
+      alert('No se pudo guardar el rol');
     }
-    setShowRoleDetails(false);
   };
 
   const handleCancelRole = () => {
@@ -72,21 +74,6 @@ export default function RolesScreen() {
     }
     fetchRoles();
   }, []);
-
-  const getRoleTypeColor = (type: string) => {
-    switch (type) {
-      case 'Administrador':
-        return 'bg-primary text-primary-foreground';
-      case 'Facturador':
-        return 'bg-accent text-accent-foreground';
-      case 'Supervisor/Coordinador':
-        return 'bg-secondary text-secondary-foreground';
-      case 'Bodeguero':
-        return 'bg-muted text-muted-foreground';
-      default:
-        return 'bg-muted text-muted-foreground';
-    }
-  };
 
   if (showRoleDetails) {
     return (
