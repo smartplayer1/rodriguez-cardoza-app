@@ -3,15 +3,15 @@ import {
   ClientEarnedReward,
   ClientRewardProgress,
 } from '@/app/type/client';
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
 export const getClientRewardProgress = async (
   clientCode: string,
+  context?: ServiceRequestContext,
 ): Promise<ClientRewardProgress[]> => {
-  const response = await fetch(`/api/reward/client/${clientCode}/progress`, {
+  const response = await fetch(resolveServiceUrl(`/api/reward/client/${clientCode}/progress`, context), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
   });
 
   if (!response.ok) {
@@ -23,12 +23,11 @@ export const getClientRewardProgress = async (
 
 export const getClientEarnedRewards = async (
   clientCode: string,
+  context?: ServiceRequestContext,
 ): Promise<ClientEarnedReward[]> => {
-  const response = await fetch(`/api/reward/client/${clientCode}/earned-rewards`, {
+  const response = await fetch(resolveServiceUrl(`/api/reward/client/${clientCode}/earned-rewards`, context), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
   });
 
   if (!response.ok) {
@@ -40,12 +39,11 @@ export const getClientEarnedRewards = async (
 
 export const getClientCouponMovements = async (
   clientCode: string,
+  context?: ServiceRequestContext,
 ): Promise<ClientCouponMovement[]> => {
-  const response = await fetch(`/api/reward/client/${clientCode}/coupon-movements`, {
+  const response = await fetch(resolveServiceUrl(`/api/reward/client/${clientCode}/coupon-movements`, context), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
   });
 
   if (!response.ok) {

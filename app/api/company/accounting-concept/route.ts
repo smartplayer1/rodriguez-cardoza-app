@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     // Simulate fetching accounting concepts from a database
-    const accountingConcepts = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounting-concept`, {
+    const accountingConcepts = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/accounting-concept`, {
         headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const newConcept = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounting-concept`, {
+    const newConcept = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/accounting-concept`, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${token}`,
@@ -47,7 +47,7 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const body = await req.json();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounting-concept/${body.id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/accounting-concept/${body.id}`, {
         method: 'DELETE',
         headers: {
             Authorization: `Bearer ${token}`,

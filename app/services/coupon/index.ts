@@ -1,14 +1,13 @@
 import { CouponResponse,  CreateCouponPayload} from "@/app/type/reward";
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 export interface UpdateCouponPayload extends CreateCouponPayload {
   id: number;
 }
 
-export const getRewardCoupon = async (): Promise<CouponResponse> => {
-  const response = await fetch('/api/reward/coupon', {
+export const getRewardCoupon = async (context?: ServiceRequestContext): Promise<CouponResponse> => {
+  const response = await fetch(resolveServiceUrl('/api/reward/coupon', context), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
   });
 
   if (!response.ok) {
@@ -18,12 +17,10 @@ export const getRewardCoupon = async (): Promise<CouponResponse> => {
   return await response.json();
 };
 
-export const createRewardCoupon = async (couponData: CreateCouponPayload) => {
-  const response = await fetch('/api/reward/coupon', {
+export const createRewardCoupon = async (couponData: CreateCouponPayload, context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/reward/coupon', context), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(couponData),
   });
 
@@ -35,12 +32,10 @@ export const createRewardCoupon = async (couponData: CreateCouponPayload) => {
   return response.json();
 };
 
-export const updateRewardCoupon = async (couponData: UpdateCouponPayload) => {
-  const response = await fetch('/api/reward/coupon', {
+export const updateRewardCoupon = async (couponData: UpdateCouponPayload, context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/reward/coupon', context), {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(couponData),
   });
 
@@ -52,12 +47,10 @@ export const updateRewardCoupon = async (couponData: UpdateCouponPayload) => {
   return response.json();
 };
 
-export const deleteRewardCoupon = async (couponId: number) => {
-  const response = await fetch('/api/reward/coupon', {
+export const deleteRewardCoupon = async (couponId: number, context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/reward/coupon', context), {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify({ id: couponId }),
   });
 

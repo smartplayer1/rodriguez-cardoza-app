@@ -2,7 +2,12 @@ import {NextResponse} from 'next/server';
 import { getValidToken } from '@/app/lib/helper';
 
 export async function GET(request: Request) {
-     const token = await getValidToken()
+    let token: string | null = null;
+    try {
+        token = await getValidToken()
+    } catch {
+        token = null;
+    }
     if (!token) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
@@ -25,7 +30,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(req: Request) {
-    const token = await getValidToken()
+    let token: string | null = null;
+    try {
+        token = await getValidToken()
+    } catch {
+        token = null;
+    }
     if (!token) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
@@ -51,7 +61,12 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-    const token = await getValidToken()
+    let token: string | null = null;
+    try {
+        token = await getValidToken()
+    } catch {
+        token = null;
+    }
 
     if (!token) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
@@ -78,7 +93,12 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-    const token = await getValidToken()   
+    let token: string | null = null;
+    try {
+        token = await getValidToken()
+    } catch {
+        token = null;
+    }
     if (!token) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }

@@ -3,13 +3,12 @@ import {
   RoleModule,
   RoleUpdatePayload,
 } from '@/app/type/user';
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
-export const getRoles = async () => {
-  const response = await fetch('/api/roles', {
+export const getRoles = async (context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/roles', context), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
   });
 
   if (!response.ok) {
@@ -19,12 +18,10 @@ export const getRoles = async () => {
   return await response.json();
 };
 
-export const getRoleById = async (id: string): Promise<RoleDetail> => {
-  const response = await fetch(`/api/roles/${id}`, {
+export const getRoleById = async (id: string, context?: ServiceRequestContext): Promise<RoleDetail> => {
+  const response = await fetch(resolveServiceUrl(`/api/roles/${id}`, context), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
   });
 
   if (!response.ok) {
@@ -34,12 +31,10 @@ export const getRoleById = async (id: string): Promise<RoleDetail> => {
   return response.json();
 };
 
-export const getRoleModules = async (): Promise<RoleModule[]> => {
-  const response = await fetch('/api/roles/modules', {
+export const getRoleModules = async (context?: ServiceRequestContext): Promise<RoleModule[]> => {
+  const response = await fetch(resolveServiceUrl('/api/roles/modules', context), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
   });
 
   if (!response.ok) {
@@ -58,12 +53,11 @@ export const getRoleModules = async (): Promise<RoleModule[]> => {
 
 export const createRole = async (
   payload: RoleUpdatePayload,
+  context?: ServiceRequestContext,
 ): Promise<RoleDetail> => {
-  const response = await fetch('/api/roles', {
+  const response = await fetch(resolveServiceUrl('/api/roles', context), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(payload),
   });
 
@@ -78,12 +72,11 @@ export const createRole = async (
 export const updateRole = async (
   id: string,
   payload: RoleUpdatePayload,
+  context?: ServiceRequestContext,
 ): Promise<RoleDetail> => {
-  const response = await fetch(`/api/roles/${id}`, {
+  const response = await fetch(resolveServiceUrl(`/api/roles/${id}`, context), {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(payload),
   });
 

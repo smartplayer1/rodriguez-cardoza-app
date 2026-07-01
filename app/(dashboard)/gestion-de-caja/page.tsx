@@ -1,17 +1,8 @@
-import React from 'react';
-import { Settings } from 'lucide-react';
-
-export default function GestionCaja() {
-
+export default function GestionDeCajaPage() {
   return (
-    <div className="flex-1 flex items-center justify-center p-6">
-      <div className="text-center">
-        <Settings size={64} className="mx-auto mb-4 text-muted-foreground" />
-        <h2 className="text-foreground mb-2">Módulo de Gestión de Caja</h2>
-        <p className="text-muted-foreground">
-          Seleccione una opción del menú para comenzar
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold">Gestión de Caja</h1>
+      <p className="text-gray-600">Consulta y gestión de las operaciones de caja.</p>
     </div>
   );
 }

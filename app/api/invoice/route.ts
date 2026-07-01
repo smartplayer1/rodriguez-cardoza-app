@@ -6,6 +6,7 @@ import {
   InvoiceListResponse,
   ServerInvoicePayload,
   ServerInvoiceResponse,
+  ServerInvoiceUpdatePayload,
 } from "@/app/type/invoice";
 
 const buildQueryString = (filters: InvoiceGetFilters) => {
@@ -201,5 +202,47 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Error creating invoices:", error);
     return NextResponse.json({ error: "Failed to create invoices" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: Request) {
+  const token = await getValidToken();
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = (await req.json()) as ServerInvoiceUpdatePayload;
+
+    if (!body?.header?.id) {
+      return NextResponse.json({ message: 'Invoice id is required' }, { status: 400 });
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/invoice/${body.header.id}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const responseBody = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          message: readErrorMessage(responseBody),
+          error: responseBody,
+        },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(responseBody);
+  } catch (error) {
+    console.error('Error updating invoice:', error);
+    return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 });
   }
 }

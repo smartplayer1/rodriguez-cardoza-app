@@ -1,10 +1,10 @@
 
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
+
 export const getAccountingConceptCategories = async () => {
-const response = await fetch('/api/company/accounting-concept/category', {
+const response = await fetch(resolveServiceUrl('/api/company/accounting-concept/category'), {
   method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  headers: createJsonHeaders()
 });
 
 if (!response.ok) {
@@ -14,41 +14,37 @@ return await response.json();
 };
 
 
-export const postAccountingConcept = async (conceptData: { name: string; categoryId: number }) => {
- return await fetch('/api/company/accounting-concept', {
+export const postAccountingConcept = async (conceptData: { name: string; categoryId: number }, context?: ServiceRequestContext) => {
+ return await fetch(resolveServiceUrl('/api/company/accounting-concept', context), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(conceptData),
   });
 };
 
-export const getAccountingConcepts = async () => {
-  const response = await fetch('/api/company/accounting-concept', {
-    method: 'GET',});
+export const getAccountingConcepts = async (context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/company/accounting-concept', context), {
+    method: 'GET',
+    headers: createJsonHeaders(context?.cookieHeader),
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch accounting concepts');
   }
   return await response.json();
 };  
 
-export const updateAccountingConcept = async (conceptData: { id: number; name: string; categoryId: number }) => {
-  return await fetch(`/api/company/accounting-concept`, {
+export const updateAccountingConcept = async (conceptData: { id: number; name: string; categoryId: number }, context?: ServiceRequestContext) => {
+  return await fetch(resolveServiceUrl('/api/company/accounting-concept', context), {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(conceptData),
   });
 };
 
-export const deleteAccountingConcept = async (id: number) => {
- return await fetch(`/api/company/accounting-concept`, {
+export const deleteAccountingConcept = async (id: number, context?: ServiceRequestContext) => {
+ return await fetch(resolveServiceUrl('/api/company/accounting-concept', context), {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify({ id }),
   });
 };

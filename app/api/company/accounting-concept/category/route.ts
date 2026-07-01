@@ -8,7 +8,7 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const categories = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounting-concept-category`, {
+    const categories = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/accounting-concept-category`, {
         headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'

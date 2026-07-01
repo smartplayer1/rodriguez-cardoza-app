@@ -20,7 +20,9 @@ import {
   ChevronDown,
   Ticket,
   Gift,
-  GiftIcon
+  GiftIcon,
+  RefreshCcw,
+  ArrowUpFromLine
 
 } from 'lucide-react';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
@@ -63,6 +65,9 @@ const menuItems: MenuItemType[] = [
   ] },
   { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, permission: PERMISSIONS.EJEMPLO_VIEW, options: [
     {id: 'gestiones', label: 'Gestiones', href: '/gestion-de-caja/gestiones', icon: Wallet , permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'conversiones', label: 'Conversiones', href: '/gestion-de-caja/conversiones', icon: RefreshCcw , permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'salidas', label: 'Salidas', href: '/gestion-de-caja/salidas', icon: ArrowUpFromLine , permission: PERMISSIONS.EJEMPLO_VIEW},
+    {id: 'cajas-registradoras', label: 'Cajas Registradoras', href: '/gestion-de-caja/cajas-registradoras', icon: CreditCard , permission: PERMISSIONS.EJEMPLO_VIEW},
     {id: 'facturacion', label: 'Facturación', href: '/gestion-de-caja/facturacion', icon: Receipt, permission: PERMISSIONS.EJEMPLO_VIEW}, 
     {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: TrendingUp, permission: PERMISSIONS.EJEMPLO_VIEW},
     {id: 'cobros', label: 'Cobros', href: '/gestion-de-caja/cobros', icon: CreditCard, permission: PERMISSIONS.EJEMPLO_VIEW},

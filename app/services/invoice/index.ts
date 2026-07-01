@@ -1,6 +1,17 @@
-import { InvoiceGetFilters, InvoiceListResponse, ServerInvoicePayload } from "@/app/type/invoice";
+import {
+  InvoiceGetFilters,
+  InvoiceListResponse,
+  ServerInvoicePayload,
+  ServerInvoiceUpdatePayload,
+} from "@/app/type/invoice";
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
-const buildQueryString = (filters?: InvoiceGetFilters) => {
+type InvoiceGetFiltersWithContext = InvoiceGetFilters & {
+  baseUrl?: string;
+  cookieHeader?: string;
+};
+
+const buildQueryString = (filters?: InvoiceGetFiltersWithContext) => {
   if (!filters) return "";
 
   const params = new URLSearchParams();
@@ -15,8 +26,12 @@ const buildQueryString = (filters?: InvoiceGetFilters) => {
   return query ? `?${query}` : "";
 };
 
-export const getInvoices = async (filters?: InvoiceGetFilters): Promise<InvoiceListResponse> => {
-  const res = await fetch(`/api/invoice${buildQueryString(filters)}`);
+export const getInvoices = async (filters?: InvoiceGetFiltersWithContext): Promise<InvoiceListResponse> => {
+  const res = await fetch(resolveServiceUrl(`/api/invoice${buildQueryString(filters)}`, {
+    baseUrl: filters?.baseUrl,
+  }), {
+    headers: createJsonHeaders(filters?.cookieHeader),
+  });
 
   if (!res.ok) {
     throw new Error("Failed to fetch invoices");
@@ -25,12 +40,25 @@ export const getInvoices = async (filters?: InvoiceGetFilters): Promise<InvoiceL
   return res.json();
 };
 
-export const createInvoices = async (payload: ServerInvoicePayload[]) => {
-  return await fetch("/api/invoice", {
+export const createInvoices = async (payload: ServerInvoicePayload[], context?: ServiceRequestContext) => {
+  return await fetch(resolveServiceUrl('/api/invoice', context), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(payload),
   });
+};
+
+export const updateInvoice = async (payload: ServerInvoiceUpdatePayload, context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/invoice', context), {
+    method: 'PUT',
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.error || 'Failed to update invoice');
+  }
+
+  return response.json();
 };

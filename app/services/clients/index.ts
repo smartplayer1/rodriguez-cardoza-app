@@ -1,49 +1,44 @@
 import { Client } from "@/app/type/client";
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
-export const getclients = async () => {
-    const res = await fetch('/api/clients');
-    if (!res.ok) {
-        throw new Error('Failed to fetch clients');
-    }
-    return res.json();
-}
+export const getclients = async (context?: ServiceRequestContext) => {
+  const res = await fetch(resolveServiceUrl('/api/clients', context), {
+    headers: createJsonHeaders(context?.cookieHeader),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch clients");
+  }
+  return res.json();
+};
 
-export const createClient = async (clientData: Client) => {
-    return await fetch('/api/clients', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(clientData)
-    });
+export const createClient = async (clientData: Client, context?: ServiceRequestContext) => {
+  return await fetch(resolveServiceUrl('/api/clients', context), {
+    method: "POST",
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify(clientData),
+  });
+};
 
-}
+export const updateClient = async (clientData: Client, context?: ServiceRequestContext) => {
+  const res = await fetch(resolveServiceUrl(`/api/clients/${clientData.id}`, context), {
+    method: "PUT",
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify(clientData),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to update client");
+  }
+  return res.json();
+};
 
-export const updateClient = async (clientData: Client) => {
-    const res = await fetch(`/api/clients/${clientData.id}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(clientData)
-    });
-    if (!res.ok) {
-        throw new Error('Failed to update client');
-    }
-    return res.json();
-}
-
-export const deleteClient = async (clientId: string) => {
-    const res = await fetch(`/api/clients/${clientId}`, {
-        method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ id: clientId })
-      
-    });
-    if (!res.ok) {
-        throw new Error('Failed to delete client');
-    }
-    return res.json();
-}
+export const deleteClient = async (clientId: string, context?: ServiceRequestContext) => {
+  const res = await fetch(resolveServiceUrl(`/api/clients/${clientId}`, context), {
+    method: "DELETE",
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify({ id: clientId }),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to delete client");
+  }
+  return res.json();
+};

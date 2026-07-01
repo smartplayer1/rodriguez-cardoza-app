@@ -1,9 +1,9 @@
-export const getBank = async () => {
-  const response = await fetch('/api/bank', {
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
+
+export const getBank = async (context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/bank', context), {
   method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  headers: createJsonHeaders(context?.cookieHeader)
   });
 
 if (!response.ok) {
@@ -13,12 +13,10 @@ return await response.json();
 
 };
 
-export const createBank = async (bankData: { name: string; acronymus: string }) => {
-  const response = await fetch('/api/bank', {
+export const createBank = async (bankData: { name: string; acronymus: string }, context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/bank', context), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(bankData),
   });
 
@@ -29,23 +27,19 @@ export const createBank = async (bankData: { name: string; acronymus: string }) 
   return await response.json();
 };
 
-export const updateBank = async (bankId: number, bankData: { name: string; acronymus: string }) => {
-  return await fetch(`/api/bank`, {
+export const updateBank = async (bankId: number, bankData: { name: string; acronymus: string }, context?: ServiceRequestContext) => {
+  return await fetch(resolveServiceUrl('/api/bank', context), {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify({id: bankId, ...bankData }),
   });
 };
 
 
-export const deleteBank = async (bankId: number) => {
-  const response = await fetch(`/api/bank`, {
+export const deleteBank = async (bankId: number, context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/bank', context), {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify({ id: bankId }),
   });
 

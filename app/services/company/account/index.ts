@@ -1,11 +1,10 @@
 import { AccountData } from "@/app/type/bank";
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
-export const getBankAccounts = async () => {
-const response = await fetch('/api/company/bank-accounts', {
+export const getBankAccounts = async (context?: ServiceRequestContext) => {
+const response = await fetch(resolveServiceUrl('/api/company/bank-accounts', context), {
   method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  headers: createJsonHeaders(context?.cookieHeader)
 });
 
 if (!response.ok) {
@@ -14,12 +13,10 @@ if (!response.ok) {
 return await response.json();
 };
 
-export const createBankAccount = async (accountData: { bankId: number; accountNumber: string; description: string }) => {
-  const response = await fetch('/api/company/bank-accounts', {
+export const createBankAccount = async (accountData: { bankId: number; accountNumber: string; description: string }, context?: ServiceRequestContext) => {
+  const response = await fetch(resolveServiceUrl('/api/company/bank-accounts', context), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(accountData),
   });
   if (!response.ok) {
@@ -29,22 +26,18 @@ export const createBankAccount = async (accountData: { bankId: number; accountNu
 };
 
 
-export const updateBankAccount = async (accountData: AccountData) => {
-  return await fetch(`/api/company/bank-accounts`, {
+export const updateBankAccount = async (accountData: AccountData, context?: ServiceRequestContext) => {
+  return await fetch(resolveServiceUrl('/api/company/bank-accounts', context), {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(accountData),
   });
 };
 
-export const deleteBankAccount = async (id: number) => {
- return await fetch(`/api/company/bank-accounts`, {
+export const deleteBankAccount = async (id: number, context?: ServiceRequestContext) => {
+ return await fetch(resolveServiceUrl('/api/company/bank-accounts', context), {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify({ id }),
   });
 };

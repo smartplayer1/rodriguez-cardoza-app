@@ -1,13 +1,14 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
-import { Receipt, ChevronDown, ChevronUp, Search, Filter, Eye, CreditCard } from 'lucide-react';
+import { Receipt, ChevronDown, ChevronUp, Search, Filter, Eye, CreditCard, Edit } from 'lucide-react';
 // import Cobros from '@/components/Cobros';
 import { Upload } from 'lucide-react';
 import VerDetalle from './modals/VerDetalle';
 import ImportarFactura from './modals/ImportarFactura';
-import { getInvoices } from '@/app/services/invoice';
-import { ServerInvoiceResponse } from '@/app/type/invoice';
+import EditarFactura from './modals/EditarFactura';
+import { getInvoices, updateInvoice } from '@/app/services/invoice';
+import { ServerInvoiceResponse, ServerInvoiceUpdatePayload } from '@/app/type/invoice';
 
 // Interfaces
 interface FacturaDetalle {
@@ -43,10 +44,13 @@ interface Factura {
 
 export default function Facturacion() {
   const [facturas, setFacturas] = useState<Factura[]>([]);
+  const [serverInvoices, setServerInvoices] = useState<ServerInvoiceResponse[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
 
   const [showDetail, setShowDetail] = useState(false);
   const [editingFactura, setEditingFactura] = useState<Factura | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingInvoiceServer, setEditingInvoiceServer] = useState<ServerInvoiceResponse | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipoPago, setFilterTipoPago] = useState<'todos' | 'Contado' | 'Crédito'>('todos');
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,6 +110,7 @@ export default function Facturacion() {
     setLoadingInvoices(true);
     try {
       const response = await getInvoices();
+      setServerInvoices(response.records || []);
       const mapped = (response.records || []).map(mapInvoiceToFactura);
       setFacturas(mapped);
     } catch (error) {
@@ -130,6 +135,23 @@ export default function Facturacion() {
   const handleCancel = () => {
     setShowDetail(false);
     setEditingFactura(null);
+  };
+
+  const handleEdit = (factura: Factura) => {
+    const sourceInvoice = serverInvoices.find((item) => String(item.header.id) === factura.id);
+
+    if (!sourceInvoice) {
+      alert('No se pudo encontrar la factura original para editar.');
+      return;
+    }
+
+    setEditingInvoiceServer(sourceInvoice);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (payload: ServerInvoiceUpdatePayload) => {
+    await updateInvoice(payload);
+    await loadFacturas();
   };
 
   const handleGenerarCobro = (facturaId: string) => {
@@ -379,6 +401,14 @@ export default function Facturacion() {
                           <div className="flex gap-2 justify-end">
                             <MaterialButton
                               variant="text"
+                              color="secondary"
+                              startIcon={<Edit size={16} />}
+                              onClick={() => handleEdit(factura)}
+                            >
+                              Editar
+                            </MaterialButton>
+                            <MaterialButton
+                              variant="text"
                               color="primary"
                               startIcon={<Eye size={16} />}
                               onClick={() => handleViewDetail(factura)}
@@ -439,6 +469,15 @@ export default function Facturacion() {
               onClose={handleCancel}
             />
             <ImportarFactura open={showImportModal} onClose={handleCloseImportModal} />
+            <EditarFactura
+              isOpen={showEditModal}
+              invoice={editingInvoiceServer}
+              onClose={() => {
+                setShowEditModal(false);
+                setEditingInvoiceServer(null);
+              }}
+              onSave={handleSaveEdit}
+            />
           </>
         ) : (
           // Empty State

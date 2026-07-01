@@ -2,8 +2,14 @@ import {
   IncentiveProgressFilters,
   IncentiveProgressResponse,
 } from "@/app/type/incentive";
+import { createJsonHeaders, resolveServiceUrl } from '@/app/services/http';
 
-const buildQueryString = (filters?: IncentiveProgressFilters) => {
+type IncentiveProgressFiltersWithContext = IncentiveProgressFilters & {
+  baseUrl?: string;
+  cookieHeader?: string;
+};
+
+const buildQueryString = (filters?: IncentiveProgressFiltersWithContext) => {
   if (!filters) {
     return "";
   }
@@ -62,13 +68,13 @@ const buildQueryString = (filters?: IncentiveProgressFilters) => {
 };
 
 export const getRewardIncentiveProgress = async (
-  filters?: IncentiveProgressFilters,
+  filters?: IncentiveProgressFiltersWithContext,
 ): Promise<IncentiveProgressResponse> => {
-  const response = await fetch(`/api/reward/progress${buildQueryString(filters)}`, {
+  const response = await fetch(resolveServiceUrl(`/api/reward/progress${buildQueryString(filters)}`, {
+    baseUrl: filters?.baseUrl,
+  }), {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: createJsonHeaders(filters?.cookieHeader),
   });
 
   if (!response.ok) {

@@ -1,4 +1,5 @@
 import { CreatePromotionRequest, IncentiveResponse, Promotion } from "@/app/type/incentive";
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
 export type GetIncentiveRuleFilters = {
   name?: string;
@@ -8,6 +9,8 @@ export type GetIncentiveRuleFilters = {
   endDate?: string;
   withdrawalStartDate?: string;
   withdrawalDeadline?: string;
+  baseUrl?: string;
+  cookieHeader?: string;
 };
 
 const buildQueryString = (filters?: GetIncentiveRuleFilters) => {
@@ -30,11 +33,11 @@ const buildQueryString = (filters?: GetIncentiveRuleFilters) => {
 };
 
 export const getRewardIncentiveRules = async (filters?: GetIncentiveRuleFilters): Promise<IncentiveResponse> => {
-  const response = await fetch(`/api/reward/incentive-rule${buildQueryString(filters)}`, {
+  const response = await fetch(resolveServiceUrl(`/api/reward/incentive-rule${buildQueryString(filters)}`, {
+    baseUrl: filters?.baseUrl,
+  }), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(filters?.cookieHeader),
   });
 
   if (!response.ok) {
@@ -44,12 +47,10 @@ export const getRewardIncentiveRules = async (filters?: GetIncentiveRuleFilters)
   return await response.json();
 };
 
-export const createRewardIncentiveRule = async (incentiveData: CreatePromotionRequest): Promise<Promotion> => {
-  const response = await fetch('/api/reward/incentive-rule', {
+export const createRewardIncentiveRule = async (incentiveData: CreatePromotionRequest, context?: ServiceRequestContext): Promise<Promotion> => {
+  const response = await fetch(resolveServiceUrl('/api/reward/incentive-rule', context), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(incentiveData),
   });
 
@@ -60,12 +61,10 @@ export const createRewardIncentiveRule = async (incentiveData: CreatePromotionRe
   return await response.json();
 };
 
-export const updateRewardIncentiveRule = async (incentiveData: CreatePromotionRequest): Promise<Promotion> => {
-  const response = await fetch('/api/reward/incentive-rule', {
+export const updateRewardIncentiveRule = async (incentiveData: CreatePromotionRequest, context?: ServiceRequestContext): Promise<Promotion> => {
+  const response = await fetch(resolveServiceUrl('/api/reward/incentive-rule', context), {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(incentiveData),
   });
 
@@ -76,12 +75,10 @@ export const updateRewardIncentiveRule = async (incentiveData: CreatePromotionRe
   return await response.json();
 };
 
-export const deleteRewardIncentiveRule = async (incentiveId: number): Promise<void> => {
-  const response = await fetch('/api/reward/incentive-rule', {
+export const deleteRewardIncentiveRule = async (incentiveId: number, context?: ServiceRequestContext): Promise<void> => {
+  const response = await fetch(resolveServiceUrl('/api/reward/incentive-rule', context), {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify({ id: incentiveId }),
   });
 

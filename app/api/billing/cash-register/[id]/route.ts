@@ -1,0 +1,78 @@
+import { NextResponse } from 'next/server';
+
+import { getValidToken } from '@/app/lib/helper';
+
+const readErrorMessage = (body: unknown) => {
+  if (!body || typeof body !== 'object') {
+    return 'Error al consultar caja registradora';
+  }
+
+  const errorBody = body as { detail?: string; message?: string; error?: string };
+  return errorBody.detail || errorBody.message || errorBody.error || 'Error al consultar caja registradora';
+};
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const token = await getValidToken();
+
+  if (!token) {
+    return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/billing/cash-register/${id}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    return NextResponse.json(
+      { message: readErrorMessage(errorData) },
+      { status: res.status },
+    );
+  }
+
+  const data = await res.json();
+  return NextResponse.json(data);
+}
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const token = await getValidToken();
+
+  if (!token) {
+    return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const body = await req.json();
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/billing/cash-register/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    return NextResponse.json(
+      { message: readErrorMessage(errorData) },
+      { status: res.status },
+    );
+  }
+
+  const data = await res.json();
+  return NextResponse.json(data);
+}

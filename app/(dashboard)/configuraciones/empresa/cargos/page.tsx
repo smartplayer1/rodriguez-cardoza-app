@@ -1,279 +1,85 @@
-'use client';
+import { headers } from 'next/headers';
+import { Briefcase, Hash } from 'lucide-react';
+import { type ReactNode } from 'react';
 
-import React, { useState } from 'react';
-import { MaterialButton } from '@/components/MaterialButton';
-import { MaterialInput } from '@/components/MaterialInput';
-import { Briefcase, Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import CargosManagementClient from './cargos-management-client';
+import { getJobRoles } from '@/app/services/company/job-role';
+import { JobRoleResponse } from '@/app/type/job-role';
 
-interface Posicion {
-  id: string;
-  nombre: string;
-  createdAt: string;
-}
+export default async function CargosPage() {
+  const requestHeaders = await headers();
+  const cookieHeader = requestHeaders.get('cookie') ?? undefined;
+  const host = requestHeaders.get('host');
+  const protocol = requestHeaders.get('x-forwarded-proto') ?? 'http';
+  const baseUrl = host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_URL_LOCAL;
 
-export default function Cargos() {
-  const [cargos, setCargos] = useState<Posicion[]>([
-    {
-      id: '1',
-      nombre: 'Gerente General',
-      createdAt: '2024-01-15'
+  let response: JobRoleResponse = {
+    records: [],
+    paging: {
+      perPage: 10,
+      currentPage: 1,
+      totalRecords: 0,
+      totalPages: 1,
     },
-    {
-      id: '2',
-      nombre: 'Contador',
-      createdAt: '2024-01-20'
-    },
-    {
-      id: '3',
-      nombre: 'Asistente Contable',
-      createdAt: '2024-02-10'
-    },
-    {
-      id: '4',
-      nombre: 'Cajero',
-      createdAt: '2024-02-15'
-    },
-    {
-      id: '5',
-      nombre: 'Auxiliar Administrativo',
-      createdAt: '2024-03-01'
-    }
-  ]);
-
-  const [showCreateEdit, setShowCreateEdit] = useState(false);
-  const [editingPosicion, setEditingPosicion] = useState<Posicion | null>(null);
-  const [formData, setFormData] = useState({
-    nombre: ''
-  });
-
-  const handleCreate = () => {
-    setEditingPosicion(null);
-    setFormData({ nombre: '' });
-    setShowCreateEdit(true);
   };
+  let fetchError: string | null = null;
 
-  const handleEdit = (posicion: Posicion) => {
-    setEditingPosicion(posicion);
-    setFormData({
-      nombre: posicion.nombre
-    });
-    setShowCreateEdit(true);
-  };
+  try {
+    response = await getJobRoles({ baseUrl, cookieHeader });
+  } catch (error) {
+    fetchError = error instanceof Error ? error.message : 'No se pudieron consultar los cargos';
+  }
 
-  const handleSave = () => {
-    if (!formData.nombre.trim()) {
-      alert('Por favor complete el campo requerido');
-      return;
-    }
-
-    if (editingPosicion) {
-      // Update existing posicion
-      setCargos(cargos.map(p => 
-        p.id === editingPosicion.id 
-          ? { 
-              ...p, 
-              nombre: formData.nombre
-            }
-          : p
-      ));
-    } else {
-      // Create new posicion
-      const newPosicion: Posicion = {
-        id: Date.now().toString(),
-        nombre: formData.nombre,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setCargos([...cargos, newPosicion]);
-    }
-
-    setShowCreateEdit(false);
-    setFormData({ nombre: '' });
-    setEditingPosicion(null);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm('¿Está seguro que desea eliminar este cargo?')) {
-      setCargos(cargos.filter(p => p.id !== id));
-    }
-  };
-
-  const handleCancel = () => {
-    setShowCreateEdit(false);
-    setFormData({ nombre: '' });
-    setEditingPosicion(null);
-  };
-
-  if (showCreateEdit) {
-    return (
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-4xl mx-auto p-6">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <Briefcase size={32} className="text-primary" />
-              <h2 className="text-foreground">
-                {editingPosicion ? 'Editar Posición' : 'Nueva Posición'}
-              </h2>
-            </div>
-            <p className="text-muted-foreground">
-              {editingPosicion 
-                ? 'Modifique la información de la posición' 
-                : 'Complete la información para registrar una nueva posición'}
-            </p>
-          </div>
-
-          {/* Form */}
-          <div className="bg-surface rounded elevation-2 p-6">
-            <div className="space-y-6">
-              {/* Nombre */}
-              <MaterialInput
-                label="Nombre del Cargo *"
-                type="text"
-                placeholder="Ej: Gerente General"
-                fullWidth
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                helperText="Nombre descriptivo del cargo"
-                required
-              />
-
-              {/* Info Box */}
-              <div className="bg-primary/5 border border-primary/20 rounded p-4">
-                <p className="text-xs text-primary mb-2">Información</p>
-                <p className="text-sm text-foreground">
-                  Los cargos son utilizadas para clasificar a los empleados
-                  en la empresa. Asegúrese de crear los cargos necesarios antes de registrar empleados.
-                </p>
+  return (
+    <div className="flex-1 overflow-auto">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-6">
+        <header className="rounded-3xl border border-border/60 bg-surface/80 p-6 shadow-sm backdrop-blur">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <Briefcase size={32} className="text-primary" />
+                <div>
+                  <h2 className="text-foreground">Cargos</h2>
+                  <p className="text-muted-foreground">Listado SSR con mantenimiento de cargos.</p>
+                </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 mt-8 pt-6 border-t border-border">
-              <MaterialButton
-                variant="contained"
-                color="primary"
-                startIcon={<Save size={18} />}
-                onClick={handleSave}
-              >
-                {editingPosicion ? 'Actualizar Cargo' : 'Guardar Cargo'}
-              </MaterialButton>
-              <MaterialButton
-                variant="outlined"
-                color="secondary"
-                startIcon={<X size={18} />}
-                onClick={handleCancel}
-              >
-                Cancelar
-              </MaterialButton>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="Registros" value={response.paging.totalRecords} icon={<Hash className="size-4" />} />
+              <StatCard label="Página" value={response.paging.currentPage} icon={<Briefcase className="size-4" />} />
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
+        </header>
 
-  // List View
+        {fetchError ? (
+          <section className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            No se pudo cargar la informacion de cargos: {fetchError}
+          </section>
+        ) : null}
+
+        <CargosManagementClient initialRecords={response.records ?? []} />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: number | string;
+  icon: ReactNode;
+}) {
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Briefcase size={32} className="text-primary" />
-              <h2 className="text-foreground">Cargos</h2>
-            </div>
-            <p className="text-muted-foreground">
-              Administre los cargos de la empresa
-            </p>
-          </div>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={handleCreate}
-          >
-            Nueva Posición
-          </MaterialButton>
-        </div>
-
-        {/* Cargos Table */}
-        {cargos.length > 0 ? (
-          <div className="bg-surface rounded elevation-2 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted border-b border-border">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Nombre del Cargo</th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">Fecha de Registro</th>
-                    <th className="px-6 py-4 text-right text-sm text-foreground">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {cargos.map((posicion) => (
-                    <tr key={posicion.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <Briefcase size={20} className="text-primary" />
-                          </div>
-                          <span className="text-foreground">{posicion.nombre}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-muted-foreground text-sm">
-                          {new Date(posicion.createdAt).toLocaleDateString('es-NI', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2 justify-end">
-                          <MaterialButton
-                            variant="text"
-                            color="primary"
-                            startIcon={<Edit size={16} />}
-                            onClick={() => handleEdit(posicion)}
-                          >
-                            Editar
-                          </MaterialButton>
-                          <MaterialButton
-                            variant="text"
-                            color="secondary"
-                            startIcon={<Trash2 size={16} />}
-                            onClick={() => handleDelete(posicion.id)}
-                          >
-                            Eliminar
-                          </MaterialButton>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          // Empty State
-          <div className="bg-surface rounded elevation-2 py-16 text-center">
-            <Briefcase size={64} className="text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-foreground mb-2">No hay cargos registradas</h3>
-            <p className="text-muted-foreground mb-6">
-              Comience agregando una nueva posición para clasificar a sus empleados
-            </p>
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Plus size={18} />}
-              onClick={handleCreate}
-            >
-              Crear Primera Posición
-            </MaterialButton>
-          </div>
-        )}
+    <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+        {icon}
+        <span>{label}</span>
       </div>
+      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
     </div>
   );
 }

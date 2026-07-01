@@ -1,10 +1,13 @@
 import { Article, UpdateArticle } from "@/app/type/article";
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
 export type GetArticleFilters = {
     name?: string;
     category?: string;
     code?: string;
     description?: string;
+    baseUrl?: string;
+    cookieHeader?: string;
 };
 
 const buildQueryString = (filters?: GetArticleFilters) => {
@@ -24,29 +27,29 @@ const buildQueryString = (filters?: GetArticleFilters) => {
 }
 
 export const getArticles = async (filters?: GetArticleFilters) => {
-    const res = await fetch(`/api/article${buildQueryString(filters)}`);
+    const res = await fetch(resolveServiceUrl(`/api/article${buildQueryString(filters)}`, {
+        baseUrl: filters?.baseUrl,
+    }), {
+        headers: createJsonHeaders(filters?.cookieHeader),
+    });
     if (!res.ok) {
         throw new Error('Failed to fetch articles');
     }
     return res.json();
 }
 
-export const createArticle = async (articleData: Article) => {
-    return await fetch('/api/article', {
+export const createArticle = async (articleData: Article, context?: ServiceRequestContext) => {
+    return await fetch(resolveServiceUrl('/api/article', context), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: createJsonHeaders(context?.cookieHeader),
         body: JSON.stringify(articleData)
     });
 }
 
-export const updateArticle = async (articleData: UpdateArticle) => {
-    const res = await fetch('/api/article', {
+export const updateArticle = async (articleData: UpdateArticle, context?: ServiceRequestContext) => {
+    const res = await fetch(resolveServiceUrl('/api/article', context), {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: createJsonHeaders(context?.cookieHeader),
         body: JSON.stringify(articleData)
     });
 
@@ -57,12 +60,10 @@ export const updateArticle = async (articleData: UpdateArticle) => {
     return res.json();
 }
 
-export const deleteArticle = async (articleId: number) => {
-    const res = await fetch('/api/article', {
+export const deleteArticle = async (articleId: number, context?: ServiceRequestContext) => {
+    const res = await fetch(resolveServiceUrl('/api/article', context), {
         method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: createJsonHeaders(context?.cookieHeader),
         body: JSON.stringify({ id: articleId })
     });
 

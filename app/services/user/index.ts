@@ -1,50 +1,41 @@
 import { CreateUserDto, UpdateUserDto } from '../../type/user';
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
-export const insertUser = async (data: CreateUserDto) => {
-return await fetch('/api/users', {
+export const insertUser = async (data: CreateUserDto, context?: ServiceRequestContext) => {
+return await fetch(resolveServiceUrl('/api/users', context), {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: createJsonHeaders(context?.cookieHeader),
   body: JSON.stringify(data),
 });
 };
 
   
-export const updateUser = async (data: UpdateUserDto) => {
-return await fetch(`/api/users`, {
+export const updateUser = async (data: UpdateUserDto, context?: ServiceRequestContext) => {
+return await fetch(resolveServiceUrl('/api/users', context), {
   method: 'PUT',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: createJsonHeaders(context?.cookieHeader),
   body: JSON.stringify(data),
 });
 } 
 
-export const getUsers = async () => {
-return await fetch('/api/users', {
+export const getUsers = async (context?: ServiceRequestContext) => {
+return await fetch(resolveServiceUrl('/api/users', context), {
   method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: createJsonHeaders(context?.cookieHeader),
 });
 };
 
-export const updatePassword = async (userId: string, newPassword: string) => {
-  return await fetch(`/api/users/change-password`, {
+export const updatePassword = async (userId: string, newPassword: string, context?: ServiceRequestContext) => {
+  return await fetch(resolveServiceUrl('/api/users/change-password', context), {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify({ id: userId, password: newPassword }),
   });
 }
 
-export const deleteUser = async (userId: string) => {
-  return await fetch(`/api/users/${userId}`, {
+export const deleteUser = async (userId: string, context?: ServiceRequestContext) => {
+  return await fetch(resolveServiceUrl(`/api/users/${userId}`, context), {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json', 
-    },
+    headers: createJsonHeaders(context?.cookieHeader), 
   });
 }

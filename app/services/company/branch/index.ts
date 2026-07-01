@@ -1,18 +1,20 @@
 import { Branch } from '@/app/type/branch';
-export const getBranches = async () => {
-    const res = await fetch('/api/company/branch');
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
+
+export const getBranches = async (context?: ServiceRequestContext) => {
+    const res = await fetch(resolveServiceUrl('/api/company/branch', context), {
+        headers: createJsonHeaders(context?.cookieHeader)
+    });
     if (!res.ok) {
         throw new Error('Failed to fetch branches');
     }
     return res.json();
 }
 
-export const createBranch = async (branchData: Branch) => {
-    const res = await fetch('/api/company/branch', {
+export const createBranch = async (branchData: Branch, context?: ServiceRequestContext) => {
+    const res = await fetch(resolveServiceUrl('/api/company/branch', context), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: createJsonHeaders(context?.cookieHeader),
         body: JSON.stringify(branchData)
     });
     if (!res.ok) {
@@ -21,12 +23,10 @@ export const createBranch = async (branchData: Branch) => {
     return res.json();
 }
 
-export const updateBranch = async (branchData: Branch) => {
-    const res = await fetch(`/api/company/branch/${branchData.id}`, {
+export const updateBranch = async (branchData: Branch, context?: ServiceRequestContext) => {
+    const res = await fetch(resolveServiceUrl('/api/company/branch', context), {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: createJsonHeaders(context?.cookieHeader),
         body: JSON.stringify(branchData)
     });
     if (!res.ok) {
@@ -36,12 +36,10 @@ export const updateBranch = async (branchData: Branch) => {
     return res.json();
 }
 
-export const deleteBranch = async (branchId: number) => {
-    const res = await fetch(`/api/company/branch`, {
+export const deleteBranch = async (branchId: number, context?: ServiceRequestContext) => {
+    const res = await fetch(resolveServiceUrl('/api/company/branch', context), {
         method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: createJsonHeaders(context?.cookieHeader),
         body: JSON.stringify({ id: branchId })
     });
     if (!res.ok) {        throw new Error('Failed to delete branch');

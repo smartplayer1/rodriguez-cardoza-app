@@ -3,6 +3,7 @@ import {
   CreditNoteListResponse,
   CreditNoteRecord,
 } from '@/app/type/credit-note';
+import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
 export type CreditNoteFilters = {
   number?: string;
@@ -13,6 +14,8 @@ export type CreditNoteFilters = {
   startDateTo?: string;
   page?: number;
   perPage?: number;
+  baseUrl?: string;
+  cookieHeader?: string;
 };
 
 const buildQueryString = (filters?: CreditNoteFilters) => {
@@ -35,14 +38,12 @@ const buildQueryString = (filters?: CreditNoteFilters) => {
   return query ? `?${query}` : '';
 };
 
-export const getCreditNotes = async (
-  filters?: CreditNoteFilters,
-): Promise<CreditNoteListResponse> => {
-  const response = await fetch(`/api/billing/credit-note${buildQueryString(filters)}`, {
+export const getCreditNotes = async (filters?: CreditNoteFilters): Promise<CreditNoteListResponse> => {
+  const response = await fetch(resolveServiceUrl(`/api/billing/credit-note${buildQueryString(filters)}`, {
+    baseUrl: filters?.baseUrl,
+  }), {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(filters?.cookieHeader),
   });
 
   if (!response.ok) {
@@ -54,12 +55,11 @@ export const getCreditNotes = async (
 
 export const createCreditNote = async (
   payload: CreditNoteCreatePayload,
+  context?: ServiceRequestContext,
 ): Promise<CreditNoteRecord> => {
-  const response = await fetch('/api/billing/credit-note', {
+  const response = await fetch(resolveServiceUrl('/api/billing/credit-note', context), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: createJsonHeaders(context?.cookieHeader),
     body: JSON.stringify(payload),
   });
 
