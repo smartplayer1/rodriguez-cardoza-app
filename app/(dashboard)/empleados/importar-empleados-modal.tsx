@@ -23,23 +23,31 @@ type ParseError = {
 };
 
 const normalize = (value: unknown) => String(value ?? '').trim();
+const normalizeKey = (value: unknown) =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '')
+    .toLowerCase();
 
 const HEADER_KEYS = {
-  code: ['code', 'codigo', 'código'],
-  name: ['name', 'nombre'],
-  middleName: ['middleName', 'middlename', 'segundoNombre', 'segundonombre'],
-  lastName: ['lastName', 'lastname', 'apellido', 'primerApellido', 'primerapellido'],
-  secondLastName: ['secondLastName', 'secondlastname', 'segundoApellido', 'segundoapellido'],
-  phoneNumber: ['phoneNumber', 'phonenumber', 'telefono', 'teléfono'],
-  idNumber: ['idNumber', 'idnumber', 'cedula', 'cédula'],
-  jobRoleId: ['jobRoleId', 'jobroleid', 'rolId', 'rolid', 'rol', 'jobRole', 'jobrole'],
-  branchId: ['branchId', 'branchid', 'sucursalId', 'sucursalid', 'sucursal', 'branch'],
+  code: ['NSS', 'Codigo', 'Code'],
+  name: ['PrimerNombre', 'Primer Nombre', 'Nombre'],
+  middleName: ['SegundoNombre', 'Segundo Nombre'],
+  lastName: ['PrimerApellido', 'Primer Apellido'],
+  secondLastName: ['SegundoApellido', 'Segundo Apellido'],
+  phoneNumber: ['Telefono', 'Teléfono', 'PhoneNumber'],
+  idNumber: ['Cedula', 'Cédula', 'IdNumber'],
+  jobRole: ['Cargo', 'Rol', 'RolTrabajo', 'JobRole'],
+  branch: ['Sucursal', 'Branch'],
 };
 
 const getRowValue = (row: Record<string, unknown>, acceptedKeys: string[]) => {
+  const acceptedNormalized = acceptedKeys.map((key) => normalizeKey(key));
+
   for (const [rawKey, value] of Object.entries(row)) {
-    const normalizedKey = rawKey.replace(/\s+/g, '').toLowerCase();
-    if (acceptedKeys.some((key) => key.toLowerCase() === normalizedKey)) {
+    const normalizedHeader = normalizeKey(rawKey);
+    if (acceptedNormalized.some((key) => key === normalizedHeader)) {
       return normalize(value);
     }
   }
@@ -132,8 +140,8 @@ export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: P
         const secondLastName = getRowValue(row, HEADER_KEYS.secondLastName);
         const phoneNumber = getRowValue(row, HEADER_KEYS.phoneNumber);
         const idNumber = getRowValue(row, HEADER_KEYS.idNumber);
-        const jobRoleRaw = getRowValue(row, HEADER_KEYS.jobRoleId);
-        const branchRaw = getRowValue(row, HEADER_KEYS.branchId);
+        const jobRoleRaw = getRowValue(row, HEADER_KEYS.jobRole);
+        const branchRaw = getRowValue(row, HEADER_KEYS.branch);
 
         if (!code) parseErrors.push({ row: rowNumber, message: 'code es obligatorio' });
         if (!name) parseErrors.push({ row: rowNumber, message: 'name es obligatorio' });
@@ -142,15 +150,19 @@ export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: P
 
         const jobRoleId = resolveNumericId(jobRoleRaw, roleOptions);
         if (!jobRoleId) {
-          parseErrors.push({ row: rowNumber, message: `jobRoleId invalido: ${jobRoleRaw || 'vacío'}` });
+          parseErrors.push({ row: rowNumber, message: `Cargo inválido: ${jobRoleRaw || 'vacío'}` });
         }
 
         const branchId = resolveNumericId(branchRaw, branchOptions);
         if (!branchId) {
-          parseErrors.push({ row: rowNumber, message: `branchId invalido: ${branchRaw || 'vacío'}` });
+          parseErrors.push({ row: rowNumber, message: `Sucursal inválida: ${branchRaw || 'vacío'}` });
         }
 
         if (parseErrors.some((error) => error.row === rowNumber)) {
+          return;
+        }
+
+        if (jobRoleId === null || branchId === null) {
           return;
         }
 
@@ -256,7 +268,7 @@ export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: P
                 <div>
                   <h2 className="text-xl font-semibold text-foreground">Importar Empleados</h2>
                   <p className="text-sm text-muted-foreground">
-                    Columnas esperadas: code, name, middleName, lastName, secondLastName, phoneNumber, idNumber, jobRoleId, branchId.
+                    Columnas esperadas: NSS, PrimerNombre, SegundoNombre, PrimerApellido, SegundoApellido, Telefono, Cedula, Cargo, Sucursal.
                   </p>
                 </div>
               </div>
@@ -299,7 +311,7 @@ export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: P
                     {rows.length} empleado(s) listo(s) para importar
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Puedes usar ID numérico o nombre exacto para jobRoleId y branchId.
+                    Puedes usar ID numérico o nombre exacto para Cargo y Sucursal.
                   </p>
                 </div>
               ) : null}

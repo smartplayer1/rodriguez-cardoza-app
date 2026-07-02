@@ -99,6 +99,8 @@ export interface InvoiceGetFilters {
   clientCode?: string;
   branchCode?: string;
   issuedAt?: string;
+  page?: number;
+  perPage?: number;
 }
 
 export interface ServerInvoiceUpdateHeaderPayload {

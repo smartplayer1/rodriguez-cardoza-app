@@ -21,6 +21,8 @@ const buildQueryString = (filters?: InvoiceGetFiltersWithContext) => {
   if (filters.clientCode?.trim()) params.set("clientCode", filters.clientCode.trim());
   if (filters.branchCode?.trim()) params.set("branchCode", filters.branchCode.trim());
   if (filters.issuedAt?.trim()) params.set("issuedAt", filters.issuedAt.trim());
+  if (typeof filters.page === 'number' && filters.page > 0) params.set('Page', String(filters.page));
+  if (typeof filters.perPage === 'number' && filters.perPage > 0) params.set('PerPage', String(filters.perPage));
 
   const query = params.toString();
   return query ? `?${query}` : "";

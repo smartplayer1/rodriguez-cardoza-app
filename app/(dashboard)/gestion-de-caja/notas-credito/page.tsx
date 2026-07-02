@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, X } from 'lucide-react';
+import { ChevronDown, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, Trash2, X } from 'lucide-react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
-import { ImportarNotaCreditoModal } from '@/components/excel-upload-credit-note';
+import  ImportarNotaCreditoModal  from '@/components/excel-upload-credit-note';
 import { createCreditNote, getCreditNotes } from '@/app/services/billing/credit-note';
-import { CreditNoteCreatePayload, CreditNoteRecord } from '@/app/type/credit-note';
+import { getInvoices } from '@/app/services/invoice';
+import { CreditNoteCreatePayload, CreditNoteImportDetail, CreditNoteImportPayload, CreditNoteRecord } from '@/app/type/credit-note';
+import { ServerInvoiceResponse } from '@/app/type/invoice';
 
 type DetailRowState = {
   invoiceLineId: string;
@@ -23,6 +25,31 @@ const toIsoDate = (value: string) => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
+};
+
+const normalizeComparable = (value: string | null | undefined) => normalizeValue(value).toLowerCase();
+
+const nearlyEqual = (left: number, right: number) => Math.abs(Number(left || 0) - Number(right || 0)) < 0.01;
+
+const matchesInvoiceDetail = (importDetail: CreditNoteImportDetail, invoiceDetail: ServerInvoiceResponse['details'][number]) => {
+  if (normalizeComparable(importDetail.article) !== normalizeComparable(invoiceDetail.article)) {
+    return false;
+  }
+
+  return (
+    nearlyEqual(importDetail.salePrice, invoiceDetail.salePrice)
+    && nearlyEqual(importDetail.price, invoiceDetail.price)
+    && nearlyEqual(importDetail.tax1, invoiceDetail.tax1)
+    && nearlyEqual(importDetail.tax2, invoiceDetail.tax2)
+    && nearlyEqual(importDetail.lineDiscount, invoiceDetail.lineDiscount)
+    && nearlyEqual(importDetail.generalDiscount, invoiceDetail.generalDiscount)
+    && (!importDetail.isExempt || normalizeComparable(importDetail.isExempt) === normalizeComparable(invoiceDetail.isExempt))
+  );
+};
+
+const normalizeValue = (value: unknown) => {
+  if (value == null) return '';
+  return String(value).trim();
 };
 
 const getStatusLabel = (status: string) => {
@@ -66,7 +93,7 @@ export default function NotasCreditoPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage] = useState(10);
   const [paging, setPaging] = useState({
     perPage: 10,
     currentPage: 1,
@@ -203,17 +230,72 @@ export default function NotasCreditoPage() {
     }
   };
 
-  const handleImport = async (creditNotes: CreditNoteCreatePayload[]) => {
+  const handleImport = async (creditNotes: CreditNoteImportPayload[]) => {
     try {
       setImporting(true);
+      const invoiceCache = new Map<string, ServerInvoiceResponse>();
+
+      const getInvoiceByDocument = async (document: string) => {
+        const normalizedDocument = normalizeValue(document);
+
+        if (invoiceCache.has(normalizedDocument)) {
+          return invoiceCache.get(normalizedDocument)!;
+        }
+
+        const response = await getInvoices({ document: normalizedDocument });
+        const invoice = (response.records || []).find(
+          (record) => normalizeValue(record.header.document).toLowerCase() === normalizedDocument.toLowerCase(),
+        );
+
+        if (!invoice) {
+          throw new Error(`No se encontro la factura ${normalizedDocument}`);
+        }
+
+        invoiceCache.set(normalizedDocument, invoice);
+        return invoice;
+      };
+
       for (const note of creditNotes) {
-        await createCreditNote(note);
+        const invoice = await getInvoiceByDocument(note.invoiceDocument);
+        const availableDetails = [...invoice.details];
+
+        const payload: CreditNoteCreatePayload = {
+          number: note.number,
+          invoiceId: invoice.header.id,
+          invoiceDocument: invoice.header.document,
+          startDate: toIsoDate(note.startDate) || new Date().toISOString(),
+          details: note.details.map((detail) => {
+            if (detail.invoiceLineId) {
+              return {
+                invoiceLineId: detail.invoiceLineId,
+                quantity: Math.abs(Number(detail.quantity) || 0),
+              };
+            }
+
+            const matchedIndex = availableDetails.findIndex((invoiceDetail) => matchesInvoiceDetail(detail, invoiceDetail));
+
+            if (matchedIndex === -1) {
+              throw new Error(
+                `No se pudo relacionar el articulo ${detail.article} de la nota ${note.number} con la factura ${invoice.header.document}`,
+              );
+            }
+
+            const [matchedDetail] = availableDetails.splice(matchedIndex, 1);
+
+            return {
+              invoiceLineId: matchedDetail.id,
+              quantity: Math.abs(Number(detail.quantity) || 0),
+            };
+          }),
+        };
+
+        await createCreditNote(payload);
       }
       setIsImportOpen(false);
       await loadRecords();
     } catch (error) {
       console.error('Error importing credit notes:', error);
-      alert('No se pudo importar el archivo completo');
+      alert(error instanceof Error ? error.message : 'No se pudo importar el archivo completo');
     } finally {
       setImporting(false);
     }
@@ -237,9 +319,6 @@ export default function NotasCreditoPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <MaterialButton variant="outlined" color="secondary" startIcon={<FileSpreadsheet size={18} />} onClick={() => setIsImportOpen(true)}>
               Importar Excel
-            </MaterialButton>
-            <MaterialButton variant="contained" color="primary" startIcon={<Plus size={18} />} onClick={openCreate}>
-              Nueva Nota
             </MaterialButton>
           </div>
         </div>
@@ -515,10 +594,7 @@ export default function NotasCreditoPage() {
       )}
 
       <ImportarNotaCreditoModal
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onImport={handleImport}
-        loadingImport={importing}
+        open={isImportOpen} onClose={() => setIsImportOpen(false)}
       />
     </div>
   );

@@ -65,14 +65,14 @@ export const mapExcelToFactura = (row: any): FacturaDetalleExcel => ({
   fecha: parseExcelDate(row?.FECHA),
 
   articulo: row?.ARTICULO,
-  precio_venta: toDecimal(row?.PRECIO_VENTA),
-  cantidad: Number(row?.CANTIDAD),
+  precio_venta: toDecimal(Math.abs(row?.PRECIO_VENTA)),
+  cantidad: Number(Math.abs(row?.CANTIDAD)),
 
-  desc_linea: toDecimal(row?.DESC_LINEA),
-  desc_gen: toDecimal(row?.DESC_GEN),
+  desc_linea: toDecimal(Math.abs(row?.DESC_LINEA)),
+  desc_gen: toDecimal(Math.abs(row?.DESC_GEN)),
 
-  impuesto1: toDecimal(row?.IMPUESTO1),
-  impuesto2: toDecimal(row?.IMPUESTO2),
+  impuesto1: toDecimal(Math.abs(row?.IMPUESTO1)),
+  impuesto2: toDecimal(Math.abs(row?.IMPUESTO2)),
 
   cupon: row?.CUPON,
   tienda: row?.TIENDA,
@@ -80,9 +80,9 @@ export const mapExcelToFactura = (row: any): FacturaDetalleExcel => ({
   nivel_precio: row?.NIVEL_PRECIO,
   exento: row?.EXENTO,
 
-  mpremio: toDecimal(row?.Mpremio),
-  desc_porcentaje: Number(row?.["DESC%"]),
-  precio: toDecimal(row.PRECIO),
+  mpremio: toDecimal(Math.abs(row?.Mpremio)),
+  desc_porcentaje: Number(Math.abs(row?.["DESC%"])),
+  precio: toDecimal(Math.abs(row.PRECIO)),
 });
 
 const toDecimal = (value: any) => {

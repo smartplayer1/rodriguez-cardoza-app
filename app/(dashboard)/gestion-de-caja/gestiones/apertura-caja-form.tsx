@@ -14,6 +14,11 @@ type DenominationRow = {
   quantity: string;
 };
 
+type SelectOption = {
+  id: string;
+  label: string;
+};
+
 const createDefaultRow = (): DenominationRow => ({
   id: crypto.randomUUID(),
   currency: 'NIO',
@@ -21,7 +26,13 @@ const createDefaultRow = (): DenominationRow => ({
   quantity: '0',
 });
 
-export default function AperturaCajaForm() {
+export default function AperturaCajaForm({
+  cashRegisterOptions,
+  employeeOptions,
+}: {
+  cashRegisterOptions: SelectOption[];
+  employeeOptions: SelectOption[];
+}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [cashRegisterId, setCashRegisterId] = useState('');
@@ -97,12 +108,12 @@ export default function AperturaCajaForm() {
     const parsedExchangeRate = Number.parseFloat(exchangeRateNioPerUsd);
 
     if (!Number.isFinite(parsedCashRegisterId) || parsedCashRegisterId <= 0) {
-      setErrorMessage('El campo Caja ID es obligatorio y debe ser mayor a 0.');
+      setErrorMessage('Debes seleccionar una caja.');
       return;
     }
 
     if (!Number.isFinite(parsedResponsibleEmployeeId) || parsedResponsibleEmployeeId <= 0) {
-      setErrorMessage('El campo Responsable ID es obligatorio y debe ser mayor a 0.');
+      setErrorMessage('Debes seleccionar un responsable.');
       return;
     }
 
@@ -191,27 +202,35 @@ export default function AperturaCajaForm() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <label className="space-y-2">
-                    <span className="text-sm text-muted-foreground">Caja ID</span>
-                    <input
-                      type="number"
-                      min="1"
+                    <span className="text-sm text-muted-foreground">Caja</span>
+                    <select
                       value={cashRegisterId}
                       onChange={(event) => setCashRegisterId(event.target.value)}
                       className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                      placeholder="Ej. 1"
-                    />
+                    >
+                      <option value="">Selecciona una caja</option>
+                      {cashRegisterOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm text-muted-foreground">Responsable ID</span>
-                    <input
-                      type="number"
-                      min="1"
+                    <span className="text-sm text-muted-foreground">Responsable</span>
+                    <select
                       value={responsibleEmployeeId}
                       onChange={(event) => setResponsibleEmployeeId(event.target.value)}
                       className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                      placeholder="Ej. 7"
-                    />
+                    >
+                      <option value="">Selecciona un empleado</option>
+                      {employeeOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="space-y-2">

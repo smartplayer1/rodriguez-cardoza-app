@@ -3,6 +3,27 @@ export interface CreditNoteDetail {
   quantity: number;
 }
 
+export interface CreditNoteImportDetail {
+  invoiceLineId: number | null;
+  article: string;
+  quantity: number;
+  salePrice: number;
+  price: number;
+  tax1: number;
+  tax2: number;
+  lineDiscount: number;
+  generalDiscount: number;
+  isExempt: string | null;
+}
+
+export interface CreditNoteImportPayload {
+  number: string;
+  invoiceId: number | null;
+  invoiceDocument: string;
+  startDate: string;
+  details: CreditNoteImportDetail[];
+}
+
 export interface CreditNoteCreatePayload {
   number: string;
   invoiceId: number | null;

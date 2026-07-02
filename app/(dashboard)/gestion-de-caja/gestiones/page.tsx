@@ -1,7 +1,8 @@
 import { headers } from 'next/headers';
 import { ArrowUpDown, Banknote, ChevronDown, CircleDollarSign, Filter, Wallet } from 'lucide-react';
 
-import { getCashManagementRecords } from '@/app/services/cash-management';
+import { getCashManagementRecords, getCashRegisters } from '@/app/services/cash-management';
+import { getEmployees } from '@/app/services/employee';
 import AperturaCajaForm from './apertura-caja-form';
 
 type SearchParams = {
@@ -39,6 +40,11 @@ type ActiveFilters = {
   status?: string;
   openedFrom?: string;
   openedTo?: string;
+};
+
+type SelectOption = {
+  id: string;
+  label: string;
 };
 
 const buildPageHref = (pageNumber: number, perPage: number, filters: ActiveFilters) => {
@@ -137,12 +143,47 @@ export default async function GestionCaja({
   };
 
   const requestHeaders = await headers();
+  const cookieHeader = requestHeaders.get('cookie') ?? undefined;
   const host = requestHeaders.get('host');
   const protocol = requestHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = host ? `${protocol}://${host}` : undefined;
+  const baseUrl = host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_URL_LOCAL;
 
   let fetchError: string | null = null;
   let response;
+  let cashRegisterOptions: SelectOption[] = [];
+  let employeeOptions: SelectOption[] = [];
+
+  const [cashRegistersResult, employeesResult] = await Promise.allSettled([
+    getCashRegisters({
+      page: 1,
+      perPage: 100,
+      baseUrl,
+      cookieHeader,
+    }),
+    getEmployees({
+      page: 1,
+      perPage: 100,
+      baseUrl,
+      cookieHeader,
+    }),
+  ]);
+
+  if (cashRegistersResult.status === 'fulfilled') {
+    cashRegisterOptions = cashRegistersResult.value.records.map((record) => ({
+      id: String(record.id),
+      label: `${record.code} - ${record.name}`,
+    }));
+  }
+
+  if (employeesResult.status === 'fulfilled') {
+    employeeOptions = employeesResult.value.records.map((record) => ({
+      id: String(record.id),
+      label: `${record.code} - ${record.firstname} ${record.middleName} ${record.lastName} ${record.secondLastName}`.replace(/\s+/g, ' ').trim(),
+    }));
+  }
+
+  const selectedCashRegisterLabel = cashRegisterOptions.find((option) => option.id === activeFilters.cashRegisterId)?.label;
+  const selectedEmployeeLabel = employeeOptions.find((option) => option.id === activeFilters.responsibleEmployeeId)?.label;
 
   try {
     response = await getCashManagementRecords({
@@ -150,6 +191,7 @@ export default async function GestionCaja({
       page,
       perPage,
       baseUrl,
+      cookieHeader,
     });
   } catch (error) {
     fetchError = error instanceof Error ? error.message : 'No se pudo consultar la gestion de caja';
@@ -168,8 +210,8 @@ export default async function GestionCaja({
   const totalUsd = response.records.reduce((sum, record) => sum + record.balance.usd, 0);
   const openRecords = response.records.filter((record) => record.status.toLowerCase() === 'abierta').length;
   const selectedFilterChips = [
-    activeFilters.cashRegisterId ? `Caja: ${activeFilters.cashRegisterId}` : null,
-    activeFilters.responsibleEmployeeId ? `Responsable: ${activeFilters.responsibleEmployeeId}` : null,
+    activeFilters.cashRegisterId ? `Caja: ${selectedCashRegisterLabel || activeFilters.cashRegisterId}` : null,
+    activeFilters.responsibleEmployeeId ? `Responsable: ${selectedEmployeeLabel || activeFilters.responsibleEmployeeId}` : null,
     activeFilters.status ? `Estado: ${activeFilters.status}` : null,
     activeFilters.openedFrom ? `Desde: ${formatDateLabel(activeFilters.openedFrom)}` : null,
     activeFilters.openedTo ? `Hasta: ${formatDateLabel(activeFilters.openedTo)}` : null,
@@ -202,7 +244,7 @@ export default async function GestionCaja({
           </div>
         </header>
 
-        <AperturaCajaForm />
+        <AperturaCajaForm cashRegisterOptions={cashRegisterOptions} employeeOptions={employeeOptions} />
 
         <details
           className="group overflow-hidden rounded-3xl border border-border/60 bg-surface shadow-sm"
@@ -247,27 +289,35 @@ export default async function GestionCaja({
             <form action={GESTIONES_PATH} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <label className="space-y-2">
-                  <span className="text-sm text-muted-foreground">Caja ID</span>
-                  <input
-                    type="number"
-                    min="1"
+                  <span className="text-sm text-muted-foreground">Caja</span>
+                  <select
                     name="cashRegisterId"
                     defaultValue={activeFilters.cashRegisterId}
                     className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    placeholder="Ej. 1"
-                  />
+                  >
+                    <option value="">Todas las cajas</option>
+                    {cashRegisterOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm text-muted-foreground">Responsable ID</span>
-                  <input
-                    type="number"
-                    min="1"
+                  <span className="text-sm text-muted-foreground">Responsable</span>
+                  <select
                     name="responsibleEmployeeId"
                     defaultValue={activeFilters.responsibleEmployeeId}
                     className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    placeholder="Ej. 12"
-                  />
+                  >
+                    <option value="">Todos los responsables</option>
+                    {employeeOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="space-y-2">

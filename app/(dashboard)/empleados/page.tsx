@@ -5,8 +5,8 @@ import { getEmployees } from '@/app/services/employee';
 import ImportarEmpleadosModal from './importar-empleados-modal';
 import { BranchResponse, RecordsBranch } from '@/app/type/branch';
 import { EmployeeListResponse, EmployeeRecord } from '@/app/type/employee';
-import { getRoles } from '@/app/services/roles';
 import { getBranches } from '@/app/services/company/branch';
+import { getJobRoles } from '@/app/services/company/job-role';
 
 type SearchParams = {
   code?: string | string[];
@@ -94,21 +94,19 @@ const normalizeBranchOptions = (payload: unknown): OptionItem[] => {
 
 async function fetchSelectOptions(context?: { baseUrl?: string; cookieHeader?: string }) {
   const [rolesResult, branchesResult] = await Promise.allSettled([
-    getRoles(context),
+    getJobRoles(context),
     getBranches(context)
   ]);
 
   let roles: OptionItem[] = [];
   let branches: OptionItem[] = [];
 
-  if (rolesResult.status === 'fulfilled' && rolesResult.value.ok) {
-    const rolesBody = await rolesResult.value.json().catch(() => null);
-    roles = normalizeRoleOptions(rolesBody);
+  if (rolesResult.status === 'fulfilled') {
+    roles = normalizeRoleOptions(rolesResult.value);
   }
 
-  if (branchesResult.status === 'fulfilled' && branchesResult.value.ok) {
-    const branchesBody = await branchesResult.value.json().catch(() => null);
-    branches = normalizeBranchOptions(branchesBody);
+  if (branchesResult.status === 'fulfilled') {
+    branches = normalizeBranchOptions(branchesResult.value);
   }
 
   return { roles, branches };
@@ -156,7 +154,6 @@ export default async function EmpleadosPage({
     cookieHeader,
   });
 
-console.log('branches', branches);
   try {
     response = await getEmployees({
       code: toStringValue(resolvedSearchParams.code),

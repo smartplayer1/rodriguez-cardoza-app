@@ -17,6 +17,8 @@ const buildQueryString = (filters: InvoiceGetFilters) => {
   if (filters.clientCode?.trim()) params.set("clientCode", filters.clientCode.trim());
   if (filters.branchCode?.trim()) params.set("branchCode", filters.branchCode.trim());
   if (filters.issuedAt?.trim()) params.set("issuedAt", filters.issuedAt.trim());
+  if (typeof filters.page === 'number' && filters.page > 0) params.set('Page', String(filters.page));
+  if (typeof filters.perPage === 'number' && filters.perPage > 0) params.set('PerPage', String(filters.perPage));
 
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -85,6 +87,8 @@ export async function GET(request: Request) {
       clientCode: requestUrl.searchParams.get("clientCode") ?? undefined,
       branchCode: requestUrl.searchParams.get("branchCode") ?? undefined,
       issuedAt: requestUrl.searchParams.get("issuedAt") ?? undefined,
+      page: Number(requestUrl.searchParams.get('Page') ?? requestUrl.searchParams.get('page') ?? '') || undefined,
+      perPage: Number(requestUrl.searchParams.get('PerPage') ?? requestUrl.searchParams.get('perPage') ?? '') || undefined,
     };
 
     const query = buildQueryString(filters);
