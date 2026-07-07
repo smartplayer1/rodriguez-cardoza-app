@@ -28,6 +28,7 @@ export interface CreditNoteCreatePayload {
   number: string;
   invoiceId: number | null;
   invoiceDocument: string | null;
+  cashManagementId: number;
   startDate: string;
   details: CreditNoteDetail[];
 }

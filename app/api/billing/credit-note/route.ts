@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-
+console.log('Request body:', body);
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/billing/credit-note`, {
     method: 'POST',
     headers: {
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     },
     body: JSON.stringify(body),
   });
-
+console.log('Response from API:', response);
   const responseBody = await response.json().catch(() => null);
 
   if (!response.ok) {

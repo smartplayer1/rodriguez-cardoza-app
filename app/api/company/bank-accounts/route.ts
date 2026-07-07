@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     // Simulate fetching bank accounts from a database
-    const bankAccounts = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/account-bank`, {
+    const bankAccounts = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/account-bank`, {
         headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         );
     }
     const body = await req.json(); 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/account-bank`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/account-bank`, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${token}`,
@@ -65,7 +65,7 @@ export async function PUT(req: Request) {
     const body = await req.json();
 
     const { id, account, description, bankId } = body;
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/account-bank/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/account-bank/${id}`, {
         method: 'PUT',
         headers: {
             Authorization: `Bearer ${token}`,
@@ -94,7 +94,7 @@ export async function DELETE(req: Request) {
     }
     const { id } = await req.json();
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/account-bank/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/account-bank/${id}`, {
         method: 'DELETE',
         headers: {
             Authorization: `Bearer ${token}`,

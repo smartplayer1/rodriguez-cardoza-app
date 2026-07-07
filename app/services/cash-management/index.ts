@@ -15,7 +15,7 @@ import { createJsonHeaders, resolveServiceUrl } from '@/app/services/http';
 
 export type GetCashManagementFilters = {
   cashRegisterId?: string;
-  responsibleEmployeeId?: string;
+  responsibleEmployeeId?: string | null;
   status?: string;
   openedFrom?: string;
   openedTo?: string;

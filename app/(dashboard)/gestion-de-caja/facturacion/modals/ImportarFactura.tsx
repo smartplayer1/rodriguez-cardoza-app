@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Factura, FacturaDetalleExcel } from "../types/factura";
 import { mapExcelToFactura } from "../mappers/excel.mapper";
 import { createInvoices } from "@/app/services/invoice";
+import { getCashManagementRecords } from "@/app/services/cash-management";
+import { getBranches } from "@/app/services/company/branch";
+import { CashManagementRecord } from "@/app/type/cash-management";
+import { BranchResponse, RecordsBranch } from "@/app/type/branch";
 import { InvoiceBatchPostResponse, ServerInvoicePayload } from "@/app/type/invoice";
 
 const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO"];
@@ -25,6 +29,18 @@ interface InvoiceUploadError {
   message: string;
   details: string[];
 }
+
+type CashManagementOption = {
+  id: string;
+  label: string;
+};
+
+type BranchOption = {
+  code: string;
+  label: string;
+};
+
+const TEMP_RESPONSIBLE_EMPLOYEE_ID = null;
 
 const toIssuedAtIso = (dateValue: string) => {
   const normalized = (dateValue || "").trim();
@@ -52,10 +68,70 @@ export default function ImportarFactura({ open , onClose } : Props) {
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [uploadErrors, setUploadErrors] = useState<InvoiceUploadError[]>([]);
+  const [cashManagementOptions, setCashManagementOptions] = useState<
+    CashManagementOption[]
+  >([]);
+  const [cashManagementLoading, setCashManagementLoading] = useState(false);
+  const [selectedCashManagementId, setSelectedCashManagementId] = useState("");
+  const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
+  const [branchLoading, setBranchLoading] = useState(false);
+  const [branchCode, setBranchCode] = useState("");
   const [fileName, setFileName] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [expandedFacturas, setExpandedFacturas] = useState<Record<string, boolean>>({})
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const loadOpenCashManagementRecords = useCallback(async () => {
+    try {
+      setCashManagementLoading(true);
+      const response = await getCashManagementRecords({
+        status: "OPEN",
+        responsibleEmployeeId: TEMP_RESPONSIBLE_EMPLOYEE_ID,
+        page: 1,
+        perPage: 100,
+      });
+
+      const options = (response.records || []).map(
+        (record: CashManagementRecord) => ({
+          id: String(record.id),
+          label: `${record.cashRegisterCode} - ${record.cashRegisterName} - ${record.responsibleEmployeeName}`,
+        }),
+      );
+
+      setCashManagementOptions(options);
+      setSelectedCashManagementId((currentValue) => currentValue || options[0]?.id || "");
+    } catch (error) {
+      console.error("Error loading open cash management records:", error);
+      setCashManagementOptions([]);
+    } finally {
+      setCashManagementLoading(false);
+    }
+  }, []);
+
+  const loadBranchOptions = useCallback(async () => {
+    try {
+      setBranchLoading(true);
+      const response = (await getBranches()) as BranchResponse;
+      const options = (response.records || []).map((record: RecordsBranch) => ({
+        code: String(record.code),
+        label: `${record.code} - ${record.name}`,
+      }));
+
+      setBranchOptions(options);
+      setBranchCode((currentValue) => currentValue || options[0]?.code || "");
+    } catch (error) {
+      console.error("Error loading branches:", error);
+      setBranchOptions([]);
+    } finally {
+      setBranchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadOpenCashManagementRecords();
+    void loadBranchOptions();
+  }, [open, loadOpenCashManagementRecords, loadBranchOptions]);
 
   const groupedFacturas = useMemo<Factura[]>(() => {
     const facturasMap = new Map<string, Factura>()
@@ -141,8 +217,11 @@ export default function ImportarFactura({ open , onClose } : Props) {
         document: factura.encabezado.documento,
         chargeStatus: factura.encabezado.estado_cobro,
         clientCode: String(factura.encabezado.cliente),
+        cashManagementId: selectedCashManagementId
+          ? Number(selectedCashManagementId)
+          : 0,
         warehouse: Number(factura.encabezado.bodega) || 0,
-        branchCode: "SC002", //factura.encabezado.sucursal,
+        branchCode: branchCode || factura.encabezado.sucursal || "",
         cashier: factura.encabezado.cajero,
         issuedAt: toIssuedAtIso(factura.encabezado.fecha),
         store: factura.encabezado.tienda,
@@ -162,7 +241,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
         isExempt: detalle.exento,
       })),
     }))
-  }, [groupedFacturas])
+  }, [groupedFacturas, branchCode, selectedCashManagementId])
 
   const clearFile = useCallback(() => {
     setFileName(null)
@@ -465,6 +544,55 @@ const handleFileUpload = useCallback(
 
       {/* CONTENIDO */}
       <div className="p-6 overflow-auto">
+        <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sucursal
+            </label>
+            <select
+              value={branchCode}
+              onChange={(e) => setBranchCode(e.target.value)}
+              disabled={branchLoading || branchOptions.length === 0 || saving}
+              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+            >
+              {branchLoading ? (
+                <option value="">Cargando sucursales...</option>
+              ) : branchOptions.length === 0 ? (
+                <option value="">No hay sucursales disponibles</option>
+              ) : (
+                branchOptions.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Caja abierta
+            </label>
+            <select
+              value={selectedCashManagementId}
+              onChange={(e) => setSelectedCashManagementId(e.target.value)}
+              disabled={cashManagementLoading || cashManagementOptions.length === 0 || saving}
+              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+            >
+              {cashManagementLoading ? (
+                <option value="">Cargando cajas abiertas...</option>
+              ) : cashManagementOptions.length === 0 ? (
+                <option value="">No hay cajas abiertas</option>
+              ) : (
+                cashManagementOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+        </div>
 
         {/* 🔽 SOLO SE MUESTRA SI NO HAY DATA */}
         {!fileName && (

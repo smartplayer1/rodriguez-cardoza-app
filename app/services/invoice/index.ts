@@ -1,4 +1,5 @@
 import {
+  CreditInvoiceListResponse,
   InvoiceGetFilters,
   InvoiceListResponse,
   ServerInvoicePayload,
@@ -19,6 +20,7 @@ const buildQueryString = (filters?: InvoiceGetFiltersWithContext) => {
   if (filters.document?.trim()) params.set("document", filters.document.trim());
   if (filters.chargeStatus?.trim()) params.set("chargeStatus", filters.chargeStatus.trim());
   if (filters.clientCode?.trim()) params.set("clientCode", filters.clientCode.trim());
+  if (filters.clientName?.trim()) params.set("clientName", filters.clientName.trim());
   if (filters.branchCode?.trim()) params.set("branchCode", filters.branchCode.trim());
   if (filters.issuedAt?.trim()) params.set("issuedAt", filters.issuedAt.trim());
   if (typeof filters.page === 'number' && filters.page > 0) params.set('Page', String(filters.page));
@@ -37,6 +39,20 @@ export const getInvoices = async (filters?: InvoiceGetFiltersWithContext): Promi
 
   if (!res.ok) {
     throw new Error("Failed to fetch invoices");
+  }
+
+  return res.json();
+};
+
+export const getCreditInvoices = async (filters?: InvoiceGetFiltersWithContext): Promise<CreditInvoiceListResponse> => {
+  const res = await fetch(resolveServiceUrl(`/api/invoice/credit${buildQueryString(filters)}`, {
+    baseUrl: filters?.baseUrl,
+  }), {
+    headers: createJsonHeaders(filters?.cookieHeader),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch credit invoices');
   }
 
   return res.json();

@@ -222,7 +222,7 @@ export async function PUT(req: Request) {
     if (!body?.header?.id) {
       return NextResponse.json({ message: 'Invoice id is required' }, { status: 400 });
     }
-
+console.log('Request body for updating invoice:', body);
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/invoice/${body.header.id}`, {
       method: 'PUT',
       headers: {
@@ -232,6 +232,7 @@ export async function PUT(req: Request) {
       body: JSON.stringify(body),
     });
 
+    console.log('Response from API for updating invoice:', response);
     const responseBody = await response.json().catch(() => null);
 
     if (!response.ok) {

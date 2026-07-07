@@ -1,11 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
-
-import { createCashManagementOutflow } from "@/app/services/cash-management";
-import { CashManagementOutflowCreatePayload } from "@/app/type/cash-management";
+import {
+  createCashManagementOutflow,
+  getCashManagementRecords,
+} from "@/app/services/cash-management";
+import { getAccountingConcepts } from "@/app/services/company/accounting-concept";
+import {
+  CashManagementOutflowCreatePayload,
+  CashManagementRecord,
+} from "@/app/type/cash-management";
 
 type DenominationRow = {
   id: string;
@@ -13,6 +19,22 @@ type DenominationRow = {
   denomination: string;
   quantity: string;
 };
+
+type CashManagementOption = {
+  id: string;
+  label: string;
+};
+
+type AccountingConcept = {
+  id: number;
+  name: string;
+  category: {
+    id: number;
+    name: string;
+  };
+};
+
+const TEMP_RESPONSIBLE_EMPLOYEE_ID = null;
 
 const createDenominationRow = (): DenominationRow => ({
   id: crypto.randomUUID(),
@@ -25,6 +47,12 @@ export default function NuevaSalidaModal() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [cashManagementId, setCashManagementId] = useState("");
+  const [cashManagementOptions, setCashManagementOptions] = useState<
+    CashManagementOption[]
+  >([]);
+  const [cashManagementLoading, setCashManagementLoading] = useState(false);
+  const [conceptos, setConceptos] = useState<AccountingConcept[]>([]);
+  const [conceptosLoading, setConceptosLoading] = useState(false);
   const [number, setNumber] = useState("");
   const [occurredAt, setOccurredAt] = useState("");
   const [concept, setConcept] = useState("");
@@ -36,6 +64,59 @@ export default function NuevaSalidaModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const loadOpenCashManagementRecords = useCallback(async () => {
+    try {
+      setCashManagementLoading(true);
+      const response = await getCashManagementRecords({
+        status: "OPEN",
+        responsibleEmployeeId: TEMP_RESPONSIBLE_EMPLOYEE_ID,
+        page: 1,
+        perPage: 100,
+      });
+
+      const options = (response.records || []).map(
+        (record: CashManagementRecord) => ({
+          id: String(record.id),
+          label: `${record.cashRegisterCode} - ${record.cashRegisterName} - ${record.responsibleEmployeeName}`,
+        }),
+      );
+
+      setCashManagementOptions(options);
+      setCashManagementId((currentValue) => currentValue || options[0]?.id || "");
+    } catch (error) {
+      console.error("Error loading open cash management records:", error);
+      setCashManagementOptions([]);
+    } finally {
+      setCashManagementLoading(false);
+    }
+  }, []);
+
+  const loadAccountingConcepts = useCallback(async () => {
+    try {
+      setConceptosLoading(true);
+      const conceptosResponse = await getAccountingConcepts();
+      setConceptos(conceptosResponse?.records || []);
+    } catch (error) {
+      console.error("Error loading accounting concepts:", error);
+      setConceptos([]);
+    } finally {
+      setConceptosLoading(false);
+    }
+  }, []);
+
+  const filteredConceptos = conceptos.filter(
+    (concepto) => concepto.category?.name === "Egreso",
+  );
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    loadOpenCashManagementRecords();
+    loadAccountingConcepts();
+  }, [isOpen, loadOpenCashManagementRecords, loadAccountingConcepts]);
 
   const updateRow = (rowId: string, patch: Partial<DenominationRow>) => {
     setRows((previousRows) =>
@@ -205,17 +286,27 @@ export default function NuevaSalidaModal() {
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <label className="space-y-2">
                     <span className="text-sm text-muted-foreground">
-                      Gestión ID
+                      Caja aperturada
                     </span>
-                    <input
-                      type="number"
-                      min="1"
+                    <select
                       value={cashManagementId}
                       onChange={(event) =>
                         setCashManagementId(event.target.value)
                       }
                       className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                      disabled={cashManagementLoading || isSubmitting}
+                    >
+                      <option value="">
+                        {cashManagementLoading
+                          ? "Cargando cajas aperturadas..."
+                          : "Seleccione una caja aperturada"}
+                      </option>
+                      {cashManagementOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="space-y-2">
@@ -246,12 +337,26 @@ export default function NuevaSalidaModal() {
                     <span className="text-sm text-muted-foreground">
                       Concepto
                     </span>
-                    <input
-                      type="text"
+                    <select
                       value={concept}
                       onChange={(event) => setConcept(event.target.value)}
                       className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                      disabled={conceptosLoading || isSubmitting}
+                    >
+                      <option value="">
+                        {conceptosLoading
+                          ? "Cargando conceptos..."
+                          : "Seleccione un concepto de egreso"}
+                      </option>
+                      {filteredConceptos.map((conceptoItem) => (
+                        <option
+                          key={conceptoItem.id}
+                          value={conceptoItem.name}
+                        >
+                          {conceptoItem.name}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="space-y-2 md:col-span-2 xl:col-span-4">

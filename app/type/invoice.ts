@@ -2,6 +2,7 @@ export interface ServerInvoicePayload {
   header: {
     document: string;
     chargeStatus: string;
+    cashManagementId: number
     clientCode: string;
     warehouse: number;
     branchCode: string;
@@ -93,10 +94,44 @@ export interface InvoiceListResponse {
   paging: InvoicePaging;
 }
 
+export interface CreditCollectionSummary {
+  id: number;
+  number: string;
+  collectionDate: string;
+  currency: string;
+  receivedAmount: number;
+  appliedAmountNio: number;
+  changeTotalNio: number;
+  cashManagementId: number | null;
+  applicationStatus: string;
+  status: string;
+}
+
+export interface CreditInvoiceRecord {
+  invoiceId: number;
+  document: string;
+  clientCode: string;
+  clientName: string;
+  chargeStatus: string;
+  isVoided: boolean;
+  invoiceAmountNio: number;
+  paidAmountNio: number;
+  remainingBalanceNio: number;
+  isCredit: boolean;
+  collectionCount: number;
+  collections: CreditCollectionSummary[];
+}
+
+export interface CreditInvoiceListResponse {
+  records: CreditInvoiceRecord[];
+  paging: InvoicePaging;
+}
+
 export interface InvoiceGetFilters {
   document?: string;
   chargeStatus?: string;
   clientCode?: string;
+  clientName?: string;
   branchCode?: string;
   issuedAt?: string;
   page?: number;

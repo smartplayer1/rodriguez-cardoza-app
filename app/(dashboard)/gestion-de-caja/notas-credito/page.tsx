@@ -6,14 +6,20 @@ import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import  ImportarNotaCreditoModal  from '@/components/excel-upload-credit-note';
 import { createCreditNote, getCreditNotes } from '@/app/services/billing/credit-note';
-import { getInvoices } from '@/app/services/invoice';
-import { CreditNoteCreatePayload, CreditNoteImportDetail, CreditNoteImportPayload, CreditNoteRecord } from '@/app/type/credit-note';
-import { ServerInvoiceResponse } from '@/app/type/invoice';
+import { getCashManagementRecords } from '@/app/services/cash-management';
+import { CreditNoteCreatePayload, CreditNoteRecord } from '@/app/type/credit-note';
 
 type DetailRowState = {
   invoiceLineId: string;
   quantity: string;
 };
+
+type CashManagementOption = {
+  id: string;
+  label: string;
+};
+
+const TEMP_RESPONSIBLE_EMPLOYEE_ID = '1';
 
 const emptyDetailRow = (): DetailRowState => ({
   invoiceLineId: '',
@@ -25,31 +31,6 @@ const toIsoDate = (value: string) => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
-};
-
-const normalizeComparable = (value: string | null | undefined) => normalizeValue(value).toLowerCase();
-
-const nearlyEqual = (left: number, right: number) => Math.abs(Number(left || 0) - Number(right || 0)) < 0.01;
-
-const matchesInvoiceDetail = (importDetail: CreditNoteImportDetail, invoiceDetail: ServerInvoiceResponse['details'][number]) => {
-  if (normalizeComparable(importDetail.article) !== normalizeComparable(invoiceDetail.article)) {
-    return false;
-  }
-
-  return (
-    nearlyEqual(importDetail.salePrice, invoiceDetail.salePrice)
-    && nearlyEqual(importDetail.price, invoiceDetail.price)
-    && nearlyEqual(importDetail.tax1, invoiceDetail.tax1)
-    && nearlyEqual(importDetail.tax2, invoiceDetail.tax2)
-    && nearlyEqual(importDetail.lineDiscount, invoiceDetail.lineDiscount)
-    && nearlyEqual(importDetail.generalDiscount, invoiceDetail.generalDiscount)
-    && (!importDetail.isExempt || normalizeComparable(importDetail.isExempt) === normalizeComparable(invoiceDetail.isExempt))
-  );
-};
-
-const normalizeValue = (value: unknown) => {
-  if (value == null) return '';
-  return String(value).trim();
 };
 
 const getStatusLabel = (status: string) => {
@@ -88,7 +69,6 @@ export default function NotasCreditoPage() {
   const [records, setRecords] = useState<CreditNoteRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -104,6 +84,9 @@ export default function NotasCreditoPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [viewingRecord, setViewingRecord] = useState<CreditNoteRecord | null>(null);
+  const [cashManagementOptions, setCashManagementOptions] = useState<CashManagementOption[]>([]);
+  const [cashManagementLoading, setCashManagementLoading] = useState(false);
+  const [selectedCashManagementId, setSelectedCashManagementId] = useState('');
 
   const [number, setNumber] = useState('');
   const [invoiceId, setInvoiceId] = useState('');
@@ -162,7 +145,40 @@ export default function NotasCreditoPage() {
     setInvoiceDocument('');
     setStartDate(new Date().toISOString().split('T')[0]);
     setDetailRows([emptyDetailRow()]);
+    setSelectedCashManagementId('');
   };
+
+  const loadOpenCashManagementRecords = useCallback(async () => {
+    try {
+      setCashManagementLoading(true);
+      const response = await getCashManagementRecords({
+        status: 'Abierta',
+        responsibleEmployeeId: TEMP_RESPONSIBLE_EMPLOYEE_ID,
+        page: 1,
+        perPage: 100,
+      });
+
+      const options = (response.records || []).map((record) => ({
+        id: String(record.id),
+        label: `${record.cashRegisterCode} - ${record.cashRegisterName}`,
+      }));
+
+      setCashManagementOptions(options);
+    } catch (error) {
+      console.error('Error loading open cash management records:', error);
+      setCashManagementOptions([]);
+    } finally {
+      setCashManagementLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isCreateOpen) {
+      return;
+    }
+
+    loadOpenCashManagementRecords();
+  }, [isCreateOpen, loadOpenCashManagementRecords]);
 
   const openCreate = () => {
     resetCreateForm();
@@ -208,6 +224,7 @@ export default function NotasCreditoPage() {
       number: number.trim(),
       invoiceId: invoiceId.trim() ? Number(invoiceId) : null,
       invoiceDocument: invoiceDocument.trim() ? invoiceDocument.trim() : null,
+      cashManagementId: Number(selectedCashManagementId),
       startDate: toIsoDate(startDate) || new Date().toISOString(),
       details,
     };
@@ -230,77 +247,6 @@ export default function NotasCreditoPage() {
     }
   };
 
-  const handleImport = async (creditNotes: CreditNoteImportPayload[]) => {
-    try {
-      setImporting(true);
-      const invoiceCache = new Map<string, ServerInvoiceResponse>();
-
-      const getInvoiceByDocument = async (document: string) => {
-        const normalizedDocument = normalizeValue(document);
-
-        if (invoiceCache.has(normalizedDocument)) {
-          return invoiceCache.get(normalizedDocument)!;
-        }
-
-        const response = await getInvoices({ document: normalizedDocument });
-        const invoice = (response.records || []).find(
-          (record) => normalizeValue(record.header.document).toLowerCase() === normalizedDocument.toLowerCase(),
-        );
-
-        if (!invoice) {
-          throw new Error(`No se encontro la factura ${normalizedDocument}`);
-        }
-
-        invoiceCache.set(normalizedDocument, invoice);
-        return invoice;
-      };
-
-      for (const note of creditNotes) {
-        const invoice = await getInvoiceByDocument(note.invoiceDocument);
-        const availableDetails = [...invoice.details];
-
-        const payload: CreditNoteCreatePayload = {
-          number: note.number,
-          invoiceId: invoice.header.id,
-          invoiceDocument: invoice.header.document,
-          startDate: toIsoDate(note.startDate) || new Date().toISOString(),
-          details: note.details.map((detail) => {
-            if (detail.invoiceLineId) {
-              return {
-                invoiceLineId: detail.invoiceLineId,
-                quantity: Math.abs(Number(detail.quantity) || 0),
-              };
-            }
-
-            const matchedIndex = availableDetails.findIndex((invoiceDetail) => matchesInvoiceDetail(detail, invoiceDetail));
-
-            if (matchedIndex === -1) {
-              throw new Error(
-                `No se pudo relacionar el articulo ${detail.article} de la nota ${note.number} con la factura ${invoice.header.document}`,
-              );
-            }
-
-            const [matchedDetail] = availableDetails.splice(matchedIndex, 1);
-
-            return {
-              invoiceLineId: matchedDetail.id,
-              quantity: Math.abs(Number(detail.quantity) || 0),
-            };
-          }),
-        };
-
-        await createCreditNote(payload);
-      }
-      setIsImportOpen(false);
-      await loadRecords();
-    } catch (error) {
-      console.error('Error importing credit notes:', error);
-      alert(error instanceof Error ? error.message : 'No se pudo importar el archivo completo');
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const totalPages = paging.totalPages || 1;
   const hasAnyFilter = !!searchTerm || !!statusFilter;
 
@@ -317,6 +263,9 @@ export default function NotasCreditoPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <MaterialButton variant="contained" color="primary" startIcon={<Plus size={18} />} onClick={openCreate}>
+              Nueva Nota
+            </MaterialButton>
             <MaterialButton variant="outlined" color="secondary" startIcon={<FileSpreadsheet size={18} />} onClick={() => setIsImportOpen(true)}>
               Importar Excel
             </MaterialButton>
@@ -549,6 +498,26 @@ export default function NotasCreditoPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm text-muted-foreground">Gestión de caja abierta</label>
+                  <select
+                    value={selectedCashManagementId}
+                    onChange={(event) => setSelectedCashManagementId(event.target.value)}
+                    className="w-full px-3 py-3 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+                  >
+                    <option value="">Seleccione una gestión de caja</option>
+                    {cashManagementOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    {cashManagementLoading
+                      ? 'Cargando gestiones abiertas...'
+                      : `${cashManagementOptions.length} gestión(es) disponible(s)`}
+                  </p>
+                </div>
                 <MaterialInput label="Número *" value={number} onChange={(e) => setNumber(e.target.value)} fullWidth />
                 <MaterialInput label="Fecha de inicio *" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} fullWidth />
                 <MaterialInput label="Invoice Id" type="number" value={invoiceId} onChange={(e) => setInvoiceId(e.target.value)} fullWidth />
