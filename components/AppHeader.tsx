@@ -1,21 +1,34 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
-import { Menu, LogOut, Settings, User } from 'lucide-react';
+import React, { useState } from "react";
+import { Menu, LogOut, Settings, User } from "lucide-react";
+import { useUserStore } from "@/app/store/useUserStore";
 
 interface AppHeaderProps {
   onToggleSidebar: () => void;
   onLogout?: () => void;
 }
 
-export default function AppHeader({ onToggleSidebar, onLogout }: AppHeaderProps) {
+export default function AppHeader({
+  onToggleSidebar,
+  onLogout,
+}: AppHeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const user = useUserStore((state) => state.user);
+
+  const fullName =
+    [user?.name, user?.lastName].filter(Boolean).join(" ") || "Usuario";
+  const initials =
+    [user?.name, user?.lastName]
+      .filter(Boolean)
+      .map((part) => part!.trim().charAt(0).toUpperCase())
+      .join("") || "U";
 
   const currentUser = {
-    name: 'Juan Perez',
-    email: 'juan.perez@rodriguezcardoza.com',
-    role: 'Administrador',
-    avatar: 'JP'
+    name: fullName,
+    email: user?.email || "",
+    role: user?.roles?.[0] || "Sin rol",
+    avatar: initials,
   };
 
   return (
@@ -48,7 +61,7 @@ export default function AppHeader({ onToggleSidebar, onLogout }: AppHeaderProps)
 
           {showUserMenu && (
             <>
-              <div 
+              <div
                 className="fixed inset-0 z-40"
                 onClick={() => setShowUserMenu(false)}
               />
@@ -60,7 +73,9 @@ export default function AppHeader({ onToggleSidebar, onLogout }: AppHeaderProps)
                     </div>
                     <div>
                       <div className="text-foreground">{currentUser.name}</div>
-                      <div className="text-sm text-muted-foreground">{currentUser.email}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {currentUser.email}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -75,7 +90,7 @@ export default function AppHeader({ onToggleSidebar, onLogout }: AppHeaderProps)
                   </button>
                 </div>
                 <div className="border-t border-border py-2">
-                  <button 
+                  <button
                     onClick={onLogout}
                     className="w-full px-4 py-2 text-left hover:bg-muted flex items-center gap-3 text-destructive"
                   >

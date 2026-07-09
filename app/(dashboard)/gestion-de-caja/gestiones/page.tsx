@@ -1,10 +1,21 @@
-import { headers } from 'next/headers';
-import { ArrowUpDown, Banknote, ChevronDown, CircleDollarSign, Filter, Wallet } from 'lucide-react';
+import { headers } from "next/headers";
+import {
+  ArrowUpDown,
+  Banknote,
+  ChevronDown,
+  CircleDollarSign,
+  Filter,
+  Wallet,
+} from "lucide-react";
 
-import { getCashManagementRecords, getCashRegisters } from '@/app/services/cash-management';
-import { getEmployees } from '@/app/services/employee';
-import AperturaCajaForm from './apertura-caja-form';
-import GestionesHeaderTable from './GestionesHeaderTable';
+import {
+  getCashManagementRecords,
+  getCashRegisters,
+} from "@/app/services/cash-management";
+import { getEmployees } from "@/app/services/employee";
+import AperturaCajaForm from "./apertura-caja-form";
+import CerrarCajaPorRegistradora from "./cerrar-caja-por-registradora";
+import GestionesHeaderTable from "./GestionesHeaderTable";
 
 type SearchParams = {
   cashRegisterId?: string | string[];
@@ -19,11 +30,14 @@ type SearchParams = {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PER_PAGE = 10;
-const GESTIONES_PATH = '/gestion-de-caja/gestiones';
+const GESTIONES_PATH = "/gestion-de-caja/gestiones";
 
-const toPositiveInt = (value: string | string[] | undefined, fallback: number) => {
+const toPositiveInt = (
+  value: string | string[] | undefined,
+  fallback: number,
+) => {
   const rawValue = Array.isArray(value) ? value[0] : value;
-  const parsed = Number.parseInt(rawValue ?? '', 10);
+  const parsed = Number.parseInt(rawValue ?? "", 10);
 
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
@@ -48,44 +62,48 @@ type SelectOption = {
   label: string;
 };
 
-const buildPageHref = (pageNumber: number, perPage: number, filters: ActiveFilters) => {
+const buildPageHref = (
+  pageNumber: number,
+  perPage: number,
+  filters: ActiveFilters,
+) => {
   const params = new URLSearchParams();
 
   if (filters.cashRegisterId) {
-    params.set('cashRegisterId', filters.cashRegisterId);
+    params.set("cashRegisterId", filters.cashRegisterId);
   }
 
   if (filters.responsibleEmployeeId) {
-    params.set('responsibleEmployeeId', filters.responsibleEmployeeId);
+    params.set("responsibleEmployeeId", filters.responsibleEmployeeId);
   }
 
   if (filters.status) {
-    params.set('status', filters.status);
+    params.set("status", filters.status);
   }
 
   if (filters.openedFrom) {
-    params.set('openedFrom', filters.openedFrom);
+    params.set("openedFrom", filters.openedFrom);
   }
 
   if (filters.openedTo) {
-    params.set('openedTo', filters.openedTo);
+    params.set("openedTo", filters.openedTo);
   }
 
   if (pageNumber > 1) {
-    params.set('page', String(pageNumber));
+    params.set("page", String(pageNumber));
   }
 
   if (perPage !== DEFAULT_PER_PAGE) {
-    params.set('perPage', String(perPage));
+    params.set("perPage", String(perPage));
   }
 
   const query = params.toString();
-  return query ? `?${query}` : '?';
+  return query ? `?${query}` : "?";
 };
 
-const formatCurrency = (value: number, currency: 'NIO' | 'USD') => {
-  return new Intl.NumberFormat('es-NI', {
-    style: 'currency',
+const formatCurrency = (value: number, currency: "NIO" | "USD") => {
+  return new Intl.NumberFormat("es-NI", {
+    style: "currency",
     currency,
     minimumFractionDigits: 2,
   }).format(value);
@@ -98,8 +116,8 @@ const formatDateLabel = (value: string) => {
     return value;
   }
 
-  return new Intl.DateTimeFormat('es-NI', {
-    dateStyle: 'medium',
+  return new Intl.DateTimeFormat("es-NI", {
+    dateStyle: "medium",
   }).format(date);
 };
 
@@ -110,21 +128,28 @@ export default async function GestionCaja({
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
 
-  const page = toPositiveInt(resolvedSearchParams.page ?? resolvedSearchParams.Page, DEFAULT_PAGE);
+  const page = toPositiveInt(
+    resolvedSearchParams.page ?? resolvedSearchParams.Page,
+    DEFAULT_PAGE,
+  );
   const perPage = toPositiveInt(resolvedSearchParams.perPage, DEFAULT_PER_PAGE);
   const activeFilters: ActiveFilters = {
     cashRegisterId: toOptionalString(resolvedSearchParams.cashRegisterId),
-    responsibleEmployeeId: toOptionalString(resolvedSearchParams.responsibleEmployeeId),
+    responsibleEmployeeId: toOptionalString(
+      resolvedSearchParams.responsibleEmployeeId,
+    ),
     status: toOptionalString(resolvedSearchParams.status),
     openedFrom: toOptionalString(resolvedSearchParams.openedFrom),
     openedTo: toOptionalString(resolvedSearchParams.openedTo),
   };
 
   const requestHeaders = await headers();
-  const cookieHeader = requestHeaders.get('cookie') ?? undefined;
-  const host = requestHeaders.get('host');
-  const protocol = requestHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_URL_LOCAL;
+  const cookieHeader = requestHeaders.get("cookie") ?? undefined;
+  const host = requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
+  const baseUrl = host
+    ? `${protocol}://${host}`
+    : process.env.NEXT_PUBLIC_URL_LOCAL;
 
   let fetchError: string | null = null;
   let response;
@@ -146,22 +171,29 @@ export default async function GestionCaja({
     }),
   ]);
 
-  if (cashRegistersResult.status === 'fulfilled') {
+  if (cashRegistersResult.status === "fulfilled") {
     cashRegisterOptions = cashRegistersResult.value.records.map((record) => ({
       id: String(record.id),
       label: `${record.code} - ${record.name}`,
     }));
   }
 
-  if (employeesResult.status === 'fulfilled') {
+  if (employeesResult.status === "fulfilled") {
     employeeOptions = employeesResult.value.records.map((record) => ({
       id: String(record.id),
-      label: `${record.code} - ${record.firstname} ${record.middleName} ${record.lastName} ${record.secondLastName}`.replace(/\s+/g, ' ').trim(),
+      label:
+        `${record.code} - ${record.firstname} ${record.middleName} ${record.lastName} ${record.secondLastName}`
+          .replace(/\s+/g, " ")
+          .trim(),
     }));
   }
 
-  const selectedCashRegisterLabel = cashRegisterOptions.find((option) => option.id === activeFilters.cashRegisterId)?.label;
-  const selectedEmployeeLabel = employeeOptions.find((option) => option.id === activeFilters.responsibleEmployeeId)?.label;
+  const selectedCashRegisterLabel = cashRegisterOptions.find(
+    (option) => option.id === activeFilters.cashRegisterId,
+  )?.label;
+  const selectedEmployeeLabel = employeeOptions.find(
+    (option) => option.id === activeFilters.responsibleEmployeeId,
+  )?.label;
 
   try {
     response = await getCashManagementRecords({
@@ -172,7 +204,10 @@ export default async function GestionCaja({
       cookieHeader,
     });
   } catch (error) {
-    fetchError = error instanceof Error ? error.message : 'No se pudo consultar la gestion de caja';
+    fetchError =
+      error instanceof Error
+        ? error.message
+        : "No se pudo consultar la gestion de caja";
     response = {
       records: [],
       paging: {
@@ -184,15 +219,31 @@ export default async function GestionCaja({
     };
   }
 
-  const totalNio = response.records.reduce((sum, record) => sum + record.balance.nio, 0);
-  const totalUsd = response.records.reduce((sum, record) => sum + record.balance.usd, 0);
-  const openRecords = response.records.filter((record) => record.status.toLowerCase() === 'abierta').length;
+  const totalNio = response.records.reduce(
+    (sum, record) => sum + record.balance.nio,
+    0,
+  );
+  const totalUsd = response.records.reduce(
+    (sum, record) => sum + record.balance.usd,
+    0,
+  );
+  const openRecords = response.records.filter(
+    (record) => record.status.toLowerCase() === "abierta",
+  ).length;
   const selectedFilterChips = [
-    activeFilters.cashRegisterId ? `Caja: ${selectedCashRegisterLabel || activeFilters.cashRegisterId}` : null,
-    activeFilters.responsibleEmployeeId ? `Responsable: ${selectedEmployeeLabel || activeFilters.responsibleEmployeeId}` : null,
+    activeFilters.cashRegisterId
+      ? `Caja: ${selectedCashRegisterLabel || activeFilters.cashRegisterId}`
+      : null,
+    activeFilters.responsibleEmployeeId
+      ? `Responsable: ${selectedEmployeeLabel || activeFilters.responsibleEmployeeId}`
+      : null,
     activeFilters.status ? `Estado: ${activeFilters.status}` : null,
-    activeFilters.openedFrom ? `Desde: ${formatDateLabel(activeFilters.openedFrom)}` : null,
-    activeFilters.openedTo ? `Hasta: ${formatDateLabel(activeFilters.openedTo)}` : null,
+    activeFilters.openedFrom
+      ? `Desde: ${formatDateLabel(activeFilters.openedFrom)}`
+      : null,
+    activeFilters.openedTo
+      ? `Hasta: ${formatDateLabel(activeFilters.openedTo)}`
+      : null,
   ].filter((value): value is string => Boolean(value));
   const shouldOpenFilters = selectedFilterChips.length === 0;
 
@@ -207,22 +258,47 @@ export default async function GestionCaja({
                 <div>
                   <h2 className="text-foreground">Gestión de Caja</h2>
                   <p className="text-muted-foreground">
-                    Vista server-side render con aperturas, cierres y balances por caja.
+                    Vista server-side render con aperturas, cierres y balances
+                    por caja.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              <StatCard label="Registros" value={response.paging.totalRecords} icon={<ArrowUpDown className="size-4" />} />
-              <StatCard label="Cajas abiertas" value={openRecords} icon={<Banknote className="size-4" />} />
-              <StatCard label="Balance NIO" value={formatCurrency(totalNio, 'NIO')} icon={<CircleDollarSign className="size-4" />} />
-              <StatCard label="Balance USD" value={formatCurrency(totalUsd, 'USD')} icon={<CircleDollarSign className="size-4" />} />
+              <StatCard
+                label="Registros"
+                value={response.paging.totalRecords}
+                icon={<ArrowUpDown className="size-4" />}
+              />
+              <StatCard
+                label="Cajas abiertas"
+                value={openRecords}
+                icon={<Banknote className="size-4" />}
+              />
+              <StatCard
+                label="Balance NIO"
+                value={formatCurrency(totalNio, "NIO")}
+                icon={<CircleDollarSign className="size-4" />}
+              />
+              <StatCard
+                label="Balance USD"
+                value={formatCurrency(totalUsd, "USD")}
+                icon={<CircleDollarSign className="size-4" />}
+              />
             </div>
           </div>
         </header>
 
-        <AperturaCajaForm cashRegisterOptions={cashRegisterOptions} employeeOptions={employeeOptions} />
+        <div className="flex flex-wrap items-center gap-3">
+          <AperturaCajaForm
+            cashRegisterOptions={cashRegisterOptions}
+            employeeOptions={employeeOptions}
+          />
+          <CerrarCajaPorRegistradora
+            cashRegisterOptions={cashRegisterOptions}
+          />
+        </div>
 
         <details
           className="group overflow-hidden rounded-3xl border border-border/60 bg-surface shadow-sm"
@@ -237,8 +313,8 @@ export default async function GestionCaja({
                 <p className="text-sm font-medium text-foreground">Filtros</p>
                 <p className="text-xs text-muted-foreground">
                   {selectedFilterChips.length > 0
-                    ? 'Filtros aplicados actualmente'
-                    : 'Expanda para filtrar por caja, responsable, estado y fechas'}
+                    ? "Filtros aplicados actualmente"
+                    : "Expanda para filtrar por caja, responsable, estado y fechas"}
                 </p>
               </div>
             </div>
@@ -254,7 +330,9 @@ export default async function GestionCaja({
                   </span>
                 ))
               ) : (
-                <span className="text-xs text-muted-foreground">Sin filtros aplicados</span>
+                <span className="text-xs text-muted-foreground">
+                  Sin filtros aplicados
+                </span>
               )}
 
               <span className="rounded-full border border-border/60 p-2 text-muted-foreground transition-transform group-open:rotate-180">
@@ -283,7 +361,9 @@ export default async function GestionCaja({
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm text-muted-foreground">Responsable</span>
+                  <span className="text-sm text-muted-foreground">
+                    Responsable
+                  </span>
                   <select
                     name="responsibleEmployeeId"
                     defaultValue={activeFilters.responsibleEmployeeId}
@@ -302,7 +382,7 @@ export default async function GestionCaja({
                   <span className="text-sm text-muted-foreground">Estado</span>
                   <select
                     name="status"
-                    defaultValue={activeFilters.status ?? ''}
+                    defaultValue={activeFilters.status ?? ""}
                     className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
                   >
                     <option value="">Todos</option>
@@ -312,7 +392,9 @@ export default async function GestionCaja({
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm text-muted-foreground">Abierta desde</span>
+                  <span className="text-sm text-muted-foreground">
+                    Abierta desde
+                  </span>
                   <input
                     type="date"
                     name="openedFrom"
@@ -322,7 +404,9 @@ export default async function GestionCaja({
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm text-muted-foreground">Abierta hasta</span>
+                  <span className="text-sm text-muted-foreground">
+                    Abierta hasta
+                  </span>
                   <input
                     type="date"
                     name="openedTo"
@@ -334,7 +418,9 @@ export default async function GestionCaja({
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <label className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">Por página</span>
+                  <span className="text-sm text-muted-foreground">
+                    Por página
+                  </span>
                   <select
                     name="perPage"
                     defaultValue={String(perPage)}
@@ -374,12 +460,19 @@ export default async function GestionCaja({
         <GestionesHeaderTable records={response.records} />
 
         {response.paging.totalPages > 1 ? (
-          <nav aria-label="Paginación gestión de caja" className="rounded-2xl border border-border/60 bg-surface px-4 py-3">
+          <nav
+            aria-label="Paginación gestión de caja"
+            className="rounded-2xl border border-border/60 bg-surface px-4 py-3"
+          >
             <ul className="flex items-center justify-between gap-2 sm:justify-center">
               <li>
                 {response.paging.currentPage > 1 ? (
                   <a
-                    href={buildPageHref(response.paging.currentPage - 1, response.paging.perPage, activeFilters)}
+                    href={buildPageHref(
+                      response.paging.currentPage - 1,
+                      response.paging.perPage,
+                      activeFilters,
+                    )}
                     className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent"
                   >
                     Anterior
@@ -391,12 +484,17 @@ export default async function GestionCaja({
                 )}
               </li>
               <li className="px-3 py-2 text-sm text-muted-foreground">
-                Página {response.paging.currentPage} de {response.paging.totalPages}
+                Página {response.paging.currentPage} de{" "}
+                {response.paging.totalPages}
               </li>
               <li>
                 {response.paging.currentPage < response.paging.totalPages ? (
                   <a
-                    href={buildPageHref(response.paging.currentPage + 1, response.paging.perPage, activeFilters)}
+                    href={buildPageHref(
+                      response.paging.currentPage + 1,
+                      response.paging.perPage,
+                      activeFilters,
+                    )}
                     className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent"
                   >
                     Siguiente
@@ -434,4 +532,3 @@ function StatCard({
     </div>
   );
 }
-

@@ -415,13 +415,3 @@ export default function Cupones() {
   );
 }
 
-// Export function to get cupones for use in other components
-export function getCuponesActivos(): Array<{ id: number; name: string; amount: number }> {
-  // This would normally fetch from a database or state management
-  // For now, we'll return mock data using the API shape.
-  return [
-    { id: 1, name: 'Cupón Bienvenida $500', amount: 500 },
-    { id: 2, name: 'Cupón Descuento $250', amount: 250 },
-    { id: 3, name: 'Cupón VIP $1000', amount: 1000 },
-  ];
-}

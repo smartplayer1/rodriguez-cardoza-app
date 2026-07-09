@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+import { isJwtDecoded, mapUserFromToken } from "@/app/utils/mapUser";
 
 export async function POST(req: Request) {
   try {
@@ -7,12 +9,12 @@ export async function POST(req: Request) {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/v1/authentication/login`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
-      }
+      },
     );
 
     if (!res.ok) {
@@ -20,93 +22,80 @@ export async function POST(req: Request) {
 
       return NextResponse.json(
         {
-          message:
-            errorData.message ||
-            'Error al iniciar sesión',
+          message: errorData.message || "Error al iniciar sesión",
         },
         {
           status: res.status,
-        }
+        },
       );
     }
 
     const data = await res.json();
 
+    const decoded = jwt.decode(data.token);
+    const claims = isJwtDecoded(decoded) ? mapUserFromToken(decoded) : null;
+
     const response = NextResponse.json(
       {
         success: true,
         tokenExpiresAt: data.tokenExpiresAt,
+        claims,
       },
       {
         status: 200,
-      }
+      },
     );
 
     // Access Token
-    response.cookies.set('token', data.token, {
+    response.cookies.set("token", data.token, {
       httpOnly: true,
-      secure:
-        process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
     });
 
     // Fecha de expiración del token
-    response.cookies.set(
-      'tokenExpiresAt',
-      data.tokenExpiresAt,
-      {
-        httpOnly: true,
-        secure:
-          process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/',
-      }
-    );
+    response.cookies.set("tokenExpiresAt", data.tokenExpiresAt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+    });
 
     // Solo guardar si existe
     if (data.refreshToken) {
-      response.cookies.set(
-        'refreshToken',
-        data.refreshToken,
-        {
-          httpOnly: true,
-          secure:
-            process.env.NODE_ENV ===
-            'production',
-          sameSite: 'strict',
-          path: '/',
-        }
-      );
+      response.cookies.set("refreshToken", data.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+      });
     }
 
     if (data.refreshTokenExpiresAt) {
       response.cookies.set(
-        'refreshTokenExpiresAt',
+        "refreshTokenExpiresAt",
         data.refreshTokenExpiresAt,
         {
           httpOnly: true,
-          secure:
-            process.env.NODE_ENV ===
-            'production',
-          sameSite: 'strict',
-          path: '/',
-        }
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+        },
       );
     }
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
 
     return NextResponse.json(
       {
-        message:
-          'Ocurrió un error al iniciar sesión',
+        message: "Ocurrió un error al iniciar sesión",
       },
       {
         status: 500,
-      }
+      },
     );
   }
 }

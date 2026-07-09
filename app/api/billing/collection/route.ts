@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-
+console.log('body', body);
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/v1/billing/collection`,
     {

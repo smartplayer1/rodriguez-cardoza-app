@@ -7,11 +7,6 @@ export type CollectionRecord = {
   branchName: string;
 };
 
-export type CollectionCashDetail = {
-  denomination: number;
-  quantity: number;
-};
-
 export type CollectionBankTransfer = {
   accountNumber: string;
   companyBankAccountId: number;
@@ -19,17 +14,20 @@ export type CollectionBankTransfer = {
   amount: number;
 };
 
+export type InvoiceAllocations = {
+  invoiceId: number;
+  amountNio: number;
+}
+
 export type CollectionCreatePayload = {
   number: string;
-  invoiceId: number | null;
-  invoiceDocument: string | null;
   cashManagementId: number;
   currency: string;
   collectionDate: string;
   description: string | null;
-  cashDetails: CollectionCashDetail[];
+  cashAmount: number;
   bankTransfers: CollectionBankTransfer[];
-  changeDetails: CollectionCashDetail[];
+  invoiceAllocations: InvoiceAllocations[];
 };
 
 export type CollectionPaging = {

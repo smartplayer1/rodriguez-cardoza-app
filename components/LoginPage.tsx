@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client"
+"use client";
 import React, { useState } from "react";
 import { MaterialButton } from "@/components/MaterialButton";
 import { MaterialInput } from "@/components/MaterialInput";
@@ -11,9 +11,9 @@ import {
 } from "@/components/MaterialCard";
 import { Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { loginRequest } from "@/app/services";
+import { getUserById } from "@/app/services/user";
 import { useUserStore } from "@/app/store/useUserStore";
-import jwt from 'jsonwebtoken';
-import { mapUserFromToken, isJwtDecoded } from "@/app/utils/mapUser";
+import type { AuthUser, UserProfile } from "@/app/type/user";
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -27,42 +27,64 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [emailError, setEmailError] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
+    const isPasswordValid = password.length >= 6;
+    setPasswordError(!isPasswordValid);
 
-  const isPasswordValid = password.length >= 6;
-  setPasswordError(!isPasswordValid);
+    if (!isPasswordValid) return;
 
-  if (!isPasswordValid) return;
+    try {
+      const request = await loginRequest({ credential: email, password });
 
-  try {
-    const request = await loginRequest({credential: email, password});
+      if (!request.ok) {
+        const errorData = await request.json();
+        throw new Error(errorData.message || "Error al iniciar sesión");
+      }
+      const data = await request.json();
 
-    if (!request.ok) {
-      const errorData = await request.json();
-      throw new Error(errorData.message || "Error al iniciar sesión");
+      if (data?.claims) {
+        let user: AuthUser = data.claims;
+
+        // El token solo trae permisos/roles; el id de empleado y demás
+        // datos de perfil vienen del usuario completo.
+        try {
+          const profileRequest = await getUserById(data.claims.id);
+
+          if (profileRequest.ok) {
+            const profile: UserProfile = await profileRequest.json();
+
+            user = {
+              ...user,
+              middleName: profile.middleName,
+              lastName: profile.lastName,
+              secondLastName: profile.secondLastName,
+              userName: profile.userName,
+              employeeId: profile.employeeId,
+              employeeCode: profile.employeeCode,
+              employeeName: profile.employeeName,
+              branchId: profile.branchId,
+              branchName: profile.branchName,
+              isArchived: profile.isArchived,
+            };
+          }
+        } catch (profileError) {
+          console.error(
+            "Error al obtener el perfil del usuario:",
+            profileError,
+          );
+        }
+
+        useUserStore.getState().setUser(user);
+      }
+
+      onLoginSuccess();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message);
     }
-    // ⚠️ si backend devuelve token (opcional)
-    const data = await request.json();
-    if (data?.token) {
-      const decoded = jwt.decode(data.token);
-
-      if (!isJwtDecoded(decoded)) return;
-
-      const user = mapUserFromToken(decoded);
-
-      // ✅ solo guardas user en Zustand
-      useUserStore.getState().setUser(user);
-    }
-
-    onLoginSuccess();
-
-  } catch (error: any) {
-    console.error(error);
-    alert(error.message);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -71,24 +93,19 @@ const handleLogin = async (e: React.FormEvent) => {
         <div
           className="absolute -top-1/2 -right-1/2 w-full h-full rounded-full opacity-5"
           style={{
-            background:
-              "radial-gradient(circle, #001B8C 0%, transparent 70%)",
+            background: "radial-gradient(circle, #001B8C 0%, transparent 70%)",
           }}
         />
         <div
           className="absolute -bottom-1/2 -left-1/2 w-full h-full rounded-full opacity-5"
           style={{
-            background:
-              "radial-gradient(circle, #1976D2 0%, transparent 70%)",
+            background: "radial-gradient(circle, #1976D2 0%, transparent 70%)",
           }}
         />
       </div>
 
       {/* Login Card */}
-      <MaterialCard
-        elevation={4}
-        className="w-full max-w-lg relative z-10"
-      >
+      <MaterialCard elevation={4} className="w-full max-w-lg relative z-10">
         <MaterialCardHeader>
           {/* Logo */}
           <div className="flex justify-center mb-8">
@@ -112,10 +129,7 @@ const handleLogin = async (e: React.FormEvent) => {
         </MaterialCardHeader>
 
         <MaterialCardContent>
-          <form
-            onSubmit={handleLogin}
-            className="flex flex-col gap-6"
-          >
+          <form onSubmit={handleLogin} className="flex flex-col gap-6">
             {/* Email Input */}
             <MaterialInput
               label="Correo Electrónico"
@@ -130,9 +144,7 @@ const handleLogin = async (e: React.FormEvent) => {
               }}
               error={emailError}
               helperText={
-                emailError
-                  ? "Por favor ingresa un correo válido"
-                  : ""
+                emailError ? "Por favor ingresa un correo válido" : ""
               }
               startIcon={<Mail size={20} />}
             />
@@ -163,11 +175,7 @@ const handleLogin = async (e: React.FormEvent) => {
                   className="cursor-pointer hover:text-primary transition-colors"
                   tabIndex={-1}
                 >
-                  {showPassword ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               }
             />
@@ -178,15 +186,11 @@ const handleLogin = async (e: React.FormEvent) => {
                 <input
                   type="checkbox"
                   checked={rememberMe}
-                  onChange={(e) =>
-                    setRememberMe(e.target.checked)
-                  }
+                  onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded border-border text-primary 
                            focus:ring-2 focus:ring-primary cursor-pointer"
                 />
-                <span className="text-sm text-foreground">
-                  Recordarme
-                </span>
+                <span className="text-sm text-foreground">Recordarme</span>
               </label>
 
               <MaterialButton
@@ -194,9 +198,7 @@ const handleLogin = async (e: React.FormEvent) => {
                 variant="text"
                 color="primary"
                 className="text-sm"
-                onClick={() =>
-                  console.log("Recuperar contraseña")
-                }
+                onClick={() => console.log("Recuperar contraseña")}
               >
                 ¿Olvidaste tu contraseña?
               </MaterialButton>
@@ -212,41 +214,12 @@ const handleLogin = async (e: React.FormEvent) => {
             >
               Iniciar Sesión
             </MaterialButton>
-
-            {/* Divider */}
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-surface text-muted-foreground">
-                  o
-                </span>
-              </div>
-            </div>
-
-            {/* Alternative Actions */}
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-3">
-                ¿No tienes una cuenta?
-              </p>
-              <MaterialButton
-                type="button"
-                variant="outlined"
-                color="primary"
-                fullWidth
-                onClick={() => console.log("Registrarse")}
-              >
-                Crear Cuenta Nueva
-              </MaterialButton>
-            </div>
           </form>
         </MaterialCardContent>
 
         <MaterialCardActions className="justify-center mt-6 pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground text-center">
-            © 2025 Rodriguez Cardoza Nicaragua. Todos los
-            derechos reservados.
+            © 2025 Rodriguez Cardoza Nicaragua. Todos los derechos reservados.
           </p>
         </MaterialCardActions>
       </MaterialCard>

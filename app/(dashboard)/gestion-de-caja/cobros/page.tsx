@@ -1,8 +1,14 @@
-import { headers } from 'next/headers';
-import { CalendarDays, Hash, ReceiptText, Search, Wallet } from 'lucide-react';
+import { headers } from "next/headers";
+import { CalendarDays, Hash, ReceiptText, Search, Wallet } from "lucide-react";
 
-import CrearCobroModal from './crear-cobro-modal';
-import { getCollections } from '@/app/services/billing/collection';
+import CrearCobroModal from "./crear-cobro-modal";
+import ClientFilterField from "./client-filter-field";
+import type { ClientSearchItem } from "./client-selector";
+import { getCollections } from "@/app/services/billing/collection";
+import { getclients } from "@/app/services/clients";
+import { getBranches } from "@/app/services/company/branch";
+import type { ClienteResponse } from "@/app/type/client";
+import type { BranchResponse } from "@/app/type/branch";
 
 type SearchParams = {
   number?: string | string[];
@@ -14,8 +20,15 @@ type SearchParams = {
   applicationStatus?: string | string[];
   status?: string | string[];
   collectionDate?: string | string[];
+  clientCode?: string | string[];
+  branchId?: string | string[];
   Page?: string | string[];
   PerPage?: string | string[];
+};
+
+type SelectOption = {
+  id: string;
+  label: string;
 };
 
 const DEFAULT_PAGE = 1;
@@ -23,33 +36,40 @@ const DEFAULT_PER_PAGE = 10;
 
 const toStringValue = (value: string | string[] | undefined) => {
   const rawValue = Array.isArray(value) ? value[0] : value;
-  return rawValue ?? '';
+  return rawValue ?? "";
 };
 
-const toPositiveInt = (value: string | string[] | undefined, fallback: number) => {
+const toPositiveInt = (
+  value: string | string[] | undefined,
+  fallback: number,
+) => {
   const rawValue = Array.isArray(value) ? value[0] : value;
-  const parsed = Number.parseInt(rawValue ?? '', 10);
+  const parsed = Number.parseInt(rawValue ?? "", 10);
 
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-const buildPageHref = (pageNumber: number, perPage: number, searchParams: URLSearchParams) => {
+const buildPageHref = (
+  pageNumber: number,
+  perPage: number,
+  searchParams: URLSearchParams,
+) => {
   const params = new URLSearchParams(searchParams);
 
   if (pageNumber > 1) {
-    params.set('Page', String(pageNumber));
+    params.set("Page", String(pageNumber));
   } else {
-    params.delete('Page');
+    params.delete("Page");
   }
 
   if (perPage !== DEFAULT_PER_PAGE) {
-    params.set('PerPage', String(perPage));
+    params.set("PerPage", String(perPage));
   } else {
-    params.delete('PerPage');
+    params.delete("PerPage");
   }
 
   const query = params.toString();
-  return query ? `?${query}` : '?';
+  return query ? `?${query}` : "?";
 };
 
 export default async function CobrosPage({
@@ -62,23 +82,27 @@ export default async function CobrosPage({
   const perPage = toPositiveInt(resolvedSearchParams.PerPage, DEFAULT_PER_PAGE);
 
   const requestHeaders = await headers();
-  const cookieHeader = requestHeaders.get('cookie') ?? undefined;
-  const host = requestHeaders.get('host');
-  const protocol = requestHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_URL_LOCAL;
+  const cookieHeader = requestHeaders.get("cookie") ?? undefined;
+  const host = requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
+  const baseUrl = host
+    ? `${protocol}://${host}`
+    : process.env.NEXT_PUBLIC_URL_LOCAL;
 
   const filterParams = new URLSearchParams();
 
   const filterFields = [
-    ['number', resolvedSearchParams.number],
-    ['invoiceId', resolvedSearchParams.invoiceId],
-    ['invoiceDocument', resolvedSearchParams.invoiceDocument],
-    ['cashRegisterId', resolvedSearchParams.cashRegisterId],
-    ['cashManagementId', resolvedSearchParams.cashManagementId],
-    ['currency', resolvedSearchParams.currency],
-    ['applicationStatus', resolvedSearchParams.applicationStatus],
-    ['status', resolvedSearchParams.status],
-    ['collectionDate', resolvedSearchParams.collectionDate],
+    ["number", resolvedSearchParams.number],
+    ["invoiceId", resolvedSearchParams.invoiceId],
+    ["invoiceDocument", resolvedSearchParams.invoiceDocument],
+    ["cashRegisterId", resolvedSearchParams.cashRegisterId],
+    ["cashManagementId", resolvedSearchParams.cashManagementId],
+    ["currency", resolvedSearchParams.currency],
+    ["applicationStatus", resolvedSearchParams.applicationStatus],
+    ["status", resolvedSearchParams.status],
+    ["collectionDate", resolvedSearchParams.collectionDate],
+    ["clientCode", resolvedSearchParams.clientCode],
+    ["branchId", resolvedSearchParams.branchId],
   ] as const;
 
   for (const [key, value] of filterFields) {
@@ -91,6 +115,31 @@ export default async function CobrosPage({
 
   let fetchError: string | null = null;
   let response;
+  let clientOptions: ClientSearchItem[] = [];
+  let branchOptions: SelectOption[] = [];
+
+  const [clientsResult, branchesResult] = await Promise.allSettled([
+    getclients({ baseUrl, cookieHeader }),
+    getBranches({ baseUrl, cookieHeader }),
+  ]);
+
+  if (clientsResult.status === "fulfilled") {
+    clientOptions = (
+      (clientsResult.value.records || []) as ClienteResponse[]
+    ).map((client) => ({
+      code: client.code,
+      name: client.name,
+    }));
+  }
+
+  if (branchesResult.status === "fulfilled") {
+    branchOptions = (
+      (branchesResult.value as BranchResponse).records || []
+    ).map((branch) => ({
+      id: String(branch.id),
+      label: `${branch.code} - ${branch.name}`,
+    }));
+  }
 
   try {
     response = await getCollections({
@@ -103,13 +152,18 @@ export default async function CobrosPage({
       applicationStatus: toStringValue(resolvedSearchParams.applicationStatus),
       status: toStringValue(resolvedSearchParams.status),
       collectionDate: toStringValue(resolvedSearchParams.collectionDate),
+      clientCode: toStringValue(resolvedSearchParams.clientCode),
+      branchId: toStringValue(resolvedSearchParams.branchId),
       page,
       perPage,
       baseUrl,
       cookieHeader,
     });
   } catch (error) {
-    fetchError = error instanceof Error ? error.message : 'No se pudieron consultar los cobros';
+    fetchError =
+      error instanceof Error
+        ? error.message
+        : "No se pudieron consultar los cobros";
     response = {
       records: [],
       paging: {
@@ -134,17 +188,34 @@ export default async function CobrosPage({
                 <div>
                   <h2 className="text-foreground">Cobros</h2>
                   <p className="text-muted-foreground">
-                    Consulta de collections con filtros por factura, caja y estado.
+                    Consulta de collections con filtros por factura, caja y
+                    estado.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              <StatCard label="Registros" value={response.paging.totalRecords} icon={<Hash className="size-4" />} />
-              <StatCard label="Filtros" value={activeFiltersCount} icon={<Search className="size-4" />} />
-              <StatCard label="Página" value={response.paging.currentPage} icon={<CalendarDays className="size-4" />} />
-              <StatCard label="Por página" value={response.paging.perPage} icon={<ReceiptText className="size-4" />} />
+              <StatCard
+                label="Registros"
+                value={response.paging.totalRecords}
+                icon={<Hash className="size-4" />}
+              />
+              <StatCard
+                label="Filtros"
+                value={activeFiltersCount}
+                icon={<Search className="size-4" />}
+              />
+              <StatCard
+                label="Página"
+                value={response.paging.currentPage}
+                icon={<CalendarDays className="size-4" />}
+              />
+              <StatCard
+                label="Por página"
+                value={response.paging.perPage}
+                icon={<ReceiptText className="size-4" />}
+              />
             </div>
           </div>
         </header>
@@ -156,39 +227,125 @@ export default async function CobrosPage({
           <CrearCobroModal />
         </div>
 
-        <details className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm" open>
+        <details
+          className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm"
+          open
+        >
           <summary className="cursor-pointer list-none text-foreground">
             <div className="flex items-center justify-between gap-3">
               <span>Filtros de búsqueda</span>
-              <span className="text-sm text-muted-foreground">Contraer / expandir</span>
+              <span className="text-sm text-muted-foreground">
+                Contraer / expandir
+              </span>
             </div>
           </summary>
 
           <div className="mt-5">
-            <form method="get" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <FilterInput label="Número" name="number" defaultValue={toStringValue(resolvedSearchParams.number)} placeholder="Número de cobro" />
-              <FilterInput label="Factura ID" name="invoiceId" defaultValue={toStringValue(resolvedSearchParams.invoiceId)} placeholder="ID de factura" />
-              <FilterInput label="Documento factura" name="invoiceDocument" defaultValue={toStringValue(resolvedSearchParams.invoiceDocument)} placeholder="Documento" />
-              <FilterInput label="Caja registradora ID" name="cashRegisterId" defaultValue={toStringValue(resolvedSearchParams.cashRegisterId)} placeholder="ID de caja" />
-              <FilterInput label="Gestión de caja ID" name="cashManagementId" defaultValue={toStringValue(resolvedSearchParams.cashManagementId)} placeholder="ID de gestión" />
-              <FilterInput label="Moneda" name="currency" defaultValue={toStringValue(resolvedSearchParams.currency)} placeholder="USD o NIO" />
-              <FilterInput label="Estado de aplicación" name="applicationStatus" defaultValue={toStringValue(resolvedSearchParams.applicationStatus)} placeholder="applicationStatus" />
-              <FilterInput label="Estado" name="status" defaultValue={toStringValue(resolvedSearchParams.status)} placeholder="status" />
-              <FilterInput label="Fecha de cobro" name="collectionDate" defaultValue={toStringValue(resolvedSearchParams.collectionDate)} placeholder="YYYY-MM-DD" />
+            <form
+              method="get"
+              className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+            >
+              <FilterInput
+                label="Número"
+                name="number"
+                defaultValue={toStringValue(resolvedSearchParams.number)}
+                placeholder="Número de cobro"
+              />
+              <FilterInput
+                label="Factura ID"
+                name="invoiceId"
+                defaultValue={toStringValue(resolvedSearchParams.invoiceId)}
+                placeholder="ID de factura"
+              />
+              <FilterInput
+                label="Documento factura"
+                name="invoiceDocument"
+                defaultValue={toStringValue(
+                  resolvedSearchParams.invoiceDocument,
+                )}
+                placeholder="Documento"
+              />
+              <FilterInput
+                label="Caja registradora ID"
+                name="cashRegisterId"
+                defaultValue={toStringValue(
+                  resolvedSearchParams.cashRegisterId,
+                )}
+                placeholder="ID de caja"
+              />
+              <FilterInput
+                label="Gestión de caja ID"
+                name="cashManagementId"
+                defaultValue={toStringValue(
+                  resolvedSearchParams.cashManagementId,
+                )}
+                placeholder="ID de gestión"
+              />
+              <FilterInput
+                label="Moneda"
+                name="currency"
+                defaultValue={toStringValue(resolvedSearchParams.currency)}
+                placeholder="USD o NIO"
+              />
+              <FilterInput
+                label="Estado de aplicación"
+                name="applicationStatus"
+                defaultValue={toStringValue(
+                  resolvedSearchParams.applicationStatus,
+                )}
+                placeholder="applicationStatus"
+              />
+              <FilterInput
+                label="Estado"
+                name="status"
+                defaultValue={toStringValue(resolvedSearchParams.status)}
+                placeholder="status"
+              />
+              <FilterInput
+                label="Fecha de cobro"
+                name="collectionDate"
+                defaultValue={toStringValue(
+                  resolvedSearchParams.collectionDate,
+                )}
+                placeholder="YYYY-MM-DD"
+              />
+              <FilterSelect
+                label="Sucursal"
+                name="branchId"
+                defaultValue={toStringValue(resolvedSearchParams.branchId)}
+                options={branchOptions}
+                placeholder="Todas las sucursales"
+              />
+              <ClientFilterField
+                clients={clientOptions}
+                defaultClientCode={toStringValue(
+                  resolvedSearchParams.clientCode,
+                )}
+              />
 
               <div className="md:col-span-2 xl:col-span-3 flex flex-wrap items-end justify-between gap-3 pt-2">
                 <div className="flex gap-3">
-                  <button type="submit" className="rounded-2xl bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90">
+                  <button
+                    type="submit"
+                    className="rounded-2xl bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90"
+                  >
                     Buscar
                   </button>
-                  <a href="/gestion-de-caja/cobros" className="rounded-2xl border border-border px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent">
+                  <a
+                    href="/gestion-de-caja/cobros"
+                    className="rounded-2xl border border-border px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
+                  >
                     Limpiar
                   </a>
                 </div>
 
                 <label className="flex items-center gap-3 text-sm text-muted-foreground">
                   <span>Por página</span>
-                  <select name="PerPage" defaultValue={String(perPage)} className="rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary">
+                  <select
+                    name="PerPage"
+                    defaultValue={String(perPage)}
+                    className="rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
+                  >
                     {[10, 20, 50].map((value) => (
                       <option key={value} value={value}>
                         {value}
@@ -212,30 +369,58 @@ export default async function CobrosPage({
             <table className="min-w-full divide-y divide-border/60 text-sm">
               <thead className="bg-muted/40">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">ID</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Nombre</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Descripción</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Código</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Sucursal</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Sucursal ID</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                    ID
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                    Nombre
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                    Descripción
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                    Código
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                    Sucursal
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                    Sucursal ID
+                  </th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-border/40">
                 {response.records.length > 0 ? (
                   response.records.map((record) => (
-                    <tr key={record.id} className="align-top transition-colors hover:bg-muted/15">
+                    <tr
+                      key={record.id}
+                      className="align-top transition-colors hover:bg-muted/15"
+                    >
                       <td className="px-4 py-4 text-foreground">{record.id}</td>
-                      <td className="px-4 py-4 text-foreground">{record.name}</td>
-                      <td className="px-4 py-4 text-muted-foreground">{record.description || 'Sin descripción'}</td>
-                      <td className="px-4 py-4 text-foreground">{record.code}</td>
-                      <td className="px-4 py-4 text-foreground">{record.branchName}</td>
-                      <td className="px-4 py-4 text-muted-foreground">{record.branchId}</td>
+                      <td className="px-4 py-4 text-foreground">
+                        {record.name}
+                      </td>
+                      <td className="px-4 py-4 text-muted-foreground">
+                        {record.description || "Sin descripción"}
+                      </td>
+                      <td className="px-4 py-4 text-foreground">
+                        {record.code}
+                      </td>
+                      <td className="px-4 py-4 text-foreground">
+                        {record.branchName}
+                      </td>
+                      <td className="px-4 py-4 text-muted-foreground">
+                        {record.branchId}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    <td
+                      colSpan={6}
+                      className="px-4 py-10 text-center text-muted-foreground"
+                    >
                       No hay cobros para mostrar.
                     </td>
                   </tr>
@@ -246,12 +431,19 @@ export default async function CobrosPage({
         </section>
 
         {response.paging.totalPages > 1 ? (
-          <nav aria-label="Paginación cobros" className="rounded-2xl border border-border/60 bg-surface px-4 py-3">
+          <nav
+            aria-label="Paginación cobros"
+            className="rounded-2xl border border-border/60 bg-surface px-4 py-3"
+          >
             <ul className="flex items-center justify-between gap-2 sm:justify-center">
               <li>
                 {response.paging.currentPage > 1 ? (
                   <a
-                    href={buildPageHref(response.paging.currentPage - 1, response.paging.perPage, filterParams)}
+                    href={buildPageHref(
+                      response.paging.currentPage - 1,
+                      response.paging.perPage,
+                      filterParams,
+                    )}
                     className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent"
                   >
                     Anterior
@@ -263,12 +455,17 @@ export default async function CobrosPage({
                 )}
               </li>
               <li className="px-3 py-2 text-sm text-muted-foreground">
-                Página {response.paging.currentPage} de {response.paging.totalPages}
+                Página {response.paging.currentPage} de{" "}
+                {response.paging.totalPages}
               </li>
               <li>
                 {response.paging.currentPage < response.paging.totalPages ? (
                   <a
-                    href={buildPageHref(response.paging.currentPage + 1, response.paging.perPage, filterParams)}
+                    href={buildPageHref(
+                      response.paging.currentPage + 1,
+                      response.paging.perPage,
+                      filterParams,
+                    )}
                     className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent"
                   >
                     Siguiente
@@ -307,6 +504,38 @@ function FilterInput({
         placeholder={placeholder}
         className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
       />
+    </label>
+  );
+}
+
+function FilterSelect({
+  label,
+  name,
+  defaultValue,
+  placeholder,
+  options,
+}: {
+  label: string;
+  name: string;
+  defaultValue: string;
+  placeholder: string;
+  options: { id: string; label: string }[];
+}) {
+  return (
+    <label className="space-y-2">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <select
+        name={name}
+        defaultValue={defaultValue}
+        className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

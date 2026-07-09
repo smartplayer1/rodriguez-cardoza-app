@@ -21,6 +21,7 @@ export const mapUserFromToken = (decoded: JwtDecoded ): AuthUser => {
 };
 
 export const isJwtDecoded = (obj: unknown): obj is JwtDecoded => {
+  
   if (typeof obj !== 'object' || obj === null) return false;
 
   const o = obj as Record<string, unknown>;

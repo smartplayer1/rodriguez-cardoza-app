@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   let token: string | undefined;
 
   try {
-    token = await getValidToken();
+    token = await getValidToken() || undefined;
   } catch {
     return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
   }
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
   let token: string | undefined;
 
   try {
-    token = await getValidToken();
+    token = await getValidToken() || undefined;
   } catch {
     return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
   }

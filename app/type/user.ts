@@ -4,10 +4,36 @@ export interface AuthUser {
   email: string;
   roles: string[];
   permissions: string[];
+  middleName?: string | null;
+  lastName?: string | null;
+  secondLastName?: string | null;
+  userName?: string | null;
+  employeeId?: string | null;
+  employeeCode?: string | null;
+  employeeName?: string | null;
+  branchId?: string | null;
+  branchName?: string | null;
+  isArchived?: boolean;
 }
 
-
-
+export interface UserProfile {
+  id: string;
+  name: string;
+  middleName: string | null;
+  lastName: string;
+  secondLastName: string | null;
+  email: string | null;
+  userName: string | null;
+  role: Role;
+  employeeId: string | null;
+  employeeCode: string | null;
+  employeeName: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
 
 export interface JwtDecoded {
   // Claims estándar
@@ -23,8 +49,7 @@ export interface JwtDecoded {
 
   // Puede venir como string o array
   "http://schemas.microsoft.com/ws/2008/06/identity/claims/role":
-    | string
-    | string[];
+    string | string[];
 
   // Tu claim personalizado
   PermissionClaim: string[];
@@ -48,24 +73,22 @@ export interface UpdateUserDto {
   roleId: string;
 }
 
-export  interface UserFormData {
-    firstName: string;
-    lastName: string;
-    username: string;
-    password: string;
-    email: string;
-    role: string;
-    roleId: string;
-    [key: string]: unknown; // To allow extra fields if needed
-  }
+export interface UserFormData {
+  firstName: string;
+  lastName: string;
+  username: string;
+  password: string;
+  email: string;
+  role: string;
+  roleId: string;
+  [key: string]: unknown; // To allow extra fields if needed
+}
 
 export interface RolesResponse {
-id: string;
-name: string; 
-permissions: number[];
-
-} 
-
+  id: string;
+  name: string;
+  permissions: number[];
+}
 
 export interface Role {
   id: string;
