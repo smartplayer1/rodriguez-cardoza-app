@@ -1,3 +1,5 @@
+import type { CollectionRecord } from "@/app/type/collection";
+
 export type CashManagementDenomination = {
   currency: string;
   denomination: number;
@@ -169,4 +171,125 @@ export type CashRegisterUpdatePayload = {
   description: string | null;
   code: string | null;
   branchId: number | null;
+};
+
+export type CashManagementMovementTotal = {
+  currency: string;
+  movementType: string;
+  total: number;
+  count: number;
+};
+
+export type CashManagementMovement = {
+  id: number;
+  occurredAt: string;
+  currency: string;
+  amount: number;
+  movementType: string;
+  sourceType: string;
+  sourceId: number | null;
+  reversedMovementId: number | null;
+  sourceNumber: string;
+  description: string;
+};
+
+export type CashManagementInvoiceSummary = {
+  id: number;
+  cashManagementId: number | null;
+  document: string;
+  chargeStatus: string;
+  clientCode: string;
+  clientName: string;
+  promoterCode: string;
+  promoterName: string;
+  issuedAt: string;
+  invoiceAmountNio: number;
+  isVoided: boolean;
+  voidedAt: string | null;
+  voidedBy: string | null;
+};
+
+export type CashManagementPaidInvoiceSummary = CashManagementInvoiceSummary & {
+  paidInManagementNio: number;
+  paidAmountNio: number;
+  remainingBalanceNio: number;
+};
+
+export type CashManagementCreditNoteHeader = {
+  id: number;
+  number: string;
+  advisorCode: string;
+  invoiceId: number;
+  invoiceDocument: string;
+  startDate: string;
+  total: number;
+  status: string;
+  cashRegisterId: number | null;
+  cashManagementId: number | null;
+  cashRegisterCode: string;
+  cashRegisterName: string;
+  issuedBy: string;
+};
+
+export type CashManagementCreditNoteDetail = {
+  id: number;
+  invoiceLineId: number;
+  article: string;
+  quantity: number;
+  salePrice: number;
+  price: number;
+  tax1: number;
+  tax2: number;
+  lineDiscount: number;
+  generalDiscount: number;
+  isExempt: string;
+  total: number;
+};
+
+export type CashManagementCreditNoteSummary = {
+  header: CashManagementCreditNoteHeader;
+  details: CashManagementCreditNoteDetail[];
+};
+
+export type CashManagementConversionSummary = {
+  id: number;
+  cashManagementId: number;
+  direction: string;
+  exchangeRateNioPerUsd: number;
+  sourceTotal: number;
+  targetTotal: number;
+  theoreticalTargetTotal: number;
+  exchangeDifference: number;
+  convertedAt: string;
+  status: string;
+  observation: string | null;
+  voidedAt: string | null;
+  voidedBy: string | null;
+  sourceDenominations: CashManagementDenomination[];
+  targetDenominations: CashManagementDenomination[];
+};
+
+export type CashManagementClosingPreview = {
+  expectedNio: number;
+  expectedUsd: number;
+  actualNioAtClose: number | null;
+  actualUsdAtClose: number | null;
+  differenceNioAtClose: number | null;
+  differenceUsdAtClose: number | null;
+  isClosed: boolean;
+  requiresObservationIfClosingNow: boolean;
+};
+
+export type CashManagementClosingSummary = {
+  cashManagement: CashManagementRecord;
+  balances: CashManagementBalance;
+  movementTotals: CashManagementMovementTotal[];
+  movements: CashManagementMovement[];
+  collections: CollectionRecord[];
+  invoices: CashManagementInvoiceSummary[];
+  paidInvoices: CashManagementPaidInvoiceSummary[];
+  creditNotes: CashManagementCreditNoteSummary[];
+  outflows: CashManagementOutflowRecord[];
+  conversions: CashManagementConversionSummary[];
+  closingPreview: CashManagementClosingPreview;
 };

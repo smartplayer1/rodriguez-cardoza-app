@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 
-import { CashManagementRecord } from "@/app/type/cash-management";
-import CerrarCajaModal from "./cerrar-caja-modal";
+import { getCashManagementClosingSummary } from "@/app/services/cash-management";
+import {
+  CashManagementClosingSummary,
+  CashManagementRecord,
+} from "@/app/type/cash-management";
+import ClosingSummaryModal from "./closing-summary-modal";
 
 type Props = {
   records: CashManagementRecord[];
@@ -56,8 +60,12 @@ const getStatusClasses = (status: string) => {
 export default function GestionesHeaderTable({ records }: Props) {
   const [selectedRecord, setSelectedRecord] =
     useState<CashManagementRecord | null>(null);
-  const [closingRecord, setClosingRecord] =
-    useState<CashManagementRecord | null>(null);
+  const [closingSummary, setClosingSummary] =
+    useState<CashManagementClosingSummary | null>(null);
+  const [loadingSummaryId, setLoadingSummaryId] = useState<number | null>(
+    null,
+  );
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<MenuAnchor | null>(null);
 
   const menuRecord = menuAnchor
@@ -65,6 +73,25 @@ export default function GestionesHeaderTable({ records }: Props) {
     : null;
 
   const closeMenu = () => setMenuAnchor(null);
+
+  const handleOpenClosingSummary = async (record: CashManagementRecord) => {
+    closeMenu();
+    setSummaryError(null);
+    setLoadingSummaryId(record.id);
+
+    try {
+      const summary = await getCashManagementClosingSummary(record.id);
+      setClosingSummary(summary);
+    } catch (error) {
+      setSummaryError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo obtener el resumen de cierre.",
+      );
+    } finally {
+      setLoadingSummaryId(null);
+    }
+  };
 
   const toggleMenu = (
     record: CashManagementRecord,
@@ -230,13 +257,13 @@ export default function GestionesHeaderTable({ records }: Props) {
                 {menuRecord.status.toLowerCase() === "open" ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      setClosingRecord(menuRecord);
-                      closeMenu();
-                    }}
-                    className="block w-full px-4 py-2 text-xs text-foreground transition-colors hover:bg-accent"
+                    onClick={() => handleOpenClosingSummary(menuRecord)}
+                    disabled={loadingSummaryId === menuRecord.id}
+                    className="block w-full px-4 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Cerrar gestión
+                    {loadingSummaryId === menuRecord.id
+                      ? "Cargando resumen..."
+                      : "Cerrar gestión"}
                   </button>
                 ) : null}
               </div>
@@ -306,12 +333,31 @@ export default function GestionesHeaderTable({ records }: Props) {
         </div>
       ) : null}
 
-      {closingRecord ? (
-        <CerrarCajaModal
-          record={closingRecord}
-          onClose={() => setClosingRecord(null)}
+      {closingSummary ? (
+        <ClosingSummaryModal
+          summary={closingSummary}
+          onClose={() => setClosingSummary(null)}
         />
       ) : null}
+
+      {summaryError && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-x-0 top-4 z-[70] flex justify-center px-4">
+              <div className="flex w-full max-w-md items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-lg">
+                <span>{summaryError}</span>
+                <button
+                  type="button"
+                  onClick={() => setSummaryError(null)}
+                  aria-label="Cerrar aviso"
+                  className="text-rose-700"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

@@ -1,5 +1,6 @@
 import {
   CashManagementClosePayload,
+  CashManagementClosingSummary,
   CashManagementConversionCreatePayload,
   CashManagementConversionResponse,
   CashManagementCreatePayload,
@@ -295,6 +296,32 @@ export const getActiveCashManagementByCashRegister = async (
       (errorBody as { message?: string; detail?: string } | null)?.message ||
       (errorBody as { message?: string; detail?: string } | null)?.detail ||
       "Failed to fetch active cash management record";
+
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+};
+
+export const getCashManagementClosingSummary = async (
+  id: number,
+  cookieHeader?: string,
+): Promise<CashManagementClosingSummary> => {
+  const response = await fetch(
+    resolveServiceUrl(`/api/billing/cash-management/${id}/closing-summary`),
+    {
+      method: "GET",
+      headers: createJsonHeaders(cookieHeader),
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const errorMessage =
+      (errorBody as { message?: string; detail?: string } | null)?.message ||
+      (errorBody as { message?: string; detail?: string } | null)?.detail ||
+      "Failed to fetch cash management closing summary";
 
     throw new Error(errorMessage);
   }

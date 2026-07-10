@@ -12,13 +12,8 @@ const readErrorMessage = (body: unknown) => {
 };
 
 export async function GET(req: Request) {
-  let token: string | undefined;
+  const token = await getValidToken();
 
-  try {
-    token = await getValidToken();
-  } catch {
-    return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
-  }
 
   if (!token) {
     return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
@@ -74,13 +69,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  let token: string | undefined;
-
-  try {
-    token = await getValidToken();
-  } catch {
-    return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
-  }
+  const  token = await getValidToken();
 
   if (!token) {
     return NextResponse.json({ message: 'No autorizado' }, { status: 401 });

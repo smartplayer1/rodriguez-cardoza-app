@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import {
   ArrowUpDown,
   Banknote,
@@ -195,6 +196,8 @@ export default async function GestionCaja({
     (option) => option.id === activeFilters.responsibleEmployeeId,
   )?.label;
 
+  let sessionExpired = false;
+
   try {
     response = await getCashManagementRecords({
       ...activeFilters,
@@ -204,10 +207,16 @@ export default async function GestionCaja({
       cookieHeader,
     });
   } catch (error) {
-    fetchError =
+    const message =
       error instanceof Error
         ? error.message
         : "No se pudo consultar la gestion de caja";
+
+    if (message.toLowerCase().includes("autorizado")) {
+      sessionExpired = true;
+    }
+
+    fetchError = message;
     response = {
       records: [],
       paging: {
@@ -217,6 +226,10 @@ export default async function GestionCaja({
         totalPages: 1,
       },
     };
+  }
+
+  if (sessionExpired) {
+    redirect("/login");
   }
 
   const totalNio = response.records.reduce(

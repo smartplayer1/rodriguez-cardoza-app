@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { CreditCard, Users, Receipt, DollarSign, Search, Filter, ChevronDown, ChevronUp, Eye, X } from 'lucide-react';
+import { getInvoices } from '@/app/services/invoice';
+import type { ServerInvoiceResponse } from '@/app/type/invoice';
+import VerDetalle from '../gestion-de-caja/facturacion/modals/VerDetalle';
 
 // Interfaces
 interface Asesor {
@@ -204,6 +207,96 @@ const abonosData: Abono[] = [
   }
 ];
 
+// Facturas de crédito (datos reales desde /api/invoice, chargeStatus=CREDITO)
+interface CreditInvoiceDetalle {
+  id: string;
+  articuloId: string;
+  articuloNombre: string;
+  precioVendido: number;
+  cantidad: number;
+  subtotal: number;
+}
+
+interface CreditInvoiceItem {
+  id: string;
+  numeroFactura: string;
+  cajaId: string;
+  cajaNombre: string;
+  asesorId: string;
+  asesorNombre: string;
+  asesorTipo: 'promotor' | 'empleado';
+  clientName: string;
+  fecha: string;
+  usuarioGenero: string;
+  moneda: string;
+  tipoPago: 'Contado' | 'Crédito';
+  detalles: CreditInvoiceDetalle[];
+  subtotal: number;
+  iva: number;
+  total: number;
+  createdAt: string;
+}
+
+const EMPTY_CREDIT_INVOICE: CreditInvoiceItem = {
+  id: '',
+  numeroFactura: '',
+  cajaId: '',
+  cajaNombre: '',
+  asesorId: '',
+  asesorNombre: '',
+  asesorTipo: 'promotor',
+  clientName: '',
+  fecha: '',
+  usuarioGenero: '',
+  moneda: '',
+  tipoPago: 'Crédito',
+  detalles: [],
+  subtotal: 0,
+  iva: 0,
+  total: 0,
+  createdAt: '',
+};
+
+const formatCreditInvoiceDate = (isoDate: string) => {
+  if (!isoDate) return '';
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  return date.toISOString().slice(0, 10);
+};
+
+const mapInvoiceToCreditItem = (invoice: ServerInvoiceResponse): CreditInvoiceItem => {
+  const subtotal = Number(invoice.header.grossTotal || 0);
+  const iva = Number((invoice.header.tax1Total || 0) + (invoice.header.tax2Total || 0));
+  const total = Number(invoice.header.netTotal || 0);
+
+  return {
+    id: String(invoice.header.id),
+    numeroFactura: invoice.header.document,
+    cajaId: String(invoice.header.warehouse),
+    cajaNombre: invoice.header.branchCode || 'Sin sucursal',
+    asesorId: invoice.header.promoterCode || 'N/A',
+    asesorNombre: invoice.header.promoterName || 'Sin asesor',
+    asesorTipo: 'promotor',
+    clientName: invoice.header.clientName || 'Sin cliente',
+    fecha: formatCreditInvoiceDate(invoice.header.issuedAt),
+    usuarioGenero: invoice.header.cashier || 'N/A',
+    moneda: 'NIO (Córdoba)',
+    tipoPago: 'Crédito',
+    detalles: invoice.details.map((detail) => ({
+      id: String(detail.id),
+      articuloId: detail.article,
+      articuloNombre: detail.article,
+      precioVendido: Number(detail.salePrice || 0),
+      cantidad: Number(detail.quantity || 0),
+      subtotal: Number(detail.price || 0) * Number(detail.quantity || 0),
+    })),
+    subtotal,
+    iva,
+    total,
+    createdAt: invoice.header.issuedAt,
+  };
+};
+
 export default function Credito() {
   const [activeTab, setActiveTab] = useState<'asesores' | 'facturas' | 'abonos'>('asesores');
   
@@ -222,11 +315,54 @@ export default function Credito() {
   const [asesoresSortDirection, setAsesoresSortDirection] = useState<'asc' | 'desc'>('asc');
   const [asesoresFilterTipo, setAsesoresFilterTipo] = useState<'todos' | 'promotor' | 'empleado'>('todos');
 
+  // Facturas de crédito (datos reales)
+  const [creditInvoices, setCreditInvoices] = useState<CreditInvoiceItem[]>([]);
+  const [creditInvoicesLoading, setCreditInvoicesLoading] = useState(false);
+  const [creditInvoicesError, setCreditInvoicesError] = useState<string | null>(null);
+  const [viewingCreditInvoice, setViewingCreditInvoice] = useState<CreditInvoiceItem | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCreditInvoices = async () => {
+      setCreditInvoicesLoading(true);
+      setCreditInvoicesError(null);
+
+      try {
+        const response = await getInvoices({
+          chargeStatus: 'CREDITO',
+          page: 1,
+          perPage: 500,
+        });
+
+        if (isMounted) {
+          setCreditInvoices((response.records || []).map(mapInvoiceToCreditItem));
+        }
+      } catch (error) {
+        if (isMounted) {
+          setCreditInvoicesError(
+            error instanceof Error ? error.message : 'No se pudieron cargar las facturas de crédito',
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setCreditInvoicesLoading(false);
+        }
+      }
+    };
+
+    void loadCreditInvoices();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Facturas state
   const [facturasSearch, setFacturasSearch] = useState('');
   const [facturasCurrentPage, setFacturasCurrentPage] = useState(1);
   const [facturasRowsPerPage, setFacturasRowsPerPage] = useState(10);
-  const [facturasSortColumn, setFacturasSortColumn] = useState<'fecha' | 'total' | 'saldoPendiente'>('fecha');
+  const [facturasSortColumn, setFacturasSortColumn] = useState<'fecha' | 'total'>('fecha');
   const [facturasSortDirection, setFacturasSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Abonos state
@@ -261,9 +397,10 @@ export default function Credito() {
   );
 
   // Facturas filtering and sorting
-  const filteredFacturas = facturasData.filter(factura => {
+  const filteredFacturas = creditInvoices.filter(factura => {
     const matchesSearch = factura.numeroFactura.toLowerCase().includes(facturasSearch.toLowerCase()) ||
                           factura.asesorNombre.toLowerCase().includes(facturasSearch.toLowerCase()) ||
+                          factura.clientName.toLowerCase().includes(facturasSearch.toLowerCase()) ||
                           factura.cajaNombre.toLowerCase().includes(facturasSearch.toLowerCase());
     return matchesSearch;
   });
@@ -893,14 +1030,21 @@ export default function Credito() {
             </div>
 
             {/* Facturas Table */}
+            {creditInvoicesError ? (
+              <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-sm text-red-700">
+                No se pudieron cargar las facturas de crédito: {creditInvoicesError}
+              </div>
+            ) : null}
+
             <div className="bg-surface rounded elevation-2 overflow-hidden mb-6">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-muted border-b border-border">
                     <tr>
                       <th className="px-6 py-4 text-left text-sm text-foreground">Número</th>
+                      <th className="px-6 py-4 text-left text-sm text-foreground">Cliente</th>
                       <th className="px-6 py-4 text-left text-sm text-foreground">Asesor</th>
-                      <th 
+                      <th
                         className="px-6 py-4 text-left text-sm text-foreground cursor-pointer hover:bg-muted/80"
                         onClick={() => handleFacturasSort('fecha')}
                       >
@@ -911,10 +1055,10 @@ export default function Credito() {
                           )}
                         </div>
                       </th>
-                      <th className="px-6 py-4 text-left text-sm text-foreground">Caja</th>
+                      <th className="px-6 py-4 text-left text-sm text-foreground">Sucursal</th>
                       <th className="px-6 py-4 text-right text-sm text-foreground">Subtotal</th>
                       <th className="px-6 py-4 text-right text-sm text-foreground">IVA</th>
-                      <th 
+                      <th
                         className="px-6 py-4 text-right text-sm text-foreground cursor-pointer hover:bg-muted/80"
                         onClick={() => handleFacturasSort('total')}
                       >
@@ -925,57 +1069,46 @@ export default function Credito() {
                           )}
                         </div>
                       </th>
-                      <th 
-                        className="px-6 py-4 text-right text-sm text-foreground cursor-pointer hover:bg-muted/80"
-                        onClick={() => handleFacturasSort('saldoPendiente')}
-                      >
-                        <div className="flex items-center justify-end gap-2">
-                          Saldo Pendiente
-                          {facturasSortColumn === 'saldoPendiente' && (
-                            facturasSortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
-                          )}
-                        </div>
-                      </th>
                       <th className="px-6 py-4 text-center text-sm text-foreground">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {paginatedFacturas.map(factura => (
-                      <tr key={factura.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-6 py-4 text-sm text-foreground font-mono">{factura.numeroFactura}</td>
-                        <td className="px-6 py-4 text-sm text-foreground">{factura.asesorNombre}</td>
-                        <td className="px-6 py-4 text-sm text-foreground">{factura.fecha}</td>
-                        <td className="px-6 py-4 text-sm text-foreground">{factura.cajaNombre}</td>
-                        <td className="px-6 py-4 text-sm text-foreground text-right font-mono">{factura.subtotal.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-sm text-foreground text-right font-mono">{factura.iva.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-sm text-foreground text-right font-mono">{factura.total.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-right">
-                          <span className={`text-sm font-mono ${
-                            factura.saldoPendiente === 0 ? 'text-green-600' : 'text-primary'
-                          }`}>
-                            {factura.saldoPendiente.toFixed(2)}
-                            {factura.saldoPendiente === 0 && (
-                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-                                Pagado
-                              </span>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <MaterialButton
-                            variant="text"
-                            color="primary"
-                            startIcon={<Eye size={16} />}
-                            onClick={() => {
-                              setViewingFactura(factura);
-                              setViewingFacturaAbonos(true);
-                            }}
-                          >
-                            Ver Abonos
-                          </MaterialButton>
+                    {creditInvoicesLoading ? (
+                      <tr>
+                        <td colSpan={9} className="px-6 py-8 text-center text-sm text-muted-foreground">
+                          Cargando facturas de crédito...
                         </td>
                       </tr>
-                    ))}
+                    ) : paginatedFacturas.length > 0 ? (
+                      paginatedFacturas.map(factura => (
+                        <tr key={factura.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-6 py-4 text-sm text-foreground font-mono">{factura.numeroFactura}</td>
+                          <td className="px-6 py-4 text-sm text-foreground">{factura.clientName}</td>
+                          <td className="px-6 py-4 text-sm text-foreground">{factura.asesorNombre}</td>
+                          <td className="px-6 py-4 text-sm text-foreground">{factura.fecha}</td>
+                          <td className="px-6 py-4 text-sm text-foreground">{factura.cajaNombre}</td>
+                          <td className="px-6 py-4 text-sm text-foreground text-right font-mono">{factura.subtotal.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-sm text-foreground text-right font-mono">{factura.iva.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-sm text-foreground text-right font-mono">{factura.total.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-center">
+                            <MaterialButton
+                              variant="text"
+                              color="primary"
+                              startIcon={<Eye size={16} />}
+                              onClick={() => setViewingCreditInvoice(factura)}
+                            >
+                              Ver Detalle
+                            </MaterialButton>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={9} className="px-6 py-8 text-center text-sm text-muted-foreground">
+                          No hay facturas de crédito para mostrar
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1156,6 +1289,12 @@ export default function Credito() {
           </>
         )}
       </div>
+
+      <VerDetalle
+        editingFactura={viewingCreditInvoice ?? EMPTY_CREDIT_INVOICE}
+        isOpen={viewingCreditInvoice !== null}
+        onClose={() => setViewingCreditInvoice(null)}
+      />
     </div>
   );
 }
