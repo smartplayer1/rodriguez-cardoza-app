@@ -37,6 +37,9 @@ import {
   getClientEarnedRewards,
   getClientRewardProgress,
 } from '@/app/services/reward/client';
+import { ListSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 
 interface ApiResponse {
@@ -45,6 +48,7 @@ interface ApiResponse {
 }
 
 export default function ClientesPage () {
+  const { can, user } = useUserStore();
   const [clientes, setClientes] = useState<ClienteResponse[]>([]);
   const [branches, setBranches] = useState<BranchResponse['records']>([]);
   const [selectedBranch, setSelectedBranch] = useState<number>(0);
@@ -56,6 +60,7 @@ export default function ClientesPage () {
     totalPages: 1
   });
 
+  console.log('User permissions:', user?.permissions);
   const [importModalOpen, setImportModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -106,7 +111,6 @@ export default function ClientesPage () {
         : 'DEFAULT_BRANCH',
     creator: 'admin',
   }))
-  console.log('dataProcessed', typeof(dataProcessed[0].promotorCode), dataProcessed[0].promotorCode);
     dataProcessed.forEach(async (client, index) => {
       try {
       const response = await createClient({...client, promotorCode: String(client.promotorCode)});
@@ -243,14 +247,16 @@ export default function ClientesPage () {
               </select>
             </div>
           </div>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={() => setImportModalOpen(true)}
-          >
-            Importar Cliente
-          </MaterialButton>
+          {can(PERMISSIONS.CLIENT_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              startIcon={<Plus size={18} />}
+              onClick={() => setImportModalOpen(true)}
+            >
+              Importar Cliente
+            </MaterialButton>
+          )}
         </div>
 
         {/* Table */}
@@ -287,14 +293,7 @@ export default function ClientesPage () {
 
               <tbody className="divide-y divide-border">
                 {loading ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="text-center py-10"
-                    >
-                      Cargando...
-                    </td>
-                  </tr>
+                  <TableSkeleton columns={6} />
                 ) : clientes.length > 0 ? (
                   clientes.map((cliente) => (
                     <tr
@@ -338,30 +337,34 @@ export default function ClientesPage () {
                             <Award size={18} />
                           </button>
 
-                          <button
-                            className="
-                              p-2
-                              rounded-lg
-                              hover:bg-blue-100
-                              text-blue-600
-                            "
-                          >
-                            <Edit size={18} />
-                          </button>
+                          {can(PERMISSIONS.CLIENT_EDIT) && (
+                            <button
+                              className="
+                                p-2
+                                rounded-lg
+                                hover:bg-blue-100
+                                text-blue-600
+                              "
+                            >
+                              <Edit size={18} />
+                            </button>
+                          )}
 
-                          <button
-                            onClick={() =>
-                              handleDelete(cliente.id)
-                            }
-                            className="
-                              p-2
-                              rounded-lg
-                              hover:bg-red-100
-                              text-red-600
-                            "
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {can(PERMISSIONS.CLIENT_DELETE) && (
+                            <button
+                              onClick={() =>
+                                handleDelete(cliente.id)
+                              }
+                              className="
+                                p-2
+                                rounded-lg
+                                hover:bg-red-100
+                                text-red-600
+                              "
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -567,7 +570,7 @@ export default function ClientesPage () {
                 </div>
 
                 {rewardsLoading ? (
-                  <div className="text-center py-10 text-muted-foreground">Cargando premios...</div>
+                  <ListSkeleton count={6} itemClassName="h-12" />
                 ) : rewardError ? (
                   <div className="text-center py-10 text-red-600">{rewardError}</div>
                 ) : (

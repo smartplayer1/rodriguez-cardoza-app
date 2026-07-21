@@ -17,6 +17,7 @@ import VerDetalle from "./modals/VerDetalle";
 import ImportarFactura from "./modals/ImportarFactura";
 import EditarFactura from "./modals/EditarFactura";
 import { getInvoices, updateInvoice } from "@/app/services/invoice";
+import { TableSkeleton } from "@/components/ui/loading-skeleton";
 import {
   InvoicePaging,
   ServerInvoiceResponse,
@@ -25,6 +26,8 @@ import {
 import ClientSelector, {
   type ClientSearchItem,
 } from "../cobros/client-selector";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 interface FacturaDetalle {
   id: string;
@@ -140,6 +143,7 @@ export default function FacturacionClient({
   clientOptions,
   branchOptions,
 }: Props) {
+  const { can } = useUserStore();
   const [facturas, setFacturas] = useState<Factura[]>(() =>
     initialRecords.map(mapInvoiceToFactura),
   );
@@ -318,17 +322,19 @@ export default function FacturacionClient({
             </p>
           </div>
           <div className="flex flex-row">
-            <MaterialButton
-              variant="contained"
-              color="secondary"
-              className="gap-2 ml-0.5 mr-0.5"
-              onClick={() => {
-                setShowImportModal(true);
-              }}
-            >
-              <Upload className="size-4" />
-              Importar Excel
-            </MaterialButton>
+            {can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
+              <MaterialButton
+                variant="contained"
+                color="secondary"
+                className="gap-2 ml-0.5 mr-0.5"
+                onClick={() => {
+                  setShowImportModal(true);
+                }}
+              >
+                <Upload className="size-4" />
+                Importar Excel
+              </MaterialButton>
+            )}
           </div>
         </div>
 
@@ -448,9 +454,48 @@ export default function FacturacionClient({
         )}
 
         {loadingInvoices ? (
-          <div className="bg-surface rounded elevation-2 py-16 text-center">
-            <h3 className="text-foreground mb-2">Cargando facturas...</h3>
-            <p className="text-muted-foreground">Espere un momento</p>
+          <div className="bg-surface rounded elevation-2 overflow-hidden mb-6">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted border-b border-border">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      N° Factura
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Caja
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Fecha
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Asesor
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Tipo de Pago
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm text-foreground">
+                      Subtotal
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm text-foreground">
+                      IVA
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm text-foreground">
+                      Total
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Usuario
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm text-foreground">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  <TableSkeleton columns={10} />
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : sortedFacturas.length > 0 ? (
           <>
@@ -577,14 +622,16 @@ export default function FacturacionClient({
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2 justify-end">
-                            <MaterialButton
-                              variant="text"
-                              color="secondary"
-                              startIcon={<Edit size={16} />}
-                              onClick={() => handleEdit(factura)}
-                            >
-                              Editar
-                            </MaterialButton>
+                            {can(PERMISSIONS.INVOICE_EDIT) && (
+                              <MaterialButton
+                                variant="text"
+                                color="secondary"
+                                startIcon={<Edit size={16} />}
+                                onClick={() => handleEdit(factura)}
+                              >
+                                Editar
+                              </MaterialButton>
+                            )}
                             <MaterialButton
                               variant="text"
                               color="primary"
@@ -593,16 +640,17 @@ export default function FacturacionClient({
                             >
                               Ver Detalle
                             </MaterialButton>
-                            {factura.tipoPago === "Crédito" && (
-                              <MaterialButton
-                                variant="text"
-                                color="primary"
-                                startIcon={<CreditCard size={16} />}
-                                onClick={() => handleGenerarCobro(factura.id)}
-                              >
-                                Generar Cobro
-                              </MaterialButton>
-                            )}
+                            {factura.tipoPago === "Crédito" &&
+                              can(PERMISSIONS.COLLECTION_CREATE) && (
+                                <MaterialButton
+                                  variant="text"
+                                  color="primary"
+                                  startIcon={<CreditCard size={16} />}
+                                  onClick={() => handleGenerarCobro(factura.id)}
+                                >
+                                  Generar Cobro
+                                </MaterialButton>
+                              )}
                           </div>
                         </td>
                       </tr>
@@ -676,17 +724,19 @@ export default function FacturacionClient({
             <p className="text-muted-foreground mb-6">
               Comience creando una nueva factura
             </p>
-            <MaterialButton
-              variant="contained"
-              color="secondary"
-              className="gap-2 ml-0.5 mr-0.5"
-              onClick={() => {
-                setShowImportModal(true);
-              }}
-            >
-              <Upload className="size-4" />
-              Importar Excel
-            </MaterialButton>
+            {can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
+              <MaterialButton
+                variant="contained"
+                color="secondary"
+                className="gap-2 ml-0.5 mr-0.5"
+                onClick={() => {
+                  setShowImportModal(true);
+                }}
+              >
+                <Upload className="size-4" />
+                Importar Excel
+              </MaterialButton>
+            )}
             <ImportarFactura
               open={showImportModal}
               onClose={() => void handleCloseImportModal()}

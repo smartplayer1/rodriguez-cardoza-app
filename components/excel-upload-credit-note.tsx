@@ -13,6 +13,7 @@ import { getCashManagementRecords } from "@/app/services/cash-management";
 import { CreditNoteCreatePayload } from "@/app/type/credit-note";
 import { CashManagementRecord } from "@/app/type/cash-management";
 import { ServerInvoicePayload } from "@/app/type/invoice";
+import { ListSkeleton } from "@/components/ui/loading-skeleton";
 const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO"];
 const TEMP_RESPONSIBLE_EMPLOYEE_ID = null;
 
@@ -580,20 +581,24 @@ export default function ImportarNotaCreditoModal({ open, onClose }: Props) {
           <label className="text-sm text-muted-foreground">
             Gestión de caja abierta
           </label>
-          <select
-            value={selectedCashManagementId}
-            onChange={(event) =>
-              setSelectedCashManagementId(event.target.value)
-            }
-            className="w-full px-3 py-3 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
-          >
-            <option value="">Seleccione una gestión de caja</option>
-            {cashManagementOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label} 
-              </option>
-            ))}
-          </select>
+          {cashManagementLoading ? (
+            <ListSkeleton count={1} itemClassName="h-11 rounded-t" />
+          ) : (
+            <select
+              value={selectedCashManagementId}
+              onChange={(event) =>
+                setSelectedCashManagementId(event.target.value)
+              }
+              className="w-full px-3 py-3 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+            >
+              <option value="">Seleccione una gestión de caja</option>
+              {cashManagementOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
           <p className="text-xs text-muted-foreground">
             {cashManagementLoading
               ? "Cargando gestiones abiertas..."

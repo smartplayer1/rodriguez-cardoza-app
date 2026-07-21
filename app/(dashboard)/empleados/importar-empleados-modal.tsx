@@ -6,6 +6,9 @@ import * as XLSX from 'xlsx';
 import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload, X } from 'lucide-react';
 
 import { EmployeeCreatePayload } from '@/app/type/employee';
+import { ListSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 type OptionItem = {
   id: string;
@@ -82,6 +85,7 @@ const resolveNumericId = (rawValue: string, options: OptionItem[]) => {
 
 export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: Props) {
   const router = useRouter();
+  const { can } = useUserStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [rows, setRows] = useState<EmployeeCreatePayload[]>([]);
@@ -247,6 +251,10 @@ export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: P
     }
   };
 
+  if (!can(PERMISSIONS.EMPLOYEE_CREATE)) {
+    return null;
+  }
+
   return (
     <>
       <button
@@ -285,7 +293,12 @@ export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: P
                 <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} disabled={isImporting} />
               </label>
 
-              {loadingFile ? <div className="text-sm text-muted-foreground">Procesando archivo...</div> : null}
+              {loadingFile ? (
+                <div className="rounded-xl border border-border p-4 bg-background/60 space-y-3">
+                  <div className="text-sm text-muted-foreground">Procesando archivo...</div>
+                  <ListSkeleton count={4} itemClassName="h-10" />
+                </div>
+              ) : null}
 
               {errors.length > 0 ? (
                 <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-2">

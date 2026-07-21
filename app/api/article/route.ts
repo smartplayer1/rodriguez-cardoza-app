@@ -70,7 +70,7 @@ export async function PUT(req: Request) {
             },
             body: JSON.stringify(body)
         });
-        console.log(await res.json())
+
         if (!res.ok) {
             throw new Error('Failed to update article');
         }

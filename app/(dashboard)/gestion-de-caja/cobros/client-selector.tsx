@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ListSkeleton } from '@/components/ui/loading-skeleton';
 
 export type ClientSearchItem = {
   code: string;
@@ -96,7 +97,7 @@ export default function ClientSelector({
 
       {isOpen ? (
         <div className="mt-3 h-64 overflow-y-auto rounded-2xl border border-border/60 bg-background">
-          {loading ? <p className="px-3 py-3 text-sm text-muted-foreground">Cargando clientes...</p> : null}
+          {loading ? <ListSkeleton count={5} className="p-3" itemClassName="h-10 rounded-xl" /> : null}
           {error ? <p className="px-3 py-3 text-sm text-rose-700">{error}</p> : null}
 
           {!loading && !error ? (

@@ -24,6 +24,7 @@ import { getArticles } from "@/app/services/article";
 import { ArticleRecord } from "@/app/type/article";
 import { CouponRecord } from "@/app/type/reward";
 import { getRewardCoupon } from "@/app/services/coupon";
+import { ListSkeleton } from "@/components/ui/loading-skeleton";
 const generateUniqueId = () => Date.now();
 
 const toDateInputValue = (value?: string) => {
@@ -97,7 +98,7 @@ export default function CreateEditModal({
   const [selectedCupon, setSelectedCupon] = useState("");
   const [articles, setArticles] = useState<ArticleRecord[]>([]);
   const [coupones, setCoupones] = useState<CouponRecord[]>([]);
-  const [, setIsLoadingResources] = useState(false);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isMaxWinsUnlimited, setIsMaxWinsUnlimited] = useState(
     initialRule?.maxWinsPerClient == null,
   );
@@ -594,64 +595,70 @@ export default function CreateEditModal({
                   {/* Formulario agregar producto */}
                   {showAddCondicion ? (
                     <div className="bg-surface p-4 rounded border border-border">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <label className="text-sm text-foreground mb-2 block">
-                            Producto *
-                          </label>
-                          <div className="relative">
-                            <select
-                              value={selectedProductoCondicion}
-                              onChange={(e) =>
-                                setSelectedProductoCondicion(e.target.value)
-                              }
-                              className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
+                      {isLoadingResources ? (
+                        <ListSkeleton count={2} />
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <label className="text-sm text-foreground mb-2 block">
+                                Producto *
+                              </label>
+                              <div className="relative">
+                                <select
+                                  value={selectedProductoCondicion}
+                                  onChange={(e) =>
+                                    setSelectedProductoCondicion(e.target.value)
+                                  }
+                                  className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
                                          focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                            >
-                              <option value="">Seleccione un producto</option>
-                              {articles
-                                .filter(
-                                  (a) =>
-                                    !productosCondicion.find(
-                                      (p) => p.articleCode === a.code,
-                                    ),
-                                )
-                                .map((articulo) => (
-                                  <option key={articulo.id} value={articulo.id}>
-                                    {articulo.name} ({articulo.code})
-                                  </option>
-                                ))}
-                            </select>
-                            <ChevronDown
-                              size={20}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                            />
+                                >
+                                  <option value="">Seleccione un producto</option>
+                                  {articles
+                                    .filter(
+                                      (a) =>
+                                        !productosCondicion.find(
+                                          (p) => p.articleCode === a.code,
+                                        ),
+                                    )
+                                    .map((articulo) => (
+                                      <option key={articulo.id} value={articulo.id}>
+                                        {articulo.name} ({articulo.code})
+                                      </option>
+                                    ))}
+                                </select>
+                                <ChevronDown
+                                  size={20}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                                />
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
 
-                      <div className="flex gap-3">
-                        <MaterialButton
-                          variant="contained"
-                          color="primary"
-                          startIcon={<Plus size={18} />}
-                          onClick={addProductoCondicion}
-                        >
-                          Agregar Producto
-                        </MaterialButton>
-                        <MaterialButton
-                          variant="outlined"
-                          color="secondary"
-                          startIcon={<X size={18} />}
-                          onClick={() => {
-                            setShowAddCondicion(false);
-                            setSelectedProductoCondicion("");
-                            setCantidadCondicion(1);
-                          }}
-                        >
-                          Cancelar
-                        </MaterialButton>
-                      </div>
+                          <div className="flex gap-3">
+                            <MaterialButton
+                              variant="contained"
+                              color="primary"
+                              startIcon={<Plus size={18} />}
+                              onClick={addProductoCondicion}
+                            >
+                              Agregar Producto
+                            </MaterialButton>
+                            <MaterialButton
+                              variant="outlined"
+                              color="secondary"
+                              startIcon={<X size={18} />}
+                              onClick={() => {
+                                setShowAddCondicion(false);
+                                setSelectedProductoCondicion("");
+                                setCantidadCondicion(1);
+                              }}
+                            >
+                              Cancelar
+                            </MaterialButton>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <MaterialButton
@@ -783,75 +790,81 @@ export default function CreateEditModal({
               {/* Formulario agregar producto */}
               {showAddIncentivo ? (
                 <div className="bg-surface p-4 rounded border border-border">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="text-sm text-foreground mb-2 block">
-                        Producto *
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={selectedProductoIncentivo}
-                          onChange={(e) =>
-                            setSelectedProductoIncentivo(e.target.value)
-                          }
-                          className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
+                  {isLoadingResources ? (
+                    <ListSkeleton count={2} />
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="text-sm text-foreground mb-2 block">
+                            Producto *
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={selectedProductoIncentivo}
+                              onChange={(e) =>
+                                setSelectedProductoIncentivo(e.target.value)
+                              }
+                              className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
                                      focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                        >
-                          <option value="">Seleccione un producto</option>
-                          {articles
-                            .filter(
-                              (a) =>
-                                !productosIncentivo.find(
-                                  (p) => p.articleCode === a.code,
-                                ),
-                            )
-                            .map((articulo) => (
-                              <option key={articulo.id} value={articulo.id}>
-                                {articulo.name} ({articulo.code})
-                              </option>
-                            ))}
-                        </select>
-                        <ChevronDown
-                          size={20}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                            >
+                              <option value="">Seleccione un producto</option>
+                              {articles
+                                .filter(
+                                  (a) =>
+                                    !productosIncentivo.find(
+                                      (p) => p.articleCode === a.code,
+                                    ),
+                                )
+                                .map((articulo) => (
+                                  <option key={articulo.id} value={articulo.id}>
+                                    {articulo.name} ({articulo.code})
+                                  </option>
+                                ))}
+                            </select>
+                            <ChevronDown
+                              size={20}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                            />
+                          </div>
+                        </div>
+
+                        <MaterialInput
+                          label="Cantidad *"
+                          type="number"
+                          fullWidth
+                          value={cantidadIncentivo}
+                          onChange={(e) =>
+                            setCantidadIncentivo(Number(e.target.value))
+                          }
+                          min={1}
                         />
                       </div>
-                    </div>
 
-                    <MaterialInput
-                      label="Cantidad *"
-                      type="number"
-                      fullWidth
-                      value={cantidadIncentivo}
-                      onChange={(e) =>
-                        setCantidadIncentivo(Number(e.target.value))
-                      }
-                      min={1}
-                    />
-                  </div>
-
-                  <div className="flex gap-3">
-                    <MaterialButton
-                      variant="contained"
-                      color="primary"
-                      startIcon={<Plus size={18} />}
-                      onClick={addProductoIncentivo}
-                    >
-                      Agregar Producto
-                    </MaterialButton>
-                    <MaterialButton
-                      variant="outlined"
-                      color="secondary"
-                      startIcon={<X size={18} />}
-                      onClick={() => {
-                        setShowAddIncentivo(false);
-                        setSelectedProductoIncentivo("");
-                        setCantidadIncentivo(1);
-                      }}
-                    >
-                      Cancelar
-                    </MaterialButton>
-                  </div>
+                      <div className="flex gap-3">
+                        <MaterialButton
+                          variant="contained"
+                          color="primary"
+                          startIcon={<Plus size={18} />}
+                          onClick={addProductoIncentivo}
+                        >
+                          Agregar Producto
+                        </MaterialButton>
+                        <MaterialButton
+                          variant="outlined"
+                          color="secondary"
+                          startIcon={<X size={18} />}
+                          onClick={() => {
+                            setShowAddIncentivo(false);
+                            setSelectedProductoIncentivo("");
+                            setCantidadIncentivo(1);
+                          }}
+                        >
+                          Cancelar
+                        </MaterialButton>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <MaterialButton
@@ -912,59 +925,65 @@ export default function CreateEditModal({
               {/* Formulario para Agregar Cupón */}
               {showAddCupon ? (
                 <div className="bg-background p-4 rounded border-2 border-primary/50">
-                  <div className="mb-4">
-                    <label className="block text-sm text-muted-foreground mb-2">
-                      Seleccionar Cupón *
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedCupon}
-                        onChange={(e) => setSelectedCupon(e.target.value)}
-                        className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
+                  {isLoadingResources ? (
+                    <ListSkeleton count={2} />
+                  ) : (
+                    <>
+                      <div className="mb-4">
+                        <label className="block text-sm text-muted-foreground mb-2">
+                          Seleccionar Cupón *
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={selectedCupon}
+                            onChange={(e) => setSelectedCupon(e.target.value)}
+                            className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
                                    focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                      >
-                        <option value="">Seleccione un cupón</option>
-                        {coupones
-                          .filter(
-                            (c) =>
-                              !cuponesIncentivo.find(
-                                (ci) => ci.couponId === c.id,
-                              ),
-                          )
-                          .map((cupon) => (
-                            <option key={cupon.id} value={cupon.id}>
-                              {cupon.name} - ${cupon.amount.toFixed(2)}
-                            </option>
-                          ))}
-                      </select>
-                      <ChevronDown
-                        size={20}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                      />
-                    </div>
-                  </div>
+                          >
+                            <option value="">Seleccione un cupón</option>
+                            {coupones
+                              .filter(
+                                (c) =>
+                                  !cuponesIncentivo.find(
+                                    (ci) => ci.couponId === c.id,
+                                  ),
+                              )
+                              .map((cupon) => (
+                                <option key={cupon.id} value={cupon.id}>
+                                  {cupon.name} - ${cupon.amount.toFixed(2)}
+                                </option>
+                              ))}
+                          </select>
+                          <ChevronDown
+                            size={20}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex gap-3">
-                    <MaterialButton
-                      variant="contained"
-                      color="primary"
-                      startIcon={<Plus size={18} />}
-                      onClick={addCupon}
-                    >
-                      Agregar Cupón
-                    </MaterialButton>
-                    <MaterialButton
-                      variant="outlined"
-                      color="secondary"
-                      startIcon={<X size={18} />}
-                      onClick={() => {
-                        setShowAddCupon(false);
-                        setSelectedCupon("");
-                      }}
-                    >
-                      Cancelar
-                    </MaterialButton>
-                  </div>
+                      <div className="flex gap-3">
+                        <MaterialButton
+                          variant="contained"
+                          color="primary"
+                          startIcon={<Plus size={18} />}
+                          onClick={addCupon}
+                        >
+                          Agregar Cupón
+                        </MaterialButton>
+                        <MaterialButton
+                          variant="outlined"
+                          color="secondary"
+                          startIcon={<X size={18} />}
+                          onClick={() => {
+                            setShowAddCupon(false);
+                            setSelectedCupon("");
+                          }}
+                        >
+                          Cancelar
+                        </MaterialButton>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <MaterialButton

@@ -7,11 +7,15 @@ import { MaterialInput } from '@/components/MaterialInput';
 import { Ticket, Plus, Edit, Trash2, Save, X, Search, Filter, ChevronDown, Calendar, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
 import { createRewardCoupon, deleteRewardCoupon, getRewardCoupon, updateRewardCoupon } from '@/app/services/coupon';
 import { CouponRecord, CouponResponse } from '@/app/type/reward';
+import { BlockSkeleton, CardsSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 type Coupon = CouponRecord;
 type CouponForm = Omit<CouponRecord, 'id'>;
 
 export default function Cupones() {
+  const { can } = useUserStore();
   const [cupones, setCupones] = useState<Coupon[]>([]);
   const [paging, setPaging] = useState<CouponResponse['paging'] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -226,14 +230,16 @@ export default function Cupones() {
               )}
 
               <div className="flex gap-3 pt-6 border-t border-border">
-                <MaterialButton
-                  variant="contained"
-                  color="primary"
-                  startIcon={<Save size={18} />}
-                  onClick={handleSave}
-                >
-                  {editingCupon ? 'Actualizar Cupón' : 'Crear Cupón'}
-                </MaterialButton>
+                {can(editingCupon ? PERMISSIONS.COUPON_EDIT : PERMISSIONS.COUPON_CREATE) && (
+                  <MaterialButton
+                    variant="contained"
+                    color="primary"
+                    startIcon={<Save size={18} />}
+                    onClick={handleSave}
+                  >
+                    {editingCupon ? 'Actualizar Cupón' : 'Crear Cupón'}
+                  </MaterialButton>
+                )}
                 <MaterialButton
                   variant="outlined"
                   color="secondary"
@@ -264,7 +270,7 @@ export default function Cupones() {
             Gestione los cupones disponibles para usar como premios en los incentivos
           </p>
             {loading ? (
-              <p className="text-sm text-muted-foreground mt-3">Cargando cupones...</p>
+              <BlockSkeleton className="h-4 w-64 rounded mt-3" />
             ) : error ? (
               <p className="text-sm text-destructive mt-3">{error}</p>
             ) : (
@@ -305,19 +311,25 @@ export default function Cupones() {
               <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
 
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Plus size={18} />}
-              onClick={handleCreate}
-            >
-              Nuevo Cupón
-            </MaterialButton>
+            {can(PERMISSIONS.COUPON_CREATE) && (
+              <MaterialButton
+                variant="contained"
+                color="primary"
+                startIcon={<Plus size={18} />}
+                onClick={handleCreate}
+              >
+                Nuevo Cupón
+              </MaterialButton>
+            )}
           </div>
         </div>
 
         {/* Cupones List */}
-        {filteredCupones.length > 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <CardsSkeleton count={6} />
+          </div>
+        ) : filteredCupones.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCupones.map((cupon) => {
               const vencido = isVencido(cupon.expirationDate);
@@ -362,28 +374,34 @@ export default function Cupones() {
                   </div>
 
                   <div className="flex gap-2 pt-4 border-t border-border">
-                    <MaterialButton
-                      variant="text"
-                      color="primary"
-                      startIcon={<Edit size={16} />}
-                      onClick={() => handleEdit(cupon)}
-                    >
-                      Editar
-                    </MaterialButton>
-                    <MaterialButton
-                      variant="text"
-                      color="secondary"
-                      startIcon={cupon.isActive ? <X size={16} /> : <CheckCircle size={16} />}
-                      onClick={() => handleToggleActivo(cupon.id)}
-                    >
-                      {cupon.isActive ? 'Desactivar' : 'Activar'}
-                    </MaterialButton>
-                    <button
-                      onClick={() => handleDelete(cupon.id)}
-                      className="text-red-600 hover:text-red-700 transition-colors p-2"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {can(PERMISSIONS.COUPON_EDIT) && (
+                      <MaterialButton
+                        variant="text"
+                        color="primary"
+                        startIcon={<Edit size={16} />}
+                        onClick={() => handleEdit(cupon)}
+                      >
+                        Editar
+                      </MaterialButton>
+                    )}
+                    {can(PERMISSIONS.COUPON_EDIT) && (
+                      <MaterialButton
+                        variant="text"
+                        color="secondary"
+                        startIcon={cupon.isActive ? <X size={16} /> : <CheckCircle size={16} />}
+                        onClick={() => handleToggleActivo(cupon.id)}
+                      >
+                        {cupon.isActive ? 'Desactivar' : 'Activar'}
+                      </MaterialButton>
+                    )}
+                    {can(PERMISSIONS.COUPON_DELETE) && (
+                      <button
+                        onClick={() => handleDelete(cupon.id)}
+                        className="text-red-600 hover:text-red-700 transition-colors p-2"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -398,7 +416,7 @@ export default function Cupones() {
                 ? 'No se encontraron cupones con los filtros aplicados'
                 : 'Comience creando un nuevo cupón'}
             </p>
-            {!searchTerm && filterEstado === 'all' && (
+            {!searchTerm && filterEstado === 'all' && can(PERMISSIONS.COUPON_CREATE) && (
               <MaterialButton
                 variant="contained"
                 color="primary"

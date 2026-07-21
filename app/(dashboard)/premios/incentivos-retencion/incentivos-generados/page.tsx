@@ -16,12 +16,14 @@ import {
   IncentiveProgressResponse,
 } from "@/app/type/incentive";
 import { getRewardIncentiveProgress } from "@/app/services/reward/progress";
+import { CardsSkeleton } from "@/components/ui/loading-skeleton";
 
 export default function IncentivosGeneradosPage() {
   const [records, setRecords] = useState<IncentiveProgressRecord[]>([]);
   const [paging, setPaging] = useState<IncentiveProgressResponse["paging"] | null>(
     null,
   );
+  const [loading, setLoading] = useState(true);
 
   const [clientCode, setClientCode] = useState("");
   const [incentiveRuleId, setIncentiveRuleId] = useState("");
@@ -42,6 +44,7 @@ export default function IncentivosGeneradosPage() {
 
   const fetchProgress = useCallback(async () => {
     try {
+      setLoading(true);
       const data = await getRewardIncentiveProgress({
         clientCode: clientCode || undefined,
         incentiveRuleId: incentiveRuleId ? Number(incentiveRuleId) : undefined,
@@ -79,6 +82,8 @@ export default function IncentivosGeneradosPage() {
       setPaging(data.paging);
     } catch (error) {
       console.error("Error fetching incentive progress:", error);
+    } finally {
+      setLoading(false);
     }
   }, [
     clientCode,
@@ -313,7 +318,11 @@ export default function IncentivosGeneradosPage() {
         </div>
       )}
 
-      {records.length > 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4">
+          <CardsSkeleton count={4} />
+        </div>
+      ) : records.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
           {records.map((item) => (
             <div

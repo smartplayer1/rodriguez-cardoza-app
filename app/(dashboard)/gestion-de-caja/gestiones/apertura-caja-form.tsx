@@ -6,6 +6,8 @@ import { Plus, Trash2, X } from "lucide-react";
 
 import { createCashManagement } from "@/app/services/cash-management";
 import { CashManagementCreatePayload } from "@/app/type/cash-management";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 type DenominationRow = {
   id: string;
@@ -34,6 +36,7 @@ export default function AperturaCajaForm({
   employeeOptions: SelectOption[];
 }) {
   const router = useRouter();
+  const { can } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
   const [cashRegisterId, setCashRegisterId] = useState("");
   const [responsibleEmployeeId, setResponsibleEmployeeId] = useState("");
@@ -180,16 +183,18 @@ export default function AperturaCajaForm({
 
   return (
     <section className="space-y-3">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={openModal}
-          className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          <Plus className="size-4" />
-          Nueva apertura de caja
-        </button>
-      </div>
+      {can(PERMISSIONS.CASH_MANAGEMENT_OPEN) && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={openModal}
+            className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <Plus className="size-4" />
+            Nueva apertura de caja
+          </button>
+        </div>
+      )}
 
       {successMessage ? (
         <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">

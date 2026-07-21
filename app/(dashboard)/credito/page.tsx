@@ -7,6 +7,7 @@ import { CreditCard, Users, Receipt, DollarSign, Search, Filter, ChevronDown, Ch
 import { getInvoices } from '@/app/services/invoice';
 import type { ServerInvoiceResponse } from '@/app/type/invoice';
 import VerDetalle from '../gestion-de-caja/facturacion/modals/VerDetalle';
+import { TableSkeleton } from '@/components/ui/loading-skeleton';
 
 // Interfaces
 interface Asesor {
@@ -1074,11 +1075,7 @@ export default function Credito() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {creditInvoicesLoading ? (
-                      <tr>
-                        <td colSpan={9} className="px-6 py-8 text-center text-sm text-muted-foreground">
-                          Cargando facturas de crédito...
-                        </td>
-                      </tr>
+                      <TableSkeleton columns={9} />
                     ) : paginatedFacturas.length > 0 ? (
                       paginatedFacturas.map(factura => (
                         <tr key={factura.id} className="hover:bg-muted/30 transition-colors">

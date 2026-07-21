@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { MaterialButton } from './MaterialButton';
 import { MaterialInput } from './MaterialInput';
-import { Save, X, User, Shuffle, Eye, EyeOff, Shield, Mail} from 'lucide-react';
+import { Save, X, User, Shuffle, Eye, EyeOff, Shield, Mail, UserCircle, ChevronDown } from 'lucide-react';
 import { RolesResponse, UserFormData, User as Usuario } from '@/app/type/user';
 import { getRoles } from '@/app/services/roles';
+import { getEmployees } from '@/app/services/employee';
+import { EmployeeRecord } from '@/app/type/employee';
 
 
 interface CreateUserProps {
@@ -23,6 +25,8 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [roles, setRoles] = useState<RolesResponse[]>([]);
+  const [employeeId, setEmployeeId] = useState<string>(user?.employeeId || '');
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
 
   // 🔥 FLAGS PARA CONTROL MANUAL
   const [isUsernameManual, setIsUsernameManual] = useState(!!user?.userName);
@@ -34,6 +38,14 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
       setRoles(response.records || []);
     };
     fetchRoles();
+  }, []);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      const response = await getEmployees();
+      setEmployees(response.records || []);
+    };
+    fetchEmployees();
   }, []);
 
   const generateUsername = (first: string, last: string): string => {
@@ -111,6 +123,7 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
       email: finalEmail,
       roleId,
       role: roles.find(r => r.id === roleId)?.name || '',
+      employeeId: employeeId || null,
     };
 
     onSave(userData);
@@ -342,27 +355,28 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
             {/* Divider */}
             <div className="my-6 border-t border-border"></div>
 
-            {/* Empleado Asignado Section 
+            {/* Empleado Asignado Section */}
             <div className="flex items-center gap-2 mb-6">
               <UserCircle size={24} className="text-primary" />
               <h3 className="text-foreground">Empleado Asignado</h3>
             </div>
 
-            {/* Empleado Dropdown 
+            {/* Empleado Dropdown */}
             <div className="mb-6">
               <label className="text-sm text-foreground mb-2 block">
                 Empleado Asignado <span className="text-muted-foreground">(Opcional)</span>
               </label>
               <div className="relative">
                 <select
-                  value={empleadoId}
-                  onChange={(e) => setEmpleadoId(e.target.value)}
-                  className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
                            focus:border-primary rounded-t transition-colors outline-none appearance-none"
                 >
-                  {empleadosDisponibles.map(emp => (
+                  <option value="">Sin asignar</option>
+                  {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.nombre}
+                      {emp.firstname} {emp.lastName}
                     </option>
                   ))}
                 </select>
@@ -372,17 +386,15 @@ export default function CreateUser({ user, onSave, onCancel }: CreateUserProps) 
                 Vincule este usuario con un registro de empleado existente
               </p>
             </div>
-            }
 
-            {/* Info about optional field }
+            {/* Info about optional field */}
             <div className="bg-muted/50 border border-border rounded p-4 mb-6">
               <p className="text-xs text-muted-foreground mb-2">Información</p>
               <p className="text-sm text-foreground">
-                Asignar un empleado es opcional. Esta vinculación permite relacionar el usuario del sistema 
+                Asignar un empleado es opcional. Esta vinculación permite relacionar el usuario del sistema
                 con el registro de empleado de la empresa.
               </p>
             </div>
-            */}
             {/* User Summary */}
             <div className="bg-muted rounded p-4 mb-6">
               <p className="text-xs text-muted-foreground mb-3">Resumen</p>

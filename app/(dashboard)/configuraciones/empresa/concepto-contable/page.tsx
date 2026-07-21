@@ -4,6 +4,9 @@ import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { FileText, Plus, Edit, Trash2, Save, X, TrendingDown, TrendingUp, ListCheck } from 'lucide-react';
 import { deleteAccountingConcept, getAccountingConceptCategories, getAccountingConcepts, postAccountingConcept, updateAccountingConcept } from '@/app/services/company/accounting-concept';
+import { TableSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 interface Concepto {
   id: number;
@@ -17,9 +20,11 @@ interface Concepto {
 type TabType = 'Egreso' | 'Ingreso';
 
 export default function ConceptosContables() {
+  const { can } = useUserStore();
   const [activeTab, setActiveTab] = useState<TabType>('Egreso');
   
   const [conceptos, setConceptos] = useState<Concepto[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingConcepto, setEditingConcepto] = useState<Concepto | null>(null);
@@ -113,12 +118,18 @@ export default function ConceptosContables() {
   useEffect(() => {
     // Simulate fetching conceptos contables from an API
     const fetchConceptos = async () => {
-      const response = await getAccountingConceptCategories();
-      setAccountingConceptCategory(response);
+      setLoading(true);
+      try {
+        const response = await getAccountingConceptCategories();
+        setAccountingConceptCategory(response);
 
-      const conceptosResponse = await getAccountingConcepts();
+        const conceptosResponse = await getAccountingConcepts();
 
-      setConceptos(conceptosResponse?.records || []); };
+        setConceptos(conceptosResponse?.records || []);
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchConceptos();
   }, []);
@@ -289,18 +300,20 @@ export default function ConceptosContables() {
 
         {/* Action Button */}
         <div className="mb-6 flex justify-end">
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={handleCreate}
-          >
-            Nuevo Concepto de {activeTab === 'Egreso' ? 'Egreso' : 'Ingreso'}
-          </MaterialButton>
+          {can(PERMISSIONS.ACCOUNTING_CONCEPT_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              startIcon={<Plus size={18} />}
+              onClick={handleCreate}
+            >
+              Nuevo Concepto de {activeTab === 'Egreso' ? 'Egreso' : 'Ingreso'}
+            </MaterialButton>
+          )}
         </div>
 
         {/* Conceptos Table */}
-        {filteredConceptos.length > 0 ? (
+        {(loading || filteredConceptos.length > 0) ? (
           <div className="bg-surface rounded elevation-2 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -313,7 +326,10 @@ export default function ConceptosContables() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredConceptos.map((concepto) => {
+                  {loading ? (
+                    <TableSkeleton columns={3} />
+                  ) : (
+                  filteredConceptos.map((concepto) => {
                     const isConceptoEgreso = concepto.category.name === 'Egreso';
                     const ConceptoIcon = isConceptoEgreso ? TrendingDown : TrendingUp;
                     const conceptoColorClass = isConceptoEgreso ? 'text-red-600' : 'text-green-600';
@@ -346,27 +362,32 @@ export default function ConceptosContables() {
                         </td> */}
                         <td className="px-6 py-4">
                           <div className="flex gap-2 justify-end">
-                            <MaterialButton
-                              variant="text"
-                              color="primary"
-                              startIcon={<Edit size={16} />}
-                              onClick={() => handleEdit(concepto)}
-                            >
-                              Editar
-                            </MaterialButton>
-                            <MaterialButton
-                              variant="text"
-                              color="secondary"
-                              startIcon={<Trash2 size={16} />}
-                              onClick={() => handleDelete(concepto.id)}
-                            >
-                              Eliminar
-                            </MaterialButton>
+                            {can(PERMISSIONS.ACCOUNTING_CONCEPT_EDIT) && (
+                              <MaterialButton
+                                variant="text"
+                                color="primary"
+                                startIcon={<Edit size={16} />}
+                                onClick={() => handleEdit(concepto)}
+                              >
+                                Editar
+                              </MaterialButton>
+                            )}
+                            {can(PERMISSIONS.ACCOUNTING_CONCEPT_DELETE) && (
+                              <MaterialButton
+                                variant="text"
+                                color="secondary"
+                                startIcon={<Trash2 size={16} />}
+                                onClick={() => handleDelete(concepto.id)}
+                              >
+                                Eliminar
+                              </MaterialButton>
+                            )}
                           </div>
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -383,14 +404,16 @@ export default function ConceptosContables() {
             <p className="text-muted-foreground mb-6">
               Comience agregando un nuevo concepto para clasificar sus {activeTab === 'Egreso' ? 'egresos' : 'ingresos'}
             </p>
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Plus size={18} />}
-              onClick={handleCreate}
-            >
-              Crear Primer Concepto de {activeTab === 'Egreso' ? 'Egreso' : 'Ingreso'}
-            </MaterialButton>
+            {can(PERMISSIONS.ACCOUNTING_CONCEPT_CREATE) && (
+              <MaterialButton
+                variant="contained"
+                color="primary"
+                startIcon={<Plus size={18} />}
+                onClick={handleCreate}
+              >
+                Crear Primer Concepto de {activeTab === 'Egreso' ? 'Egreso' : 'Ingreso'}
+              </MaterialButton>
+            )}
           </div>
         )}
       </div>

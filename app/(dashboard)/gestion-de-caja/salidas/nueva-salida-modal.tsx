@@ -12,6 +12,9 @@ import {
   CashManagementOutflowCreatePayload,
   CashManagementRecord,
 } from "@/app/type/cash-management";
+import { ListSkeleton } from "@/components/ui/loading-skeleton";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 type DenominationRow = {
   id: string;
@@ -45,6 +48,7 @@ const createDenominationRow = (): DenominationRow => ({
 
 export default function NuevaSalidaModal() {
   const router = useRouter();
+  const { can } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
   const [cashManagementId, setCashManagementId] = useState("");
   const [cashManagementOptions, setCashManagementOptions] = useState<
@@ -236,6 +240,10 @@ export default function NuevaSalidaModal() {
     }
   };
 
+  if (!can(PERMISSIONS.CASH_OUTFLOW_CREATE)) {
+    return null;
+  }
+
   return (
     <section className="space-y-3">
       <div className="flex justify-end">
@@ -288,25 +296,27 @@ export default function NuevaSalidaModal() {
                     <span className="text-sm text-muted-foreground">
                       Caja aperturada
                     </span>
-                    <select
-                      value={cashManagementId}
-                      onChange={(event) =>
-                        setCashManagementId(event.target.value)
-                      }
-                      className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                      disabled={cashManagementLoading || isSubmitting}
-                    >
-                      <option value="">
-                        {cashManagementLoading
-                          ? "Cargando cajas aperturadas..."
-                          : "Seleccione una caja aperturada"}
-                      </option>
-                      {cashManagementOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
+                    {cashManagementLoading ? (
+                      <ListSkeleton count={1} itemClassName="h-10 rounded-2xl" />
+                    ) : (
+                      <select
+                        value={cashManagementId}
+                        onChange={(event) =>
+                          setCashManagementId(event.target.value)
+                        }
+                        className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">
+                          Seleccione una caja aperturada
                         </option>
-                      ))}
-                    </select>
+                        {cashManagementOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </label>
 
                   <label className="space-y-2">
@@ -337,26 +347,28 @@ export default function NuevaSalidaModal() {
                     <span className="text-sm text-muted-foreground">
                       Concepto
                     </span>
-                    <select
-                      value={concept}
-                      onChange={(event) => setConcept(event.target.value)}
-                      className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                      disabled={conceptosLoading || isSubmitting}
-                    >
-                      <option value="">
-                        {conceptosLoading
-                          ? "Cargando conceptos..."
-                          : "Seleccione un concepto de egreso"}
-                      </option>
-                      {filteredConceptos.map((conceptoItem) => (
-                        <option
-                          key={conceptoItem.id}
-                          value={conceptoItem.name}
-                        >
-                          {conceptoItem.name}
+                    {conceptosLoading ? (
+                      <ListSkeleton count={1} itemClassName="h-10 rounded-2xl" />
+                    ) : (
+                      <select
+                        value={concept}
+                        onChange={(event) => setConcept(event.target.value)}
+                        className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">
+                          Seleccione un concepto de egreso
                         </option>
-                      ))}
-                    </select>
+                        {filteredConceptos.map((conceptoItem) => (
+                          <option
+                            key={conceptoItem.id}
+                            value={conceptoItem.name}
+                          >
+                            {conceptoItem.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </label>
 
                   <label className="space-y-2 md:col-span-2 xl:col-span-4">

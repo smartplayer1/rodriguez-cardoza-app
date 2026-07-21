@@ -11,6 +11,9 @@ import {
   ArticleResponse,
 } from "@/app/type/article";
 import { createArticle, getArticles, updateArticle, deleteArticle } from "@/app/services/article";
+import { TableSkeleton } from "@/components/ui/loading-skeleton";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 interface ErrorResponse {
   name: string;
@@ -37,6 +40,7 @@ interface ModalArticleState {
 
 
 export default function Articulos() {
+  const { can } = useUserStore();
   const [modalArticle, setModalArticle] = useState<ModalArticleState>({article: null, open: false});
   const [importModalOpen, setImportModalOpen] = useState<boolean>(false);
   const [importing, setImporting] = useState(false);
@@ -300,25 +304,29 @@ const handleChange = async (article: ArticleRecord) => {
             </p>
           </div>
           <div className="flex flex-row gap-2">
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Import size={18} />}
-              onClick={() => setImportModalOpen(true)}
-              disabled={importing}
-            >
-              {importing
-                ? `Importando ${processedRecords}/${totalRecords}`
-                : "Importar Artículo"}
-            </MaterialButton>
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Plus size={18} />}
-              onClick={handleCreate}
-            >
-              Nuevo Artículo
-            </MaterialButton>
+            {can(PERMISSIONS.ARTICLE_CREATE) && (
+              <MaterialButton
+                variant="contained"
+                color="primary"
+                startIcon={<Import size={18} />}
+                onClick={() => setImportModalOpen(true)}
+                disabled={importing}
+              >
+                {importing
+                  ? `Importando ${processedRecords}/${totalRecords}`
+                  : "Importar Artículo"}
+              </MaterialButton>
+            )}
+            {can(PERMISSIONS.ARTICLE_CREATE) && (
+              <MaterialButton
+                variant="contained"
+                color="primary"
+                startIcon={<Plus size={18} />}
+                onClick={handleCreate}
+              >
+                Nuevo Artículo
+              </MaterialButton>
+            )}
           </div>
           {importing && (
             <div className="mt-4 w-full">
@@ -367,8 +375,34 @@ const handleChange = async (article: ArticleRecord) => {
 
         {/* Artículos Table */}
         {loadingArticles ? (
-          <div className="bg-surface rounded-xl py-20 text-center">
-            Cargando artículos...
+          <div className="bg-surface rounded elevation-2 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted border-b border-border">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Código
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Nombre
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Categoría
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Descripción
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm text-foreground">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-border">
+                  <TableSkeleton columns={5} />
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : articulos.length > 0 ? (
           <div className="bg-surface rounded elevation-2 overflow-hidden">
@@ -432,23 +466,27 @@ const handleChange = async (article: ArticleRecord) => {
 
                       <td className="px-6 py-4">
                         <div className="flex gap-2 justify-end">
-                          <MaterialButton
-                            variant="text"
-                            color="primary"
-                            startIcon={<Edit size={16} />}
-                            onClick={() => handleEdit(articulo)}
-                          >
-                            Editar
-                          </MaterialButton>
+                          {can(PERMISSIONS.ARTICLE_EDIT) && (
+                            <MaterialButton
+                              variant="text"
+                              color="primary"
+                              startIcon={<Edit size={16} />}
+                              onClick={() => handleEdit(articulo)}
+                            >
+                              Editar
+                            </MaterialButton>
+                          )}
 
-                          <MaterialButton
-                            variant="text"
-                            color="secondary"
-                            startIcon={<Trash2 size={16} />}
-                            onClick={() => handleDelete(articulo.id)}
-                          >
-                            Eliminar
-                          </MaterialButton>
+                          {can(PERMISSIONS.ARTICLE_DELETE) && (
+                            <MaterialButton
+                              variant="text"
+                              color="secondary"
+                              startIcon={<Trash2 size={16} />}
+                              onClick={() => handleDelete(articulo.id)}
+                            >
+                              Eliminar
+                            </MaterialButton>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -512,14 +550,16 @@ const handleChange = async (article: ArticleRecord) => {
               Comience agregando un nuevo artículo al catálogo
             </p>
 
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Plus size={18} />}
-              onClick={handleCreate}
-            >
-              Crear Primer Artículo
-            </MaterialButton>
+            {can(PERMISSIONS.ARTICLE_CREATE) && (
+              <MaterialButton
+                variant="contained"
+                color="primary"
+                startIcon={<Plus size={18} />}
+                onClick={handleCreate}
+              >
+                Crear Primer Artículo
+              </MaterialButton>
+            )}
           </div>
         )}
       </div>

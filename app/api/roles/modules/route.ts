@@ -4,6 +4,7 @@ import { getValidToken } from "@/app/lib/helper";
 export async function GET() {
   const token = await getValidToken();
 
+  console.log("Token obtenido:", token); // Agrega este log para verificar el token
   if (!token) {
     return NextResponse.json({ message: "No autorizado" }, { status: 401 });
   }
@@ -22,6 +23,7 @@ export async function GET() {
   });
 
   if (res.ok) {
+   
     const data = await res.json();
     return NextResponse.json(data);
   }

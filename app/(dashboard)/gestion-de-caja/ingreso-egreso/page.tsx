@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { TrendingUp, TrendingDown, Plus, Save, X, ChevronDown, ChevronUp, Search, Filter, Wallet} from 'lucide-react';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 interface BilleteDetalle {
   denominacion: number;
@@ -72,6 +74,8 @@ const cuentasBancariasEmpresa = [
 ];
 
 export default function IngresosEgresos() {
+  const { can } = useUserStore();
+  const canCreate = can(PERMISSIONS.CASH_OUTFLOW_CREATE) || can(PERMISSIONS.COLLECTION_CREATE);
   const [registros, setRegistros] = useState<IngresoEgreso[]>([
     {
       id: '1',
@@ -677,14 +681,16 @@ export default function IngresosEgresos() {
               Gestione los ingresos y egresos de caja
             </p>
           </div>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={handleCreate}
-          >
-            Nuevo Registro
-          </MaterialButton>
+          {canCreate && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              startIcon={<Plus size={18} />}
+              onClick={handleCreate}
+            >
+              Nuevo Registro
+            </MaterialButton>
+          )}
         </div>
 
         {/* Filters and Search */}
@@ -870,7 +876,7 @@ export default function IngresosEgresos() {
                 ? 'No se encontraron registros con los filtros aplicados'
                 : 'Comience registrando un nuevo ingreso o egreso'}
             </p>
-            {!searchTerm && filterTipo === 'todos' && (
+            {!searchTerm && filterTipo === 'todos' && canCreate && (
               <MaterialButton
                 variant="contained"
                 color="primary"

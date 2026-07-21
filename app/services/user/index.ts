@@ -56,6 +56,18 @@ export const updatePassword = async (
   });
 };
 
+export const assignEmployeeToUser = async (
+  userId: string,
+  employeeId: string,
+  context?: ServiceRequestContext,
+) => {
+  return await fetch(resolveServiceUrl(`/api/users/${userId}/employee`, context), {
+    method: "PUT",
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify({ employeeId }),
+  });
+};
+
 export const deleteUser = async (
   userId: string,
   context?: ServiceRequestContext,

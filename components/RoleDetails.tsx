@@ -9,6 +9,7 @@ import {
   RoleUpdatePayload,
 } from '@/app/type/user';
 import { getRoleById, getRoleModules } from '@/app/services/roles';
+import { CardsSkeleton } from '@/components/ui/loading-skeleton';
 
 interface RoleDetailsProps {
   role: Role | null;
@@ -73,7 +74,6 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
 
       try {
         const modulesData = await getRoleModules();
-
         if (!mounted) {
           return;
         }
@@ -314,7 +314,7 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
 
             <div className="space-y-6">
               {loading ? (
-                <div className="text-sm text-muted-foreground">Cargando modulos...</div>
+                <CardsSkeleton count={4} className="w-full" />
               ) : allModules.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No hay modulos disponibles</div>
               ) : (
@@ -377,9 +377,9 @@ export default function RoleDetails({ role, onSave, onCancel }: RoleDetailsProps
                               )}
                             </div>
                             <div className="flex-1">
-                              <p className="text-sm text-foreground">{permission.permissionName}</p>
+                              <p className="text-sm text-foreground">{permission.permissionNameInSpanish}</p>
                               <p className="text-xs text-muted-foreground">
-                                {permission.description || 'Sin descripcion'}
+                                {permission.descriptionInSpanish  || 'Sin descripcion'}
                               </p>
                             </div>
                           </div>

@@ -81,6 +81,7 @@ export interface UserFormData {
   email: string;
   role: string;
   roleId: string;
+  employeeId: string | null;
   [key: string]: unknown; // To allow extra fields if needed
 }
 
@@ -101,7 +102,9 @@ export interface Role {
 export interface RolePermission {
   id: number | null;
   permissionName: string;
+   permissionNameInSpanish: string;
   description: string | null;
+  descriptionInSpanish: string | null;
   isActive: boolean;
 }
 
@@ -148,6 +151,7 @@ export interface User {
   email: string | null;
   userName: string | null;
   role: Role;
+  employeeId?: string | null;
   isArchived: boolean;
   createdAt: string; // o Date
   updatedAt: string | null; // o Date | null

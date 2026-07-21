@@ -10,6 +10,10 @@ import {
   CashManagementRecord,
 } from "@/app/type/cash-management";
 import ClosingSummaryModal from "./closing-summary-modal";
+import ReabrirCajaModal from "./reabrir-caja-modal";
+import { exportArqueoDeCajaToPdf } from "./arqueo-de-caja-export";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 type Props = {
   records: CashManagementRecord[];
@@ -58,6 +62,7 @@ const getStatusClasses = (status: string) => {
 };
 
 export default function GestionesHeaderTable({ records }: Props) {
+  const { can } = useUserStore();
   const [selectedRecord, setSelectedRecord] =
     useState<CashManagementRecord | null>(null);
   const [closingSummary, setClosingSummary] =
@@ -67,6 +72,11 @@ export default function GestionesHeaderTable({ records }: Props) {
   );
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<MenuAnchor | null>(null);
+  const [recordToReopen, setRecordToReopen] =
+    useState<CashManagementRecord | null>(null);
+  const [printingArqueoId, setPrintingArqueoId] = useState<number | null>(
+    null,
+  );
 
   const menuRecord = menuAnchor
     ? (records.find((record) => record.id === menuAnchor.recordId) ?? null)
@@ -90,6 +100,25 @@ export default function GestionesHeaderTable({ records }: Props) {
       );
     } finally {
       setLoadingSummaryId(null);
+    }
+  };
+
+  const handlePrintArqueo = async (record: CashManagementRecord) => {
+    closeMenu();
+    setSummaryError(null);
+    setPrintingArqueoId(record.id);
+
+    try {
+      const summary = await getCashManagementClosingSummary(record.id);
+      exportArqueoDeCajaToPdf(summary);
+    } catch (error) {
+      setSummaryError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo generar el arqueo de caja.",
+      );
+    } finally {
+      setPrintingArqueoId(null);
     }
   };
 
@@ -254,18 +283,40 @@ export default function GestionesHeaderTable({ records }: Props) {
                 >
                   Ver detalle
                 </button>
-                {menuRecord.status.toLowerCase() === "open" ? (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenClosingSummary(menuRecord)}
-                    disabled={loadingSummaryId === menuRecord.id}
-                    className="block w-full px-4 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loadingSummaryId === menuRecord.id
-                      ? "Cargando resumen..."
-                      : "Cerrar gestión"}
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => handlePrintArqueo(menuRecord)}
+                  disabled={printingArqueoId === menuRecord.id}
+                  className="block w-full px-4 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {printingArqueoId === menuRecord.id
+                    ? "Generando arqueo..."
+                    : "Imprimir Arqueo"}
+                </button>
+                {can(PERMISSIONS.CASH_MANAGEMENT_CLOSE) &&
+                  (menuRecord.status.toLowerCase() === "open" ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenClosingSummary(menuRecord)}
+                      disabled={loadingSummaryId === menuRecord.id}
+                      className="block w-full px-4 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {loadingSummaryId === menuRecord.id
+                        ? "Cargando resumen..."
+                        : "Cerrar gestión"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecordToReopen(menuRecord);
+                        closeMenu();
+                      }}
+                      className="block w-full px-4 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent"
+                    >
+                      Abrir caja
+                    </button>
+                  ))}
               </div>
             </>,
             document.body,
@@ -337,6 +388,13 @@ export default function GestionesHeaderTable({ records }: Props) {
         <ClosingSummaryModal
           summary={closingSummary}
           onClose={() => setClosingSummary(null)}
+        />
+      ) : null}
+
+      {recordToReopen ? (
+        <ReabrirCajaModal
+          record={recordToReopen}
+          onClose={() => setRecordToReopen(null)}
         />
       ) : null}
 

@@ -5,6 +5,7 @@ import { MaterialButton } from "@/components/MaterialButton";
 import { MaterialInput } from "@/components/MaterialInput";
 import { getCashManagementRecords } from "@/app/services/cash-management";
 import { CashManagementRecord } from "@/app/type/cash-management";
+import { ListSkeleton } from "@/components/ui/loading-skeleton";
 import {
   ServerInvoiceResponse,
   ServerInvoiceUpdateDetailPayload,
@@ -230,19 +231,11 @@ export default function EditarFactura({
 
     return {
       id: source.id,
-      cashManagementId:
-        cashManagementTouched && cashManagementId
-          ? Number(cashManagementId)
-          : null,
-      document: null,
       chargeStatus: hasChanged(source.chargeStatus, headerForm.chargeStatus)
         ? headerForm.chargeStatus
         : null,
       clientCode: hasChanged(source.clientCode, headerForm.clientCode)
         ? headerForm.clientCode
-        : null,
-      clientName: hasChanged(source.clientName, headerForm.clientName)
-        ? headerForm.clientName
         : null,
       warehouse: hasChanged(source.warehouse, headerForm.warehouse)
         ? headerForm.warehouse
@@ -267,87 +260,50 @@ export default function EditarFactura({
       promoterCode: hasChanged(source.promoterCode, headerForm.promoterCode)
         ? headerForm.promoterCode
         : null,
-      promoterName: hasChanged(source.promoterName, headerForm.promoterName)
-        ? headerForm.promoterName
-        : null,
       priceLevel: hasChanged(source.priceLevel, headerForm.priceLevel)
         ? headerForm.priceLevel
         : null,
       coupon: hasChanged(source.coupon, headerForm.coupon)
         ? headerForm.coupon
         : null,
-      grossTotal: hasChanged(source.grossTotal, computedTotals.grossTotal)
-        ? computedTotals.grossTotal
-        : null,
-      lineDiscountTotal: hasChanged(
-        source.lineDiscountTotal,
-        computedTotals.lineDiscountTotal,
-      )
-        ? computedTotals.lineDiscountTotal
-        : null,
-      generalDiscountTotal: hasChanged(
-        source.generalDiscountTotal,
-        computedTotals.generalDiscountTotal,
-      )
-        ? computedTotals.generalDiscountTotal
-        : null,
-      tax1Total: hasChanged(source.tax1Total, computedTotals.tax1Total)
-        ? computedTotals.tax1Total
-        : null,
-      tax2Total: hasChanged(source.tax2Total, computedTotals.tax2Total)
-        ? computedTotals.tax2Total
-        : null,
-      netTotal: hasChanged(source.netTotal, computedTotals.netTotal)
-        ? computedTotals.netTotal
-        : null,
-      totalItems: hasChanged(source.totalItems, computedTotals.totalItems)
-        ? computedTotals.totalItems
-        : null,
-      currentDetailVersion: null,
-      isVoided: null,
     };
   };
 
-  const buildDetailsPayload = (): ServerInvoiceUpdateDetailPayload[] => {
-    return detailsForm.map((detailForm) => {
-      const source = invoice.details.find(
-        (detail) => detail.id === detailForm.id,
-      );
+  const isDetailModified = (detailForm: EditableDetail) => {
+    const source = invoice.details.find(
+      (detail) => detail.id === detailForm.id,
+    );
 
-      return {
-        id: detailForm.id,
-        article: hasChanged(source?.article, detailForm.article)
-          ? detailForm.article
-          : null,
-        quantity: hasChanged(source?.quantity, detailForm.quantity)
-          ? detailForm.quantity
-          : null,
-        salePrice: hasChanged(source?.salePrice, detailForm.salePrice)
-          ? detailForm.salePrice
-          : null,
-        price: hasChanged(source?.price, detailForm.price)
-          ? detailForm.price
-          : null,
-        tax1: hasChanged(source?.tax1, detailForm.tax1)
-          ? detailForm.tax1
-          : null,
-        tax2: hasChanged(source?.tax2, detailForm.tax2)
-          ? detailForm.tax2
-          : null,
-        lineDiscount: hasChanged(source?.lineDiscount, detailForm.lineDiscount)
-          ? detailForm.lineDiscount
-          : null,
-        generalDiscount: hasChanged(
-          source?.generalDiscount,
-          detailForm.generalDiscount,
-        )
-          ? detailForm.generalDiscount
-          : null,
-        isExempt: hasChanged(source?.isExempt, detailForm.isExempt)
-          ? detailForm.isExempt
-          : null,
-      };
-    });
+    return (
+      hasChanged(source?.article, detailForm.article) ||
+      hasChanged(source?.quantity, detailForm.quantity) ||
+      hasChanged(source?.salePrice, detailForm.salePrice) ||
+      hasChanged(source?.price, detailForm.price) ||
+      hasChanged(source?.tax1, detailForm.tax1) ||
+      hasChanged(source?.tax2, detailForm.tax2) ||
+      hasChanged(source?.lineDiscount, detailForm.lineDiscount) ||
+      hasChanged(source?.generalDiscount, detailForm.generalDiscount) ||
+      hasChanged(source?.isExempt, detailForm.isExempt)
+    );
+  };
+
+  const buildDetailsPayload = (): ServerInvoiceUpdateDetailPayload[] | null => {
+    const anyModified = detailsForm.some(isDetailModified);
+
+    if (!anyModified) return null;
+
+    return detailsForm.map((detailForm) => ({
+      id: detailForm.id,
+      article: detailForm.article,
+      quantity: detailForm.quantity,
+      salePrice: detailForm.salePrice,
+      price: detailForm.price,
+      tax1: detailForm.tax1,
+      tax2: detailForm.tax2,
+      lineDiscount: detailForm.lineDiscount,
+      generalDiscount: detailForm.generalDiscount,
+      isExempt: detailForm.isExempt,
+    }));
   };
 
   const handleSave = async () => {
@@ -395,27 +351,29 @@ export default function EditarFactura({
                 <label className="block text-sm font-medium text-foreground">
                   Caja abierta
                 </label>
-                <select
-                  value={cashManagementId}
-                  onChange={(e) => {
-                    setCashManagementId(e.target.value);
-                    setCashManagementTouched(true);
-                  }}
-                  disabled={cashManagementLoading || cashManagementOptions.length === 0}
-                  className="w-full pl-4 pr-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                >
-                  {cashManagementLoading ? (
-                    <option value="">Cargando cajas abiertas...</option>
-                  ) : cashManagementOptions.length === 0 ? (
-                    <option value="">No hay cajas abiertas</option>
-                  ) : (
-                    cashManagementOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))
-                  )}
-                </select>
+                {cashManagementLoading ? (
+                  <ListSkeleton count={1} itemClassName="h-10 rounded-t" />
+                ) : (
+                  <select
+                    value={cashManagementId}
+                    onChange={(e) => {
+                      setCashManagementId(e.target.value);
+                      setCashManagementTouched(true);
+                    }}
+                    disabled={cashManagementOptions.length === 0}
+                    className="w-full pl-4 pr-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                  >
+                    {cashManagementOptions.length === 0 ? (
+                      <option value="">No hay cajas abiertas</option>
+                    ) : (
+                      cashManagementOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground">

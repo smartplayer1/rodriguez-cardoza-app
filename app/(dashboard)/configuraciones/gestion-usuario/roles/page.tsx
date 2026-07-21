@@ -6,6 +6,9 @@ import { Plus, Edit, Trash2, Shield } from 'lucide-react';
 import RoleDetails from '@/components/RoleDetails';
 import { createRole, getRoles, updateRole } from '@/app/services/roles';
 import { Role, RoleUpdatePayload } from '@/app/type/user';
+import { CardsSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 interface RoleFormData {
   roleName: string;
@@ -14,7 +17,9 @@ interface RoleFormData {
 }
 
 export default function RolesScreen() {
+  const { can } = useUserStore();
   const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [showRoleDetails, setShowRoleDetails] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -52,8 +57,14 @@ export default function RolesScreen() {
         });
       }
 
-      const data = await getRoles();
-      setRoles(data.records || []);
+      setLoading(true);
+      try {
+        const data = await getRoles();
+        setRoles(data.records || []);
+      } finally {
+        setLoading(false);
+      }
+
       setShowRoleDetails(false);
       setEditingRole(null);
     } catch (error) {
@@ -69,8 +80,13 @@ export default function RolesScreen() {
 
   useEffect(() => {
     const fetchRoles = async () => {
-      const data = await getRoles();
+      setLoading(true);
+      try {
+        const data = await getRoles();
         setRoles(data.records || []);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchRoles();
   }, []);
@@ -108,20 +124,25 @@ export default function RolesScreen() {
               </p>
             </div>
           </div>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={handleCreateRole}
-          >
-            Crear Nuevo Rol
-          </MaterialButton>
+          {can(PERMISSIONS.ROLE_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              startIcon={<Plus size={18} />}
+              onClick={handleCreateRole}
+            >
+              Crear Nuevo Rol
+            </MaterialButton>
+          )}
         </div>
       </div>
 
       {/* Roles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {roles.map((role) => (
+        {loading ? (
+          <CardsSkeleton count={6} />
+        ) : (
+        roles.map((role) => (
           <div
             key={role.id}
             className="bg-surface rounded elevation-2 p-6 hover:elevation-3 transition-all"
@@ -157,41 +178,48 @@ export default function RolesScreen() {
 
             {/* Actions */}
             <div className="flex gap-2">
-              <MaterialButton
-                variant="outlined"
-                color="primary"
-                fullWidth
-                startIcon={<Edit size={16} />}
-                onClick={() => handleEditRole(role)}
-              >
-                Editar
-              </MaterialButton>
-              <MaterialButton
-                variant="outlined"
-                color="error"
-                onClick={() => handleDeleteRole(role.id)}
-              >
-                <Trash2 size={16} />
-              </MaterialButton>
+              {can(PERMISSIONS.ROLE_EDIT) && (
+                <MaterialButton
+                  variant="outlined"
+                  color="primary"
+                  fullWidth
+                  startIcon={<Edit size={16} />}
+                  onClick={() => handleEditRole(role)}
+                >
+                  Editar
+                </MaterialButton>
+              )}
+              {can(PERMISSIONS.ROLE_DELETE) && (
+                <MaterialButton
+                  variant="outlined"
+                  color="error"
+                  onClick={() => handleDeleteRole(role.id)}
+                >
+                  <Trash2 size={16} />
+                </MaterialButton>
+              )}
             </div>
           </div>
-        ))}
+        ))
+        )}
       </div>
 
       {/* Empty State */}
-      {roles.length === 0 && (
+      {!loading && roles.length === 0 && (
         <div className="bg-surface rounded elevation-2 p-12 text-center">
           <Shield size={48} className="mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground mb-4">
             No hay roles configurados en el sistema
           </p>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            onClick={handleCreateRole}
-          >
-            Crear Primer Rol
-          </MaterialButton>
+          {can(PERMISSIONS.ROLE_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              onClick={handleCreateRole}
+            >
+              Crear Primer Rol
+            </MaterialButton>
+          )}
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import {
   CashManagementCreatePayload,
   CashManagementOutflowCreatePayload,
   CashManagementOutflowResponse,
+  CashManagementReopenPayload,
   CashRegisterCreatePayload,
   CashRegisterResponse,
   CashRegisterUpdatePayload,
@@ -504,6 +505,33 @@ export const closeCashManagement = async (
       (errorBody as { message?: string; detail?: string } | null)?.message ||
       (errorBody as { message?: string; detail?: string } | null)?.detail ||
       "Failed to close cash management record";
+
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+};
+
+export const reopenCashManagement = async (
+  id: number,
+  payload: CashManagementReopenPayload,
+  cookieHeader?: string,
+): Promise<CashManagementRecord> => {
+  const response = await fetch(
+    resolveServiceUrl(`/api/billing/cash-management/${id}/reopen`),
+    {
+      method: "POST",
+      headers: createJsonHeaders(cookieHeader),
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const errorMessage =
+      (errorBody as { message?: string; detail?: string } | null)?.message ||
+      (errorBody as { message?: string; detail?: string } | null)?.detail ||
+      "Failed to reopen cash management record";
 
     throw new Error(errorMessage);
   }

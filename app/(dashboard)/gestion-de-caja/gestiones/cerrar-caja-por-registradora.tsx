@@ -6,6 +6,8 @@ import { Lock, X } from "lucide-react";
 import { getActiveCashManagementByCashRegister } from "@/app/services/cash-management";
 import { CashManagementRecord } from "@/app/type/cash-management";
 import CerrarCajaModal from "./cerrar-caja-modal";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 type SelectOption = {
   id: string;
@@ -17,6 +19,7 @@ export default function CerrarCajaPorRegistradora({
 }: {
   cashRegisterOptions: SelectOption[];
 }) {
+  const { can } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
   const [cashRegisterId, setCashRegisterId] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -70,6 +73,10 @@ export default function CerrarCajaPorRegistradora({
       setIsSearching(false);
     }
   };
+
+  if (!can(PERMISSIONS.CASH_MANAGEMENT_CLOSE)) {
+    return null;
+  }
 
   if (activeRecord) {
     return <CerrarCajaModal record={activeRecord} onClose={closeModal} />;

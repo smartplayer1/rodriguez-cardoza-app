@@ -6,11 +6,16 @@ import { Wallet, Plus, Edit, Trash2, Save, X, Building2 } from 'lucide-react';
 import { createBankAccount, deleteBankAccount, getBankAccounts, updateBankAccount } from '@/app/services/company/account';
 import { Bank, BankAccount } from '@/app/type/bank';
 import { getBank } from '@/app/services/bank';
+import { TableSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 
 
 export default function CuentasBanco() {
+  const { can } = useUserStore();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
@@ -40,10 +45,15 @@ export default function CuentasBanco() {
   useEffect(() => {
       // Aquí podrías cargar las cuentas bancarias desde una API o almacenamiento local
     const fetchAccounts = async () => {
-        const accounts = await getBankAccounts();
-        setAccounts(accounts.records);
-        const babksResponse = await getBank();
-        setAvailableBanks(babksResponse.records);
+        setLoading(true);
+        try {
+          const accounts = await getBankAccounts();
+          setAccounts(accounts.records);
+          const babksResponse = await getBank();
+          setAvailableBanks(babksResponse.records);
+        } finally {
+          setLoading(false);
+        }
     };
 
     fetchAccounts();
@@ -256,18 +266,20 @@ export default function CuentasBanco() {
               Administre las cuentas bancarias de la empresa
             </p>
           </div>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={handleCreate}
-          >
-            Nueva Cuenta
-          </MaterialButton>
+          {can(PERMISSIONS.ACCOUNT_BANK_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              startIcon={<Plus size={18} />}
+              onClick={handleCreate}
+            >
+              Nueva Cuenta
+            </MaterialButton>
+          )}
         </div>
 
         {/* Accounts Table */}
-        {accounts.length > 0 ? (
+        {(loading || accounts.length > 0) ? (
           <div className="bg-surface rounded elevation-2 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -281,7 +293,10 @@ export default function CuentasBanco() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {accounts.map((account) => (
+                  {loading ? (
+                    <TableSkeleton columns={4} />
+                  ) : (
+                  accounts.map((account) => (
                     <tr key={account.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4">
                         <div>
@@ -308,26 +323,31 @@ export default function CuentasBanco() {
                       </td> */}
                       <td className="px-6 py-4">
                         <div className="flex gap-2 justify-end">
-                          <MaterialButton
-                            variant="text"
-                            color="primary"
-                            startIcon={<Edit size={16} />}
-                            onClick={() => handleEdit(account)}
-                          >
-                            Editar
-                          </MaterialButton>
-                          <MaterialButton
-                            variant="text"
-                            color="secondary"
-                            startIcon={<Trash2 size={16} />}
-                            onClick={() => handleDelete(account.id)}
-                          >
-                            Eliminar
-                          </MaterialButton>
+                          {can(PERMISSIONS.ACCOUNT_BANK_EDIT) && (
+                            <MaterialButton
+                              variant="text"
+                              color="primary"
+                              startIcon={<Edit size={16} />}
+                              onClick={() => handleEdit(account)}
+                            >
+                              Editar
+                            </MaterialButton>
+                          )}
+                          {can(PERMISSIONS.ACCOUNT_BANK_DELETE) && (
+                            <MaterialButton
+                              variant="text"
+                              color="secondary"
+                              startIcon={<Trash2 size={16} />}
+                              onClick={() => handleDelete(account.id)}
+                            >
+                              Eliminar
+                            </MaterialButton>
+                          )}
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -340,14 +360,16 @@ export default function CuentasBanco() {
             <p className="text-muted-foreground mb-6">
               Comience agregando una nueva cuenta bancaria de la empresa
             </p>
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Plus size={18} />}
-              onClick={handleCreate}
-            >
-              Crear Primera Cuenta
-            </MaterialButton>
+            {can(PERMISSIONS.ACCOUNT_BANK_CREATE) && (
+              <MaterialButton
+                variant="contained"
+                color="primary"
+                startIcon={<Plus size={18} />}
+                onClick={handleCreate}
+              >
+                Crear Primera Cuenta
+              </MaterialButton>
+            )}
           </div>
         )}
       </div>

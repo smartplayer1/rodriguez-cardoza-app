@@ -8,6 +8,9 @@ import  ImportarNotaCreditoModal  from '@/components/excel-upload-credit-note';
 import { createCreditNote, getCreditNotes } from '@/app/services/billing/credit-note';
 import { getCashManagementRecords } from '@/app/services/cash-management';
 import { CreditNoteCreatePayload, CreditNoteRecord } from '@/app/type/credit-note';
+import { ListSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 type DetailRowState = {
   invoiceLineId: string;
@@ -66,6 +69,7 @@ const getStatusBadgeClass = (status: string) => {
 };
 
 export default function NotasCreditoPage() {
+  const { can } = useUserStore();
   const [records, setRecords] = useState<CreditNoteRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -263,12 +267,16 @@ export default function NotasCreditoPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <MaterialButton variant="contained" color="primary" startIcon={<Plus size={18} />} onClick={openCreate}>
-              Nueva Nota
-            </MaterialButton>
-            <MaterialButton variant="outlined" color="secondary" startIcon={<FileSpreadsheet size={18} />} onClick={() => setIsImportOpen(true)}>
-              Importar Excel
-            </MaterialButton>
+            {can(PERMISSIONS.CREDIT_NOTE_CREATE) && (
+              <MaterialButton variant="contained" color="primary" startIcon={<Plus size={18} />} onClick={openCreate}>
+                Nueva Nota
+              </MaterialButton>
+            )}
+            {can(PERMISSIONS.CREDIT_NOTE_CREATE) && (
+              <MaterialButton variant="outlined" color="secondary" startIcon={<FileSpreadsheet size={18} />} onClick={() => setIsImportOpen(true)}>
+                Importar Excel
+              </MaterialButton>
+            )}
           </div>
         </div>
 
@@ -353,11 +361,7 @@ export default function NotasCreditoPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                      Cargando...
-                    </td>
-                  </tr>
+                  <TableSkeleton columns={7} />
                 ) : records.length > 0 ? (
                   records.map((record) => (
                     <tr key={record.header.id} className="hover:bg-muted/30 transition-colors">
@@ -500,23 +504,27 @@ export default function NotasCreditoPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm text-muted-foreground">Gestión de caja abierta</label>
-                  <select
-                    value={selectedCashManagementId}
-                    onChange={(event) => setSelectedCashManagementId(event.target.value)}
-                    className="w-full px-3 py-3 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
-                  >
-                    <option value="">Seleccione una gestión de caja</option>
-                    {cashManagementOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    {cashManagementLoading
-                      ? 'Cargando gestiones abiertas...'
-                      : `${cashManagementOptions.length} gestión(es) disponible(s)`}
-                  </p>
+                  {cashManagementLoading ? (
+                    <ListSkeleton count={1} itemClassName="h-11 rounded-t" />
+                  ) : (
+                    <>
+                      <select
+                        value={selectedCashManagementId}
+                        onChange={(event) => setSelectedCashManagementId(event.target.value)}
+                        className="w-full px-3 py-3 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+                      >
+                        <option value="">Seleccione una gestión de caja</option>
+                        {cashManagementOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        {`${cashManagementOptions.length} gestión(es) disponible(s)`}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <MaterialInput label="Número *" value={number} onChange={(e) => setNumber(e.target.value)} fullWidth />
                 <MaterialInput label="Fecha de inicio *" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} fullWidth />

@@ -9,6 +9,7 @@ import { getBranches } from '@/app/services/company/branch';
 import { updateCashRegister } from '@/app/services/cash-management';
 import type { BranchResponse, RecordsBranch } from '@/app/type/branch';
 import type { CashRegisterRecord, CashRegisterUpdatePayload } from '@/app/type/cash-management';
+import { ListSkeleton } from '@/components/ui/loading-skeleton';
 
 type EditCashRegisterFormProps = {
   cashRegister: CashRegisterRecord;
@@ -163,19 +164,22 @@ export default function EditCashRegisterForm({ cashRegister }: EditCashRegisterF
 
             <label className="space-y-2">
               <span className="text-sm text-muted-foreground">Sucursal</span>
-              <select
-                value={formData.branchId}
-                onChange={(event) => setFormData((previous) => ({ ...previous, branchId: event.target.value }))}
-                className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                disabled={loadingBranches}
-              >
-                <option value="">Seleccione una sucursal</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name} ({branch.code})
-                  </option>
-                ))}
-              </select>
+              {loadingBranches ? (
+                <ListSkeleton count={1} itemClassName="h-10 rounded-2xl" />
+              ) : (
+                <select
+                  value={formData.branchId}
+                  onChange={(event) => setFormData((previous) => ({ ...previous, branchId: event.target.value }))}
+                  className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
+                >
+                  <option value="">Seleccione una sucursal</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name} ({branch.code})
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
 
             <div className="md:col-span-2 rounded-2xl border border-border/60 bg-background/60 px-4 py-3 text-sm text-muted-foreground">

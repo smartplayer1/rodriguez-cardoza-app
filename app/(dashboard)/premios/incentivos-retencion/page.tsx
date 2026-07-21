@@ -25,13 +25,18 @@ import {
   deleteRewardIncentiveRule,
   getRewardIncentiveRules,
 } from "@/app/services/reward/incentive";
+import { CardsSkeleton } from "@/components/ui/loading-skeleton";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 export default function IncentivosRetencion() {
   return <ReglasIncentivos />;
 }
 
 function ReglasIncentivos() {
+  const { can } = useUserStore();
   const [reglas, setReglas] = useState<Promotion[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingRegla, setEditingRegla] = useState<Promotion | null>(null);
@@ -54,12 +59,12 @@ function ReglasIncentivos() {
     setEditingRegla(null);
     setShowCreateEdit(true);
   };
-
   const fetchReglas = useCallback(async () => {
     try {
+      setLoading(true);
       const data = await getRewardIncentiveRules({
         name: searchTerm || undefined,
-        ruleType: filterRuleType === "all" ? undefined : filterRuleType,
+        ruleType:"AmountPurchased",
         isActive:
           filterEstado === "all" ? undefined : filterEstado === "activa",
         startDate: filterStartDate
@@ -78,6 +83,8 @@ function ReglasIncentivos() {
       setReglas(data.records);
     } catch (error) {
       console.error("Error fetching reglas:", error);
+    } finally {
+      setLoading(false);
     }
   }, [
     searchTerm,
@@ -413,7 +420,7 @@ function ReglasIncentivos() {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
             />
           </div>
-          <div className="relative">
+       {/* <div className="relative">
             <Filter
               size={20}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -441,15 +448,17 @@ function ReglasIncentivos() {
               size={20}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
             />
-          </div>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={handleCreate}
-          >
-            Nueva Regla
-          </MaterialButton>
+          </div>*/}
+          {can(PERMISSIONS.INCENTIVE_RULE_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              startIcon={<Plus size={18} />}
+              onClick={handleCreate}
+            >
+              Nueva Regla
+            </MaterialButton>
+          )}
         </div>
       </div>
 
@@ -495,7 +504,11 @@ function ReglasIncentivos() {
       </div>
 
       {/* Reglas List */}
-      {reglas.length > 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4">
+          <CardsSkeleton count={4} />
+        </div>
+      ) : reglas.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
           {reglas.map((regla) => (
             <div
@@ -557,20 +570,24 @@ function ReglasIncentivos() {
                   >
                     <Eye size={18} />
                   </button>
-                  <button
-                    onClick={() => handleEdit(regla)}
-                    className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
-                    title="Editar"
-                  >
-                    <Edit size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(regla.id)}
-                    className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-destructive"
-                    title="Eliminar"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  {can(PERMISSIONS.INCENTIVE_RULE_EDIT) && (
+                    <button
+                      onClick={() => handleEdit(regla)}
+                      className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+                      title="Editar"
+                    >
+                      <Edit size={18} />
+                    </button>
+                  )}
+                  {can(PERMISSIONS.INCENTIVE_RULE_DELETE) && (
+                    <button
+                      onClick={() => handleDelete(regla.id)}
+                      className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-destructive"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -585,7 +602,7 @@ function ReglasIncentivos() {
               ? "No se encontraron reglas con los filtros aplicados"
               : "Cree su primera regla de incentivo para comenzar"}
           </p>
-          {!hasAnyFilter && (
+          {!hasAnyFilter && can(PERMISSIONS.INCENTIVE_RULE_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"

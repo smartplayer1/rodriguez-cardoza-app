@@ -6,6 +6,8 @@ import { Plus, Trash2, X } from 'lucide-react';
 
 import { createCashManagementConversion } from '@/app/services/cash-management';
 import { CashManagementConversionCreatePayload } from '@/app/type/cash-management';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 type DenominationRow = {
   id: string;
@@ -32,6 +34,7 @@ const createDenominationRow = (): DenominationRow => ({
 
 export default function NuevaConversionModal() {
   const router = useRouter();
+  const { can } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
   const [cashManagementId, setCashManagementId] = useState('');
   const [direction, setDirection] = useState('NIO_TO_USD');
@@ -135,6 +138,10 @@ export default function NuevaConversionModal() {
       setIsSubmitting(false);
     }
   };
+
+  if (!can(PERMISSIONS.CURRENCY_CONVERSION_CREATE)) {
+    return null;
+  }
 
   return (
     <section className="space-y-3">

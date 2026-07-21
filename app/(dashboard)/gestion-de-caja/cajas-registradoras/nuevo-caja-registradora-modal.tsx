@@ -8,9 +8,13 @@ import { getBranches } from '@/app/services/company/branch';
 import { createCashRegister } from '@/app/services/cash-management';
 import { CashRegisterCreatePayload } from '@/app/type/cash-management';
 import type { BranchResponse, RecordsBranch } from '@/app/type/branch';
+import { ListSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 export default function NuevoCajaRegistradoraModal() {
   const router = useRouter();
+  const { can } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
   const [branches, setBranches] = useState<RecordsBranch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
@@ -115,6 +119,10 @@ export default function NuevoCajaRegistradoraModal() {
     }
   };
 
+  if (!can(PERMISSIONS.CASH_REGISTER_CREATE)) {
+    return null;
+  }
+
   return (
     <section className="space-y-3">
       <div className="flex justify-end">
@@ -191,19 +199,22 @@ export default function NuevoCajaRegistradoraModal() {
 
                 <label className="space-y-2">
                   <span className="text-sm text-muted-foreground">Sucursal</span>
-                  <select
-                    value={formData.branchId}
-                    onChange={(event) => setFormData((previous) => ({ ...previous, branchId: event.target.value }))}
-                    className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    disabled={loadingBranches}
-                  >
-                    <option value="">Seleccione una sucursal</option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name} ({branch.code})
-                      </option>
-                    ))}
-                  </select>
+                  {loadingBranches ? (
+                    <ListSkeleton count={1} itemClassName="h-10 rounded-2xl" />
+                  ) : (
+                    <select
+                      value={formData.branchId}
+                      onChange={(event) => setFormData((previous) => ({ ...previous, branchId: event.target.value }))}
+                      className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
+                    >
+                      <option value="">Seleccione una sucursal</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name} ({branch.code})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </label>
 
                 {selectedBranch ? (

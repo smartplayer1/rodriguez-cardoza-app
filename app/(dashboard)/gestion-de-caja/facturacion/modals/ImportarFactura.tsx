@@ -10,6 +10,7 @@ import { getBranches } from "@/app/services/company/branch";
 import { CashManagementRecord } from "@/app/type/cash-management";
 import { BranchResponse, RecordsBranch } from "@/app/type/branch";
 import { InvoiceBatchPostResponse, ServerInvoicePayload } from "@/app/type/invoice";
+import { ListSkeleton } from "@/components/ui/loading-skeleton";
 
 const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO"];
 
@@ -549,48 +550,52 @@ const handleFileUpload = useCallback(
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Sucursal
             </label>
-            <select
-              value={branchCode}
-              onChange={(e) => setBranchCode(e.target.value)}
-              disabled={branchLoading || branchOptions.length === 0 || saving}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-            >
-              {branchLoading ? (
-                <option value="">Cargando sucursales...</option>
-              ) : branchOptions.length === 0 ? (
-                <option value="">No hay sucursales disponibles</option>
-              ) : (
-                branchOptions.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))
-              )}
-            </select>
+            {branchLoading ? (
+              <ListSkeleton count={1} itemClassName="h-10 rounded" />
+            ) : (
+              <select
+                value={branchCode}
+                onChange={(e) => setBranchCode(e.target.value)}
+                disabled={branchOptions.length === 0 || saving}
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+              >
+                {branchOptions.length === 0 ? (
+                  <option value="">No hay sucursales disponibles</option>
+                ) : (
+                  branchOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Caja abierta
             </label>
-            <select
-              value={selectedCashManagementId}
-              onChange={(e) => setSelectedCashManagementId(e.target.value)}
-              disabled={cashManagementLoading || cashManagementOptions.length === 0 || saving}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-            >
-              {cashManagementLoading ? (
-                <option value="">Cargando cajas abiertas...</option>
-              ) : cashManagementOptions.length === 0 ? (
-                <option value="">No hay cajas abiertas</option>
-              ) : (
-                cashManagementOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))
-              )}
-            </select>
+            {cashManagementLoading ? (
+              <ListSkeleton count={1} itemClassName="h-10 rounded" />
+            ) : (
+              <select
+                value={selectedCashManagementId}
+                onChange={(e) => setSelectedCashManagementId(e.target.value)}
+                disabled={cashManagementOptions.length === 0 || saving}
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+              >
+                {cashManagementOptions.length === 0 ? (
+                  <option value="">No hay cajas abiertas</option>
+                ) : (
+                  cashManagementOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            )}
           </div>
         </div>
 

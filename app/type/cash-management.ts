@@ -26,6 +26,10 @@ export type CashManagementClosePayload = {
   denominations: CashManagementCreateDenomination[];
 };
 
+export type CashManagementReopenPayload = {
+  observation: string | null;
+};
+
 export type CashManagementBalance = {
   cashManagementId: number;
   nio: number;

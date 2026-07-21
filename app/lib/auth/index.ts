@@ -21,6 +21,42 @@ export async function isTokenExpired() {
   return expiration - now <= fiveMinutes;
 }
 
+interface RefreshSessionResponse {
+  token: string;
+  tokenExpiresAt: string;
+  refreshToken?: string;
+}
+
+// Varias peticiones en paralelo (Promise.all en las páginas) pueden ver el
+// mismo token expirado a la vez. Sin este lock, cada una dispara su propio
+// refresh-session con el mismo refreshToken; si el backend lo rota/invalida
+// al usarlo, solo la primera tiene éxito y el resto falla con 401 aunque el
+// usuario sí tenga sesión válida. Deduplicamos para que todas esperen el
+// mismo resultado.
+let refreshPromise: Promise<RefreshSessionResponse> | null = null;
+
+async function requestRefreshSession(refreshToken: string, userId: string) {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/v1/authentication/refresh-session`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refreshToken,
+        userId,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to refresh token");
+  }
+
+  return (await response.json()) as RefreshSessionResponse;
+}
+
 export async function refreshToken() {
   const cookieStore = await cookies();
 
@@ -41,27 +77,13 @@ export async function refreshToken() {
 
   const user = mapUserFromToken(decoded);
 
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/v1/authentication/refresh-session`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        refreshToken,
-        userId: user.id,
-      }),
-    },
-  );
-
-  console.log("Refresh token response:", response);
-
-  if (!response.ok) {
-    throw new Error("Failed to refresh token");
+  if (!refreshPromise) {
+    refreshPromise = requestRefreshSession(refreshToken, user.id).finally(() => {
+      refreshPromise = null;
+    });
   }
 
-  const data = await response.json();
+  const data = await refreshPromise;
 
   cookieStore.set("token", data.token, {
     httpOnly: true,

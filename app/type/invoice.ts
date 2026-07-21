@@ -140,45 +140,32 @@ export interface InvoiceGetFilters {
 
 export interface ServerInvoiceUpdateHeaderPayload {
   id: number;
-  cashManagementId: number | null;
-  document: string | null;
   chargeStatus: string | null;
   clientCode: string | null;
-  clientName: string | null;
   warehouse: number | null;
   branchCode: string | null;
   cashier: string | null;
   issuedAt: string | null;
   store: string | null;
   promoterCode: string | null;
-  promoterName: string | null;
   priceLevel: string | null;
   coupon: number | null;
-  grossTotal: number | null;
-  lineDiscountTotal: number | null;
-  generalDiscountTotal: number | null;
-  tax1Total: number | null;
-  tax2Total: number | null;
-  netTotal: number | null;
-  totalItems: number | null;
-  currentDetailVersion: number | null;
-  isVoided: boolean | null;
 }
 
 export interface ServerInvoiceUpdateDetailPayload {
   id: number;
-  article: string | null;
-  quantity: number | null;
-  salePrice: number | null;
-  price: number | null;
-  tax1: number | null;
-  tax2: number | null;
-  lineDiscount: number | null;
-  generalDiscount: number | null;
-  isExempt: string | null;
+  article: string;
+  quantity: number;
+  salePrice: number;
+  price: number;
+  tax1: number;
+  tax2: number;
+  lineDiscount: number;
+  generalDiscount: number;
+  isExempt: string;
 }
 
 export interface ServerInvoiceUpdatePayload {
   header: ServerInvoiceUpdateHeaderPayload;
-  details: ServerInvoiceUpdateDetailPayload[];
+  details: ServerInvoiceUpdateDetailPayload[] | null;
 }

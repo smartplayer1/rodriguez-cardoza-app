@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { DollarSign, ArrowRight, Save, RefreshCw } from 'lucide-react';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 interface ExchangeRate {
   id: string;
@@ -14,6 +16,7 @@ interface ExchangeRate {
 }
 
 export default function CurrencySettings() {
+  const { can } = useUserStore();
   const [rates, setRates] = useState<ExchangeRate[]>([
     {
       id: '1',
@@ -174,15 +177,17 @@ export default function CurrencySettings() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 mt-4">
-                <MaterialButton
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                  startIcon={<Save size={18} />}
-                  onClick={handleSaveRate}
-                >
-                  {editingRate ? 'Actualizar' : 'Guardar'}
-                </MaterialButton>
+                {can(PERMISSIONS.EXCHANGE_RATE_CREATE) && (
+                  <MaterialButton
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    startIcon={<Save size={18} />}
+                    onClick={handleSaveRate}
+                  >
+                    {editingRate ? 'Actualizar' : 'Guardar'}
+                  </MaterialButton>
+                )}
                 {editingRate && (
                   <MaterialButton
                     variant="outlined"

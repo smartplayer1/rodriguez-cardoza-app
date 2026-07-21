@@ -9,6 +9,7 @@ import type {
   CashManagementClosePayload,
   CashManagementClosingSummary,
 } from "@/app/type/cash-management";
+import { exportArqueoDeCajaToPdf } from "./arqueo-de-caja-export";
 
 type DenominationRow = {
   id: string;
@@ -69,14 +70,26 @@ export default function ClosingSummaryModal({
   summary: CashManagementClosingSummary;
   onClose: () => void;
 }) {
+
   const router = useRouter();
+  const { cashManagement, balances, movementTotals, closingPreview, invoices } = summary;
+
+  const { closingDenominations } = cashManagement;
+
   const [showDetail, setShowDetail] = useState(false);
   const [observation, setObservation] = useState("");
-  const [rows, setRows] = useState<DenominationRow[]>([createDefaultRow()]);
+  const [rows, setRows] = useState<DenominationRow[]>(() =>
+    closingDenominations.length > 0
+      ? closingDenominations.map((denomination) => ({
+          id: crypto.randomUUID(),
+          currency: denomination.currency as "NIO" | "USD",
+          denomination: String(denomination.denomination),
+          quantity: String(denomination.quantity),
+        }))
+      : [createDefaultRow()],
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const { cashManagement, balances, movementTotals, closingPreview, invoices } = summary;
 
   const estimatedTotalNio = useMemo(() => {
     return rows.reduce((sum, row) => {
@@ -477,6 +490,13 @@ export default function ClosingSummaryModal({
                 </p>
 
                 <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => exportArqueoDeCajaToPdf(summary)}
+                    className="rounded-2xl border border-border px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
+                  >
+                    Imprimir Arqueo
+                  </button>
                   <button
                     type="button"
                     onClick={handleCancel}

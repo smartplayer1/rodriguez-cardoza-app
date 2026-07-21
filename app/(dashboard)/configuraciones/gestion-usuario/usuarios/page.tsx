@@ -4,11 +4,16 @@ import { MaterialButton } from '@/components/MaterialButton';
 import { Users, Plus, Edit, Trash2, User as UserIcon, Mail, Key } from 'lucide-react';
 import CreateUser from '@/components/CreateUser';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
-import { insertUser, getUsers, updateUser , updatePassword, deleteUser } from '@/app/services/user';
+import { insertUser, getUsers, updateUser , updatePassword, deleteUser, assignEmployeeToUser } from '@/app/services/user';
 import { CreateUserDto, User, UpdateUserDto, UserFormData } from '@/app/type/user';
+import { TableSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 export default function UserManagement() {
+  const { can } = useUserStore();
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -40,10 +45,15 @@ export default function UserManagement() {
 
   useEffect(() => {
      const fetchUsers = async () => {
-      const response = await getUsers(); // Implementa esta función para obtener los usuarios desde tu API
-       const data = await response.json();
+      setLoading(true);
+      try {
+        const response = await getUsers(); // Implementa esta función para obtener los usuarios desde tu API
+         const data = await response.json();
 
-      setUsers(data?.records || []); // Asegúrate de ajustar esto según la estructura real de tu respuesta API
+        setUsers(data?.records || []); // Asegúrate de ajustar esto según la estructura real de tu respuesta API
+      } finally {
+        setLoading(false);
+      }
     };
     fetchUsers();
   }, []);
@@ -85,13 +95,24 @@ export default function UserManagement() {
         const errorData = await response.json();
         alert(`Error al actualizar usuario: ${errorData.message || 'Error desconocido'}`);
         return;
-      } 
+      }
 
-     setUsers(users.map((u: User) => 
+      if (userData.employeeId) {
+        const employeeResponse = await assignEmployeeToUser(editingUser.id, userData.employeeId);
+
+        if (!employeeResponse.ok) {
+          const errorData = await employeeResponse.json();
+          alert(`Error al asignar empleado: ${errorData.message || 'Error desconocido'}`);
+          return;
+        }
+      }
+
+     setUsers(users.map((u: User) =>
       u.id === editingUser.id
         ? {
             ...u,
             ...newUser,
+            employeeId: userData.employeeId,
           } as User
         : u
       ));
@@ -113,7 +134,19 @@ export default function UserManagement() {
       }
       
       const newlyCreatedUser : User = await response.json();
-      
+
+      if (userData.employeeId) {
+        const employeeResponse = await assignEmployeeToUser(newlyCreatedUser.id, userData.employeeId);
+
+        if (!employeeResponse.ok) {
+          const errorData = await employeeResponse.json();
+          alert(`Error al asignar empleado: ${errorData.message || 'Error desconocido'}`);
+          return;
+        }
+
+        newlyCreatedUser.employeeId = userData.employeeId;
+      }
+
       setUsers([...users, newlyCreatedUser]);
 
     }
@@ -206,14 +239,16 @@ export default function UserManagement() {
               </p>
             </div>
           </div>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={handleCreateUser}
-          >
-            Crear Nuevo Usuario
-          </MaterialButton>
+          {can(PERMISSIONS.USER_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              startIcon={<Plus size={18} />}
+              onClick={handleCreateUser}
+            >
+              Crear Nuevo Usuario
+            </MaterialButton>
+          )}
         </div>
       </div>
 
@@ -233,7 +268,10 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user, index) => (
+              {loading ? (
+                <TableSkeleton columns={7} />
+              ) : (
+              users.map((user, index) => (
                 <tr 
                   key={user.id}
                   className={`border-b border-border hover:bg-muted/50 transition-colors ${
@@ -274,50 +312,59 @@ export default function UserManagement() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
-                      <MaterialButton
-                        variant="text"
-                        color="primary"
-                        onClick={() => handleEditUser(user)}
-                      >
-                        <Edit size={16} />
-                      </MaterialButton>
-                      <MaterialButton
-                        variant="text"
-                        color="error"
-                        onClick={() => handleDeleteUser(user.id)}
-                      >
-                        <Trash2 size={16} />
-                      </MaterialButton>
-                      <MaterialButton
-                        variant="text"
-                        color="primary"
-                        onClick={() => handleChangePassword(user)}
-                      >
-                        <Key size={16} />
-                      </MaterialButton>
+                      {can(PERMISSIONS.USER_EDIT) && (
+                        <MaterialButton
+                          variant="text"
+                          color="primary"
+                          onClick={() => handleEditUser(user)}
+                        >
+                          <Edit size={16} />
+                        </MaterialButton>
+                      )}
+                      {can(PERMISSIONS.USER_DELETE) && (
+                        <MaterialButton
+                          variant="text"
+                          color="error"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          <Trash2 size={16} />
+                        </MaterialButton>
+                      )}
+                      {can(PERMISSIONS.USER_EDIT) && (
+                        <MaterialButton
+                          variant="text"
+                          color="primary"
+                          onClick={() => handleChangePassword(user)}
+                        >
+                          <Key size={16} />
+                        </MaterialButton>
+                      )}
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Empty State */}
-      {users.length === 0 && (
+      {!loading && users.length === 0 && (
         <div className="bg-surface rounded elevation-2 p-12 text-center">
           <Users size={48} className="mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground mb-4">
             No hay usuarios registrados en el sistema
           </p>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            onClick={handleCreateUser}
-          >
-            Crear Primer Usuario
-          </MaterialButton>
+          {can(PERMISSIONS.USER_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              onClick={handleCreateUser}
+            >
+              Crear Primer Usuario
+            </MaterialButton>
+          )}
         </div>
       )}
 

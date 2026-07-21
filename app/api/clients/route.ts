@@ -3,6 +3,7 @@ import { getValidToken } from "@/app/lib/helper";
 
 export async function GET() {
     const token = await getValidToken();
+
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

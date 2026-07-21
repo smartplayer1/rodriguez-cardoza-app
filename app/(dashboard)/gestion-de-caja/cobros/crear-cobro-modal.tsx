@@ -19,6 +19,9 @@ import type { BankAccount } from "@/app/type/bank";
 import type { CashManagementRecord } from "@/app/type/cash-management";
 import type { CreditInvoiceRecord } from "@/app/type/invoice";
 import type { ClienteResponse } from "@/app/type/client";
+import { ListSkeleton, TableSkeleton } from "@/components/ui/loading-skeleton";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 type InvoiceOption = {
   invoiceId: number;
@@ -70,6 +73,7 @@ const mapCreditInvoice = (invoice: CreditInvoiceRecord): InvoiceOption => ({
 
 export default function CrearCobroModal() {
   const router = useRouter();
+  const { can } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
   const [cashManagementLoading, setCashManagementLoading] = useState(false);
   const [cashManagementOptions, setCashManagementOptions] = useState<
@@ -484,6 +488,10 @@ export default function CrearCobroModal() {
     }
   };
 
+  if (!can(PERMISSIONS.COLLECTION_CREATE)) {
+    return null;
+  }
+
   return (
     <>
       <button
@@ -547,25 +555,24 @@ export default function CrearCobroModal() {
                     <span className="text-sm text-muted-foreground">
                       Gestión de caja
                     </span>
-                    <select
-                      value={selectedCashManagementId}
-                      onChange={(event) =>
-                        setSelectedCashManagementId(event.target.value)
-                      }
-                      disabled={cashManagementLoading}
-                      className="block w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <option value="">
-                        {cashManagementLoading
-                          ? "Cargando gestiones..."
-                          : "Seleccione una gestión"}
-                      </option>
-                      {cashManagementOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    {cashManagementLoading ? (
+                      <ListSkeleton count={1} itemClassName="h-10 rounded-2xl" />
+                    ) : (
+                      <select
+                        value={selectedCashManagementId}
+                        onChange={(event) =>
+                          setSelectedCashManagementId(event.target.value)
+                        }
+                        className="block w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <option value="">Seleccione una gestión</option>
+                        {cashManagementOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </label>
 
                   <label className="block space-y-2">
@@ -645,9 +652,24 @@ export default function CrearCobroModal() {
 
                   <div className="mt-4 max-h-80 overflow-y-auto rounded-2xl border border-border/60">
                     {loadingInvoices ? (
-                      <p className="px-4 py-6 text-sm text-muted-foreground">
-                        Cargando facturas con saldo...
-                      </p>
+                      <table className="w-full min-w-[720px] border-collapse text-sm">
+                        <thead className="sticky top-0 bg-muted/70">
+                          <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
+                            <th className="px-3 py-2">Sel.</th>
+                            <th className="px-3 py-2">Documento</th>
+                            <th className="px-3 py-2">Estado</th>
+                            <th className="px-3 py-2 text-right">Monto</th>
+                            <th className="px-3 py-2 text-right">
+                              Monto Recibo
+                            </th>
+                            <th className="px-3 py-2 text-right">Saldo</th>
+                            <th className="px-3 py-2 text-right">Cobros</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <TableSkeleton columns={7} />
+                        </tbody>
+                      </table>
                     ) : invoiceError ? (
                       <p className="px-4 py-6 text-sm text-rose-700">
                         {invoiceError}
@@ -819,37 +841,44 @@ export default function CrearCobroModal() {
                             <span className="text-xs text-muted-foreground">
                               Cuenta bancaria empresa
                             </span>
-                            <select
-                              value={
-                                row.companyBankAccountId > 0
-                                  ? String(row.companyBankAccountId)
-                                  : ""
-                              }
-                              onChange={(event) => {
-                                const selectedId = Number(event.target.value);
-                                const selectedAccount = bankAccountOptions.find(
-                                  (option) => option.id === selectedId,
-                                );
-                                updateRow(index, {
-                                  companyBankAccountId: selectedId,
-                                  accountNumber:
-                                    selectedAccount?.accountNumber || "",
-                                });
-                              }}
-                              disabled={bankAccountsLoading}
-                              className="block w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <option value="">
-                                {bankAccountsLoading
-                                  ? "Cargando cuentas..."
-                                  : "Seleccione una cuenta bancaria"}
-                              </option>
-                              {bankAccountOptions.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                  {option.label}
+                            {bankAccountsLoading ? (
+                              <ListSkeleton
+                                count={1}
+                                itemClassName="h-10 rounded-2xl"
+                              />
+                            ) : (
+                              <select
+                                value={
+                                  row.companyBankAccountId > 0
+                                    ? String(row.companyBankAccountId)
+                                    : ""
+                                }
+                                onChange={(event) => {
+                                  const selectedId = Number(
+                                    event.target.value,
+                                  );
+                                  const selectedAccount =
+                                    bankAccountOptions.find(
+                                      (option) => option.id === selectedId,
+                                    );
+                                  updateRow(index, {
+                                    companyBankAccountId: selectedId,
+                                    accountNumber:
+                                      selectedAccount?.accountNumber || "",
+                                  });
+                                }}
+                                className="block w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <option value="">
+                                  Seleccione una cuenta bancaria
                                 </option>
-                              ))}
-                            </select>
+                                {bankAccountOptions.map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                           </label>
                           <label className="block space-y-1 min-w-0 sm:col-span-2">
                             <span className="text-xs text-muted-foreground">

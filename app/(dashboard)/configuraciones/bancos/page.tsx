@@ -5,9 +5,14 @@ import { MaterialInput } from '@/components/MaterialInput';
 import { Building2, Plus, Edit, Trash2, Save, X} from 'lucide-react';
 import { createBank, deleteBank, getBank, updateBank } from '@/app/services/bank';
 import { Bank } from '@/app/type/bank';
+import { CardsSkeleton } from '@/components/ui/loading-skeleton';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 export default function Bancos() {
+  const { can } = useUserStore();
   const [banks, setBanks] = useState<Bank[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [showCreateEdit, setShowCreateEdit] = useState(false);
   const [editingBank, setEditingBank] = useState<Bank | null>(null);
@@ -18,14 +23,18 @@ export default function Bancos() {
 
 useEffect(() => {
     const fetchBanks = async () => {
-      const res = await getBank();
-      if (res.message) {
-        alert(res.message);
-      }
-        else {
-        setBanks(res.records || []);
+      setLoading(true);
+      try {
+        const res = await getBank();
+        if (res.message) {
+          alert(res.message);
         }
-
+          else {
+          setBanks(res.records || []);
+          }
+      } finally {
+        setLoading(false);
+      }
     }
     fetchBanks();
   }, []);
@@ -179,19 +188,24 @@ useEffect(() => {
               Gestione las instituciones bancarias del sistema
             </p>
           </div>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            startIcon={<Plus size={18} />}
-            onClick={handleCreate}
-          >
-            Nuevo Banco
-          </MaterialButton>
+          {can(PERMISSIONS.BANK_CREATE) && (
+            <MaterialButton
+              variant="contained"
+              color="primary"
+              startIcon={<Plus size={18} />}
+              onClick={handleCreate}
+            >
+              Nuevo Banco
+            </MaterialButton>
+          )}
         </div>
 
         {/* Banks Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {banks.map((bank) => (
+          {loading ? (
+            <CardsSkeleton count={6} />
+          ) : (
+          banks.map((bank) => (
             <div 
               key={bank.id} 
               className="bg-surface rounded elevation-2 overflow-hidden hover:elevation-3 transition-shadow"
@@ -217,45 +231,52 @@ useEffect(() => {
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-4 border-t border-border">
-                  <MaterialButton
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<Edit size={16} />}
-                    onClick={() => handleEdit(bank)}
-                    className="flex-1"
-                  >
-                    Editar
-                  </MaterialButton>
-                  <MaterialButton
-                    variant="outlined"
-                    color="secondary"
-                    startIcon={<Trash2 size={16} />}
-                    onClick={() => handleDelete(bank.id)}
-                  >
-                    Eliminar
-                  </MaterialButton>
+                  {can(PERMISSIONS.BANK_EDIT) && (
+                    <MaterialButton
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<Edit size={16} />}
+                      onClick={() => handleEdit(bank)}
+                      className="flex-1"
+                    >
+                      Editar
+                    </MaterialButton>
+                  )}
+                  {can(PERMISSIONS.BANK_DELETE) && (
+                    <MaterialButton
+                      variant="outlined"
+                      color="secondary"
+                      startIcon={<Trash2 size={16} />}
+                      onClick={() => handleDelete(bank.id)}
+                    >
+                      Eliminar
+                    </MaterialButton>
+                  )}
                 </div>
               </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Empty State */}
-        {banks.length === 0 && (
+        {!loading && banks.length === 0 && (
           <div className="text-center py-16">
             <Building2 size={64} className="text-muted-foreground mx-auto mb-4" />
             <h3 className="text-foreground mb-2">No hay bancos registrados</h3>
             <p className="text-muted-foreground mb-6">
               Comience agregando un nuevo banco al sistema
             </p>
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Plus size={18} />}
-              onClick={handleCreate}
-            >
-              Crear Primer Banco
-            </MaterialButton>
+            {can(PERMISSIONS.BANK_CREATE) && (
+              <MaterialButton
+                variant="contained"
+                color="primary"
+                startIcon={<Plus size={18} />}
+                onClick={handleCreate}
+              >
+                Crear Primer Banco
+              </MaterialButton>
+            )}
           </div>
         )}
       </div>

@@ -8,6 +8,8 @@ import { MaterialButton } from '@/components/MaterialButton';
 import { RecordsBranch } from '@/app/type/branch';
 import { Branch } from '@/app/type/branch';
 import type { CityOption } from './page';
+import { useUserStore } from '@/app/store/useUserStore';
+import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 type Props = {
   initialRecords: RecordsBranch[];
@@ -31,6 +33,7 @@ const initialForm: FormState = {
 
 export default function BranchManagementClient({ initialRecords, cityOptions }: Props) {
   const router = useRouter();
+  const { can } = useUserStore();
 
   const [records, setRecords] = useState<RecordsBranch[]>(initialRecords);
   const [openForm, setOpenForm] = useState(false);
@@ -172,9 +175,11 @@ export default function BranchManagementClient({ initialRecords, cityOptions }: 
     <section className="rounded-3xl border border-border/60 bg-surface shadow-sm">
       <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
         <h3 className="text-foreground">Gestión de sucursales</h3>
-        <MaterialButton variant="contained" color="primary" startIcon={<Plus size={16} />} onClick={openCreate}>
-          Nueva sucursal
-        </MaterialButton>
+        {can(PERMISSIONS.BRANCH_CREATE) && (
+          <MaterialButton variant="contained" color="primary" startIcon={<Plus size={16} />} onClick={openCreate}>
+            Nueva sucursal
+          </MaterialButton>
+        )}
       </div>
 
       {openForm ? (
@@ -264,21 +269,25 @@ export default function BranchManagementClient({ initialRecords, cityOptions }: 
                   <td className="px-4 py-4 text-muted-foreground">{record.city?.state?.name || cityMap.get(record.city?.id)?.stateName || 'N/D'}</td>
                   <td className="px-4 py-4">
                     <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(record)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
-                      >
-                        <Edit size={14} /> Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteBranch(record.id)}
-                        disabled={isDeleting === record.id}
-                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-xs text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-50"
-                      >
-                        {isDeleting === record.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Eliminar
-                      </button>
+                      {can(PERMISSIONS.BRANCH_EDIT) && (
+                        <button
+                          type="button"
+                          onClick={() => openEdit(record)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
+                        >
+                          <Edit size={14} /> Editar
+                        </button>
+                      )}
+                      {can(PERMISSIONS.BRANCH_DELETE) && (
+                        <button
+                          type="button"
+                          onClick={() => deleteBranch(record.id)}
+                          disabled={isDeleting === record.id}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-xs text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          {isDeleting === record.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Eliminar
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
