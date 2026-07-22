@@ -1,4 +1,6 @@
 import {
+  CreditNoteApplyPayload,
+  CreditNoteApplyResult,
   CreditNoteCreatePayload,
   CreditNoteListResponse,
   CreditNoteRecord,
@@ -66,6 +68,25 @@ export const createCreditNote = async (
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
     throw new Error(errorData?.message || 'Failed to create credit note');
+  }
+
+  return response.json();
+};
+
+export const applyCreditNote = async (
+  creditNoteId: number,
+  payload: CreditNoteApplyPayload,
+  context?: ServiceRequestContext,
+): Promise<CreditNoteApplyResult> => {
+  const response = await fetch(resolveServiceUrl(`/api/billing/credit-note/${creditNoteId}/apply`, context), {
+    method: 'POST',
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.detail || 'Failed to apply credit note');
   }
 
   return response.json();

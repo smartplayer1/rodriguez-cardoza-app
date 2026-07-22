@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, Trash2, X } from 'lucide-react';
+import { ChevronDown, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, Trash2, X } from 'lucide-react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import  ImportarNotaCreditoModal  from '@/components/excel-upload-credit-note';
+import AplicarNotaCreditoModal from './aplicar-nota-credito-modal';
 import { createCreditNote, getCreditNotes } from '@/app/services/billing/credit-note';
 import { getCashManagementRecords } from '@/app/services/cash-management';
 import { CreditNoteCreatePayload, CreditNoteRecord } from '@/app/type/credit-note';
@@ -68,6 +69,11 @@ const getStatusBadgeClass = (status: string) => {
   }
 };
 
+const isApplicableStatus = (status: string) => {
+  const normalized = status?.toLowerCase();
+  return normalized === 'emitida' || normalized === 'issued';
+};
+
 export default function NotasCreditoPage() {
   const { can } = useUserStore();
   const [records, setRecords] = useState<CreditNoteRecord[]>([]);
@@ -88,6 +94,7 @@ export default function NotasCreditoPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [viewingRecord, setViewingRecord] = useState<CreditNoteRecord | null>(null);
+  const [applyingRecord, setApplyingRecord] = useState<CreditNoteRecord | null>(null);
   const [cashManagementOptions, setCashManagementOptions] = useState<CashManagementOption[]>([]);
   const [cashManagementLoading, setCashManagementLoading] = useState(false);
   const [selectedCashManagementId, setSelectedCashManagementId] = useState('');
@@ -384,6 +391,15 @@ export default function NotasCreditoPage() {
                           >
                             <Eye size={18} />
                           </button>
+                          {can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(record.header.status) && (
+                            <button
+                              onClick={() => setApplyingRecord(record)}
+                              className="p-2 rounded-lg hover:bg-green-100 text-green-600"
+                              title="Aplicar a factura"
+                            >
+                              <CreditCard size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -477,10 +493,23 @@ export default function NotasCreditoPage() {
                 </table>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-3">
                 <MaterialButton variant="outlined" color="secondary" onClick={() => setViewingRecord(null)}>
                   Cerrar
                 </MaterialButton>
+                {can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(viewingRecord.header.status) && (
+                  <MaterialButton
+                    variant="contained"
+                    color="primary"
+                    startIcon={<CreditCard size={18} />}
+                    onClick={() => {
+                      setApplyingRecord(viewingRecord);
+                      setViewingRecord(null);
+                    }}
+                  >
+                    Aplicar a factura
+                  </MaterialButton>
+                )}
               </div>
             </div>
           </div>
@@ -572,6 +601,12 @@ export default function NotasCreditoPage() {
 
       <ImportarNotaCreditoModal
         open={isImportOpen} onClose={() => setIsImportOpen(false)}
+      />
+
+      <AplicarNotaCreditoModal
+        creditNote={applyingRecord}
+        onClose={() => setApplyingRecord(null)}
+        onApplied={loadRecords}
       />
     </div>
   );

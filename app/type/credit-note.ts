@@ -79,3 +79,19 @@ export interface CreditNoteListResponse {
   records: CreditNoteRecord[];
   paging: CreditNotePaging;
 }
+
+export interface CreditNoteApplyPayload {
+  targetInvoiceId: number;
+  cashManagementId: number;
+  amountNio: number | null;
+  observation: string | null;
+}
+
+export interface CreditNoteApplyResult {
+  creditNoteId?: number;
+  targetInvoiceId?: number;
+  cashManagementId?: number;
+  amountAppliedNio?: number;
+  remainingBalanceNio?: number;
+  status?: string;
+}
