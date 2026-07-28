@@ -1,10 +1,16 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { TrendingUp, TrendingDown, Plus, Save, X, ChevronDown, ChevronUp, Search, Filter, Wallet} from 'lucide-react';
 import { useUserStore } from '@/app/store/useUserStore';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
+import { getAccountingConcepts } from '@/app/services/company/accounting-concept';
+import { getCashManagementRecords } from '@/app/services/cash-management';
+import { getBankAccounts } from '@/app/services/company/account';
+import { CashManagementRecord } from '@/app/type/cash-management';
+import { BankAccount } from '@/app/type/bank';
+import { ListSkeleton } from '@/components/ui/loading-skeleton';
 
 interface BilleteDetalle {
   denominacion: number;
@@ -41,37 +47,20 @@ interface IngresoEgreso {
   createdAt: string;
 }
 
-// Mock data - Conceptos Contables (filtered by tipo)
-const conceptosIngreso = [
-  { id: 'CI1', nombre: 'Venta de Productos', codigo: 'ING-001', tipo: 'ingreso' },
-  { id: 'CI2', nombre: 'Devolución de Proveedor', codigo: 'ING-002', tipo: 'ingreso' },
-  { id: 'CI3', nombre: 'Ingreso por Servicios', codigo: 'ING-003', tipo: 'ingreso' }
-];
-
-const conceptosEgreso = [
-  { id: 'CE1', nombre: 'Compra de Inventario', codigo: 'EGR-001', tipo: 'egreso' },
-  { id: 'CE2', nombre: 'Pago a Proveedores', codigo: 'EGR-002', tipo: 'egreso' },
-  { id: 'CE3', nombre: 'Gastos Operativos', codigo: 'EGR-003', tipo: 'egreso' },
-  { id: 'CE4', nombre: 'Pago de Servicios', codigo: 'EGR-004', tipo: 'egreso' }
-];
-
-// Mock data - Gestiones Activas
-const gestionesActivas = [
-  { id: 'G1', cajaId: 'C1', cajaNombre: 'Caja Principal - Sucursal Central', moneda: 'NIO (Córdoba)' },
-  { id: 'G2', cajaId: 'C3', cajaNombre: 'Caja Principal - Sucursal León', moneda: 'USD (Dólar)' }
-];
+interface AccountingConcept {
+  id: number;
+  name: string;
+  category: {
+    id: number;
+    name: string;
+  };
+}
 
 // Mock data - Denominaciones disponibles
 const denominacionesNIO = [500, 200, 100, 50, 20, 10, 5, 1];
 const denominacionesUSD = [100, 50, 20, 10, 5, 1];
 
-// Mock data - Cuentas Bancarias de la Empresa
-const cuentasBancariasEmpresa = [
-  { id: 'CB1', nombre: 'BAC - Cuenta Corriente Principal - 12345678', banco: 'BAC', moneda: 'NIO' },
-  { id: 'CB2', nombre: 'Banpro - Cuenta Dólares - 87654321', banco: 'Banpro', moneda: 'USD' },
-  { id: 'CB3', nombre: 'Lafise - Cuenta Ahorro Córdobas - 11223344', banco: 'Lafise', moneda: 'NIO' },
-  { id: 'CB4', nombre: 'BAC - Cuenta Dólares - 99887766', banco: 'BAC', moneda: 'USD' }
-];
+const TEMP_RESPONSIBLE_EMPLOYEE_ID = null;
 
 export default function IngresosEgresos() {
   const { can } = useUserStore();
@@ -131,10 +120,19 @@ export default function IngresosEgresos() {
   const [sortColumn, setSortColumn] = useState<'fecha' | 'tipo' | 'montoTotal'>('fecha');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Conceptos contables, gestiones de caja activas y cuentas bancarias reales
+  const [conceptos, setConceptos] = useState<AccountingConcept[]>([]);
+  const [conceptosLoading, setConceptosLoading] = useState(false);
+  const [cashManagementRecords, setCashManagementRecords] = useState<CashManagementRecord[]>([]);
+  const [cashManagementLoading, setCashManagementLoading] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [bankAccountsLoading, setBankAccountsLoading] = useState(false);
+  const [moneda, setMoneda] = useState<'NIO' | 'USD'>('NIO');
+
   const [formData, setFormData] = useState({
     tipo: 'Ingreso' as 'Ingreso' | 'Egreso',
-    conceptoId: conceptosIngreso[0]?.id || '',
-    gestionId: gestionesActivas[0]?.id || '',
+    conceptoId: '',
+    gestionId: '',
     fecha: new Date().toISOString().split('T')[0],
     descripcion: '',
     usuarioRegistro: 'Admin'
@@ -142,40 +140,95 @@ export default function IngresosEgresos() {
 
   const [billetes, setBilletes] = useState<BilleteDetalle[]>([]);
   const [transferencias, setTransferencias] = useState<TransferenciaBancaria[]>([]);
-  
+
   // Form state for adding new transfer
   const [showTransferenciaForm, setShowTransferenciaForm] = useState(false);
   const [transferenciaForm, setTransferenciaForm] = useState({
     numeroReferencia: '',
-    cuentaBancariaId: cuentasBancariasEmpresa[0]?.id || '',
+    cuentaBancariaId: '',
     fecha: new Date().toISOString().split('T')[0],
     monto: 0
   });
 
-  const gestionActual = gestionesActivas.find(g => g.id === formData.gestionId);
-  const denominacionesActuales = gestionActual?.moneda.includes('USD') ? denominacionesUSD : denominacionesNIO;
-  const conceptosActuales = formData.tipo === 'Ingreso' ? conceptosIngreso : conceptosEgreso;
+  const loadAccountingConcepts = useCallback(async () => {
+    try {
+      setConceptosLoading(true);
+      const response = await getAccountingConcepts();
+      setConceptos(response?.records || []);
+    } catch (error) {
+      console.error('Error loading accounting concepts:', error);
+      setConceptos([]);
+    } finally {
+      setConceptosLoading(false);
+    }
+  }, []);
 
-  const handleCreate = () => {
-    if (gestionesActivas.length === 0) {
-      alert('No hay gestiones de caja activas. Por favor abra una caja primero.');
+  const loadOpenCashManagementRecords = useCallback(async () => {
+    try {
+      setCashManagementLoading(true);
+      const response = await getCashManagementRecords({
+        status: 'OPEN',
+        responsibleEmployeeId: TEMP_RESPONSIBLE_EMPLOYEE_ID,
+        page: 1,
+        perPage: 100,
+      });
+      setCashManagementRecords(response.records || []);
+    } catch (error) {
+      console.error('Error loading open cash management records:', error);
+      setCashManagementRecords([]);
+    } finally {
+      setCashManagementLoading(false);
+    }
+  }, []);
+
+  const loadBankAccounts = useCallback(async () => {
+    try {
+      setBankAccountsLoading(true);
+      const response = await getBankAccounts();
+      setBankAccounts(response?.records || []);
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+      setBankAccounts([]);
+    } finally {
+      setBankAccountsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showCreateEdit) {
       return;
     }
 
+    loadAccountingConcepts();
+    loadOpenCashManagementRecords();
+    loadBankAccounts();
+  }, [showCreateEdit, loadAccountingConcepts, loadOpenCashManagementRecords, loadBankAccounts]);
+
+  const gestionActual = cashManagementRecords.find(g => String(g.id) === formData.gestionId);
+  const denominacionesActuales = moneda === 'USD' ? denominacionesUSD : denominacionesNIO;
+  const conceptosActuales = conceptos.filter(c => c.category?.name === formData.tipo);
+
+  const handleCreate = () => {
     setFormData({
       tipo: 'Ingreso',
-      conceptoId: conceptosIngreso[0]?.id || '',
-      gestionId: gestionesActivas[0]?.id || '',
+      conceptoId: '',
+      gestionId: '',
       fecha: new Date().toISOString().split('T')[0],
       descripcion: '',
       usuarioRegistro: 'Admin'
     });
+    setMoneda('NIO');
     setBilletes([]);
     setShowCreateEdit(true);
   };
 
   const handleSave = () => {
     // Validation
+    if (!formData.gestionId) {
+      alert('Por favor seleccione una gestión de caja activa');
+      return;
+    }
+
     if (!formData.conceptoId) {
       alert('Por favor seleccione un concepto contable');
       return;
@@ -191,17 +244,16 @@ export default function IngresosEgresos() {
       return;
     }
 
-    const gestion = gestionesActivas.find(g => g.id === formData.gestionId);
-    const concepto = conceptosActuales.find(c => c.id === formData.conceptoId);
+    const concepto = conceptosActuales.find(c => String(c.id) === formData.conceptoId);
     const montoTotal = billetes.reduce((sum, b) => sum + b.total, 0) + transferencias.reduce((sum, t) => sum + t.monto, 0);
 
     const nuevoRegistro: IngresoEgreso = {
       id: Date.now().toString(),
       tipo: formData.tipo,
       conceptoId: formData.conceptoId,
-      conceptoNombre: concepto?.nombre || '',
-      cajaId: gestion?.cajaId || '',
-      cajaNombre: gestion?.cajaNombre || '',
+      conceptoNombre: concepto?.name || '',
+      cajaId: gestionActual ? String(gestionActual.cashRegisterId) : '',
+      cajaNombre: gestionActual ? `${gestionActual.cashRegisterCode} - ${gestionActual.cashRegisterName}` : '',
       gestionId: formData.gestionId,
       fecha: formData.fecha,
       descripcion: formData.descripcion,
@@ -210,7 +262,7 @@ export default function IngresosEgresos() {
       montoEfectivo: billetes.reduce((sum, b) => sum + b.total, 0),
       montoTransferencias: transferencias.reduce((sum, t) => sum + t.monto, 0),
       montoTotal,
-      moneda: gestion?.moneda || '',
+      moneda,
       usuarioRegistro: formData.usuarioRegistro,
       createdAt: new Date().toISOString().split('T')[0]
     };
@@ -228,11 +280,10 @@ export default function IngresosEgresos() {
   };
 
   const handleTipoChange = (tipo: 'Ingreso' | 'Egreso') => {
-    const nuevosConceptos = tipo === 'Ingreso' ? conceptosIngreso : conceptosEgreso;
     setFormData({
       ...formData,
       tipo,
-      conceptoId: nuevosConceptos[0]?.id || ''
+      conceptoId: ''
     });
   };
 
@@ -240,7 +291,7 @@ export default function IngresosEgresos() {
     if (cantidad < 0) return;
 
     const existingIndex = billetes.findIndex(b => b.denominacion === denominacion);
-    
+
     if (cantidad === 0) {
       // Remove if cantidad is 0
       setBilletes(billetes.filter(b => b.denominacion !== denominacion));
@@ -336,7 +387,7 @@ export default function IngresosEgresos() {
                       <select
                         value={formData.tipo}
                         onChange={(e) => handleTipoChange(e.target.value as 'Ingreso' | 'Egreso')}
-                        className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
+                        className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
                                  focus:border-primary rounded-t transition-colors outline-none appearance-none"
                         required
                       >
@@ -352,22 +403,27 @@ export default function IngresosEgresos() {
                     <label className="text-sm text-foreground mb-2 block">
                       Concepto Contable *
                     </label>
-                    <div className="relative">
-                      <select
-                        value={formData.conceptoId}
-                        onChange={(e) => setFormData({ ...formData, conceptoId: e.target.value })}
-                        className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
-                                 focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                        required
-                      >
-                        {conceptosActuales.map(concepto => (
-                          <option key={concepto.id} value={concepto.id}>
-                            {concepto.nombre} ({concepto.codigo})
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    </div>
+                    {conceptosLoading ? (
+                      <ListSkeleton count={1} itemClassName="h-12 rounded-t" />
+                    ) : (
+                      <div className="relative">
+                        <select
+                          value={formData.conceptoId}
+                          onChange={(e) => setFormData({ ...formData, conceptoId: e.target.value })}
+                          className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
+                                   focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                          required
+                        >
+                          <option value="">Seleccione un concepto</option>
+                          {conceptosActuales.map(concepto => (
+                            <option key={concepto.id} value={concepto.id}>
+                              {concepto.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Gestión de Caja Selection */}
@@ -375,19 +431,44 @@ export default function IngresosEgresos() {
                     <label className="text-sm text-foreground mb-2 block">
                       Gestión de Caja Activa *
                     </label>
+                    {cashManagementLoading ? (
+                      <ListSkeleton count={1} itemClassName="h-12 rounded-t" />
+                    ) : (
+                      <div className="relative">
+                        <select
+                          value={formData.gestionId}
+                          onChange={(e) => setFormData({ ...formData, gestionId: e.target.value })}
+                          className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
+                                   focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                          required
+                        >
+                          <option value="">Seleccione una caja aperturada</option>
+                          {cashManagementRecords.map(gestion => (
+                            <option key={gestion.id} value={gestion.id}>
+                              {gestion.cashRegisterCode} - {gestion.cashRegisterName} - {gestion.responsibleEmployeeName}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Moneda Selection */}
+                  <div>
+                    <label className="text-sm text-foreground mb-2 block">
+                      Moneda *
+                    </label>
                     <div className="relative">
                       <select
-                        value={formData.gestionId}
-                        onChange={(e) => setFormData({ ...formData, gestionId: e.target.value })}
-                        className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
+                        value={moneda}
+                        onChange={(e) => setMoneda(e.target.value as 'NIO' | 'USD')}
+                        className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
                                  focus:border-primary rounded-t transition-colors outline-none appearance-none"
                         required
                       >
-                        {gestionesActivas.map(gestion => (
-                          <option key={gestion.id} value={gestion.id}>
-                            {gestion.cajaNombre} - {gestion.moneda}
-                          </option>
-                        ))}
+                        <option value="NIO">NIO (Córdoba)</option>
+                        <option value="USD">USD (Dólar)</option>
                       </select>
                       <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
@@ -410,7 +491,7 @@ export default function IngresosEgresos() {
                   <textarea
                     value={formData.descripcion}
                     onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                    className="w-full px-4 py-3 bg-input-background border-b-2 border-border 
+                    className="w-full px-4 py-3 bg-input-background border-b-2 border-border
                              focus:border-primary rounded-t transition-colors outline-none resize-none"
                     rows={3}
                     placeholder="Describa brevemente el motivo o contexto del ingreso/egreso"
@@ -422,7 +503,7 @@ export default function IngresosEgresos() {
               {/* Desglose de Billetes */}
               <div>
                 <h3 className="text-foreground mb-4">
-                  Desglose de Billetes - {gestionActual?.moneda}
+                  Desglose de Billetes - {moneda}
                 </h3>
                 <div className="bg-muted/30 rounded p-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -437,7 +518,7 @@ export default function IngresosEgresos() {
                             min="0"
                             value={getBilleteCantidad(denominacion)}
                             onChange={(e) => updateBilleteCount(denominacion, Number(e.target.value))}
-                            className="w-full px-3 py-2 bg-input-background border-b border-border 
+                            className="w-full px-3 py-2 bg-input-background border-b border-border
                                      focus:border-primary rounded-t transition-colors outline-none"
                           />
                         </div>
@@ -465,7 +546,7 @@ export default function IngresosEgresos() {
               {/* Transferencias Bancarias */}
               <div>
                 <h3 className="text-foreground mb-4">
-                  Transferencias Bancarias - {gestionActual?.moneda}
+                  Transferencias Bancarias - {moneda}
                 </h3>
                 <div className="bg-muted/30 rounded p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -478,7 +559,7 @@ export default function IngresosEgresos() {
                           <input
                             type="text"
                             value={transferencia.numeroReferencia}
-                            className="w-full px-3 py-2 bg-input-background border-b border-border 
+                            className="w-full px-3 py-2 bg-input-background border-b border-border
                                      focus:border-primary rounded-t transition-colors outline-none"
                             readOnly
                           />
@@ -490,7 +571,7 @@ export default function IngresosEgresos() {
                           <input
                             type="text"
                             value={transferencia.cuentaBancariaNombre}
-                            className="w-full px-3 py-2 bg-input-background border-b border-border 
+                            className="w-full px-3 py-2 bg-input-background border-b border-border
                                      focus:border-primary rounded-t transition-colors outline-none"
                             readOnly
                           />
@@ -502,7 +583,7 @@ export default function IngresosEgresos() {
                           <input
                             type="date"
                             value={transferencia.fecha}
-                            className="w-full px-3 py-2 bg-input-background border-b border-border 
+                            className="w-full px-3 py-2 bg-input-background border-b border-border
                                      focus:border-primary rounded-t transition-colors outline-none"
                             readOnly
                           />
@@ -514,7 +595,7 @@ export default function IngresosEgresos() {
                           <input
                             type="number"
                             value={transferencia.monto}
-                            className="w-full px-3 py-2 bg-input-background border-b border-border 
+                            className="w-full px-3 py-2 bg-input-background border-b border-border
                                      focus:border-primary rounded-t transition-colors outline-none"
                             readOnly
                           />
@@ -535,7 +616,7 @@ export default function IngresosEgresos() {
                             type="text"
                             value={transferenciaForm.numeroReferencia}
                             onChange={(e) => setTransferenciaForm({ ...transferenciaForm, numeroReferencia: e.target.value })}
-                            className="w-full px-3 py-2 bg-input-background border-b border-border 
+                            className="w-full px-3 py-2 bg-input-background border-b border-border
                                      focus:border-primary rounded-t transition-colors outline-none"
                             required
                           />
@@ -544,20 +625,27 @@ export default function IngresosEgresos() {
                           <label className="text-sm text-foreground mb-2 block">
                             Cuenta Bancaria *
                           </label>
-                          <select
-                            value={transferenciaForm.cuentaBancariaId}
-                            onChange={(e) => setTransferenciaForm({ ...transferenciaForm, cuentaBancariaId: e.target.value })}
-                            className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border 
-                                     focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                            required
-                          >
-                            {cuentasBancariasEmpresa.map(cuenta => (
-                              <option key={cuenta.id} value={cuenta.id}>
-                                {cuenta.nombre} ({cuenta.moneda})
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                          {bankAccountsLoading ? (
+                            <ListSkeleton count={1} itemClassName="h-12 rounded-t" />
+                          ) : (
+                            <>
+                              <select
+                                value={transferenciaForm.cuentaBancariaId}
+                                onChange={(e) => setTransferenciaForm({ ...transferenciaForm, cuentaBancariaId: e.target.value })}
+                                className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
+                                         focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                                required
+                              >
+                                <option value="">Seleccione una cuenta bancaria</option>
+                                {bankAccounts.map(cuenta => (
+                                  <option key={cuenta.id} value={cuenta.id}>
+                                    {cuenta.accountNumber} - {cuenta.bank.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            </>
+                          )}
                         </div>
                         <div className="relative">
                           <label className="text-sm text-foreground mb-2 block">
@@ -567,7 +655,7 @@ export default function IngresosEgresos() {
                             type="date"
                             value={transferenciaForm.fecha}
                             onChange={(e) => setTransferenciaForm({ ...transferenciaForm, fecha: e.target.value })}
-                            className="w-full px-3 py-2 bg-input-background border-b border-border 
+                            className="w-full px-3 py-2 bg-input-background border-b border-border
                                      focus:border-primary rounded-t transition-colors outline-none"
                             required
                           />
@@ -580,7 +668,7 @@ export default function IngresosEgresos() {
                             type="number"
                             value={transferenciaForm.monto}
                             onChange={(e) => setTransferenciaForm({ ...transferenciaForm, monto: Number(e.target.value) })}
-                            className="w-full px-3 py-2 bg-input-background border-b border-border 
+                            className="w-full px-3 py-2 bg-input-background border-b border-border
                                      focus:border-primary rounded-t transition-colors outline-none"
                             required
                           />
@@ -592,11 +680,12 @@ export default function IngresosEgresos() {
                           color="primary"
                           startIcon={<Save size={18} />}
                           onClick={() => {
+                            const cuenta = bankAccounts.find(c => String(c.id) === transferenciaForm.cuentaBancariaId);
                             const nuevaTransferencia: TransferenciaBancaria = {
                               id: Date.now().toString(),
                               numeroReferencia: transferenciaForm.numeroReferencia,
                               cuentaBancariaId: transferenciaForm.cuentaBancariaId,
-                              cuentaBancariaNombre: cuentasBancariasEmpresa.find(c => c.id === transferenciaForm.cuentaBancariaId)?.nombre || '',
+                              cuentaBancariaNombre: cuenta ? `${cuenta.accountNumber} - ${cuenta.bank.name}` : '',
                               fecha: transferenciaForm.fecha,
                               monto: transferenciaForm.monto
                             };
@@ -604,7 +693,7 @@ export default function IngresosEgresos() {
                             setShowTransferenciaForm(false);
                             setTransferenciaForm({
                               numeroReferencia: '',
-                              cuentaBancariaId: cuentasBancariasEmpresa[0]?.id || '',
+                              cuentaBancariaId: '',
                               fecha: new Date().toISOString().split('T')[0],
                               monto: 0
                             });
@@ -694,8 +783,12 @@ export default function IngresosEgresos() {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-surface rounded elevation-2 p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <details className="group bg-surface rounded elevation-2 p-4 mb-6" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Filtros de búsqueda</span>
+            <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+          </summary>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             {/* Search */}
             <div className="relative">
               <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -704,7 +797,7 @@ export default function IngresosEgresos() {
                 placeholder="Buscar por concepto, descripción o caja..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border 
+                className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border
                          focus:border-primary rounded-t transition-colors outline-none"
               />
             </div>
@@ -718,7 +811,7 @@ export default function IngresosEgresos() {
                   setFilterTipo(e.target.value as 'todos' | 'Ingreso' | 'Egreso');
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border 
+                className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border
                          focus:border-primary rounded-t transition-colors outline-none appearance-none"
               >
                 <option value="todos">Todos los tipos</option>
@@ -736,7 +829,7 @@ export default function IngresosEgresos() {
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="w-full px-4 py-2 bg-input-background border-b-2 border-border 
+                className="w-full px-4 py-2 bg-input-background border-b-2 border-border
                          focus:border-primary rounded-t transition-colors outline-none appearance-none"
               >
                 <option value={10}>10 por página</option>
@@ -747,7 +840,7 @@ export default function IngresosEgresos() {
               <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
           </div>
-        </div>
+        </details>
 
         {/* Registros Table */}
         {paginatedRegistros.length > 0 ? (
@@ -757,7 +850,7 @@ export default function IngresosEgresos() {
                 <table className="w-full">
                   <thead className="bg-muted border-b border-border">
                     <tr>
-                      <th 
+                      <th
                         className="px-6 py-4 text-left text-sm text-foreground cursor-pointer hover:bg-muted/80"
                         onClick={() => handleSort('fecha')}
                       >
@@ -768,7 +861,7 @@ export default function IngresosEgresos() {
                           )}
                         </div>
                       </th>
-                      <th 
+                      <th
                         className="px-6 py-4 text-left text-sm text-foreground cursor-pointer hover:bg-muted/80"
                         onClick={() => handleSort('tipo')}
                       >
@@ -782,7 +875,7 @@ export default function IngresosEgresos() {
                       <th className="px-6 py-4 text-left text-sm text-foreground">Concepto</th>
                       <th className="px-6 py-4 text-left text-sm text-foreground">Caja</th>
                       <th className="px-6 py-4 text-left text-sm text-foreground">Descripción</th>
-                      <th 
+                      <th
                         className="px-6 py-4 text-right text-sm text-foreground cursor-pointer hover:bg-muted/80"
                         onClick={() => handleSort('montoTotal')}
                       >
@@ -808,8 +901,8 @@ export default function IngresosEgresos() {
                               <TrendingDown size={18} className="text-red-600" />
                             )}
                             <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                              registro.tipo === 'Ingreso' 
-                                ? 'bg-green-100 text-green-700' 
+                              registro.tipo === 'Ingreso'
+                                ? 'bg-green-100 text-green-700'
                                 : 'bg-red-100 text-red-700'
                             }`}>
                               {registro.tipo}

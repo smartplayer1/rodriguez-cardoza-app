@@ -132,7 +132,13 @@ export default function IncentivosGeneradosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <details className="group rounded-3xl border border-border/60 bg-surface p-5 shadow-sm" open>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-foreground [&::-webkit-details-marker]:hidden">
+          <span>Filtros de búsqueda</span>
+          <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+        </summary>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
         <div>
           <label className="text-sm text-muted-foreground">Codigo cliente</label>
           <div className="relative">
@@ -311,6 +317,7 @@ export default function IncentivosGeneradosPage() {
           />
         </div>
       </div>
+      </details>
 
       {paging && (
         <div className="text-sm text-muted-foreground">

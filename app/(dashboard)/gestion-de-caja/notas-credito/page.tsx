@@ -287,8 +287,12 @@ export default function NotasCreditoPage() {
           </div>
         </div>
 
-        <div className="bg-surface rounded elevation-2 p-6 mb-6 space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <details className="group bg-surface rounded elevation-2 p-6 mb-6 space-y-4" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Filtros de búsqueda</span>
+            <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+          </summary>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
             <div className="relative lg:col-span-2">
               <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -331,7 +335,7 @@ export default function NotasCreditoPage() {
               </button>
             )}
           </div>
-        </div>
+        </details>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-surface rounded elevation-2 p-4">

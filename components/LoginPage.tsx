@@ -20,8 +20,8 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
-  const [email, setEmail] = useState("SUPERADMIN");
-  const [password, setPassword] = useState("Qwerty1234*");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [emailError, setEmailError] = useState(false);

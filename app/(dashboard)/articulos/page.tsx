@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { MaterialButton } from "../../../components/MaterialButton";
-import { Package, Plus, Edit, Trash2, Sparkles, Import } from "lucide-react";
+import { ChevronDown, Package, Plus, Edit, Trash2, Sparkles, Import } from "lucide-react";
 import { CrearArticulo } from "./modals/CrearArticulo";
 import { ImportarArticuloModal } from "@/components/excel-upload-article";
 import {
@@ -193,8 +193,12 @@ const handleChange = async (article: ArticleRecord) => {
     <div className="flex-1 overflow-auto">
       <div className="mx-auto p-6">
         {/* Header */}
-        <div className="bg-surface rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <details className="group bg-surface rounded-lg p-4 mb-6" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Filtros de búsqueda</span>
+            <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+          </summary>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mt-4">
             <input
               type="text"
               placeholder="Nombre..."
@@ -292,7 +296,7 @@ const handleChange = async (article: ArticleRecord) => {
               Refrescar
             </MaterialButton>
           </div>
-        </div>
+        </details>
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">

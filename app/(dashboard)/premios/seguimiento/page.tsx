@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { MaterialButton } from '../../../../components/MaterialButton';
-import { Award, User, MapPin, Package, ChevronDown, ChevronUp, Check, Clock, Search, ChevronLeft, ChevronRight, Truck, FileText, CheckCircle } from 'lucide-react';
+import { Award, User, MapPin, Package, ChevronDown, ChevronUp, Check, Clock, ChevronLeft, ChevronRight, Truck, FileText, CheckCircle } from 'lucide-react';
 
 interface PromotorProgreso {
   id: string;
@@ -228,8 +228,7 @@ export default function Bonificaciones() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  
+
   // Deliver modal state
   const [showDeliverModal, setShowDeliverModal] = useState(false);
   const [selectedBonificacion, setSelectedBonificacion] = useState<PromotorProgreso | null>(null);
@@ -416,20 +415,13 @@ export default function Bonificaciones() {
         {/* Table */}
         <div className="bg-surface rounded elevation-2 overflow-hidden">
           {/* Filters Toggle */}
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h3 className="text-foreground">Lista de Bonificaciones por Promotor</h3>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="text-sm text-primary hover:underline flex items-center gap-2"
-            >
-              <Search size={16} />
-              {showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}
-            </button>
-          </div>
+          <details className="group border-b border-border">
+            <summary className="flex cursor-pointer list-none items-center justify-between p-4 text-foreground [&::-webkit-details-marker]:hidden">
+              <h3 className="text-foreground">Lista de Bonificaciones por Promotor</h3>
+              <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+            </summary>
 
-          {/* Filters */}
-          {showFilters && (
-            <div className="p-4 bg-muted/30 border-b border-border">
+            <div className="p-4 bg-muted/30 border-t border-border">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <input
                   type="text"
@@ -483,7 +475,7 @@ export default function Bonificaciones() {
                 </select>
               </div>
             </div>
-          )}
+          </details>
 
           {/* Table */}
           <div className="overflow-x-auto">

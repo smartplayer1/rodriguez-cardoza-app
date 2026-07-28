@@ -441,115 +441,128 @@ function ReglasIncentivos() {
     <div className="space-y-6">
       {/* Actions Bar */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o descripción..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border 
-                       focus:border-primary rounded-t transition-colors outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Filter
-              size={20}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <select
-              value={filterEstado}
-              onChange={(e) =>
-                setFilterEstado(e.target.value as "all" | "activa" | "inactiva")
-              }
-              className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border 
-                       focus:border-primary rounded-t transition-colors outline-none appearance-none"
-            >
-              <option value="all">Todas las reglas</option>
-              <option value="activa">Activas</option>
-              <option value="inactiva">Inactivas</option>
-            </select>
+        <details className="group flex-1">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-foreground [&::-webkit-details-marker]:hidden">
+            <span className="text-sm">Filtros de búsqueda</span>
             <ChevronDown
-              size={20}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              size={18}
+              className="text-muted-foreground transition-transform duration-200 group-open:rotate-180"
             />
-          </div>
-          {/*
-          <div className="relative">
-            <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={filterRuleType}
-              onChange={(e) => setFilterRuleType(e.target.value as 'all' | 'ProductVolume' | 'AmountPurchased' | 'Mixed')}
-              className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border 
-                       focus:border-primary rounded-t transition-colors outline-none appearance-none"
-            >
-              <option value="all">Todos los tipos</option>
-              <option value="ProductVolume">Por Productos</option>
-              <option value="AmountPurchased">Por Monto</option>
-              <option value="Mixed">Mixto</option>
-            </select>
-            <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          </div>
-          */}
-          {can(PERMISSIONS.INCENTIVE_RULE_CREATE) && (
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              startIcon={<Plus size={18} />}
-              onClick={handleCreate}
-            >
-              Nueva Regla
-            </MaterialButton>
-          )}
-        </div>
-      </div>
+          </summary>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-        <div>
-          <label className="text-sm text-muted-foreground">
-            Inicio vigencia
-          </label>
-          <input
-            type="date"
-            value={filterStartDate}
-            onChange={(e) => setFilterStartDate(e.target.value)}
-            className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
-          />
-        </div>
-        <div>
-          <label className="text-sm text-muted-foreground">Fin vigencia</label>
-          <input
-            type="date"
-            value={filterEndDate}
-            onChange={(e) => setFilterEndDate(e.target.value)}
-            className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
-          />
-        </div>
-        <div>
-          <label className="text-sm text-muted-foreground">Inicio retiro</label>
-          <input
-            type="date"
-            value={filterWithdrawalStartDate}
-            onChange={(e) => setFilterWithdrawalStartDate(e.target.value)}
-            className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
-          />
-        </div>
-        <div>
-          <label className="text-sm text-muted-foreground">Fin retiro</label>
-          <input
-            type="date"
-            value={filterWithdrawalDeadline}
-            onChange={(e) => setFilterWithdrawalDeadline(e.target.value)}
-            className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
-          />
-        </div>
+          <div className="mt-3 space-y-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex-1 max-w-md">
+                <div className="relative">
+                  <Search
+                    size={20}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre o descripción..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border
+                             focus:border-primary rounded-t transition-colors outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="relative">
+                <Filter
+                  size={20}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <select
+                  value={filterEstado}
+                  onChange={(e) =>
+                    setFilterEstado(e.target.value as "all" | "activa" | "inactiva")
+                  }
+                  className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border
+                           focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                >
+                  <option value="all">Todas las reglas</option>
+                  <option value="activa">Activas</option>
+                  <option value="inactiva">Inactivas</option>
+                </select>
+                <ChevronDown
+                  size={20}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                />
+              </div>
+              {/*
+              <div className="relative">
+                <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <select
+                  value={filterRuleType}
+                  onChange={(e) => setFilterRuleType(e.target.value as 'all' | 'ProductVolume' | 'AmountPurchased' | 'Mixed')}
+                  className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border
+                           focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                >
+                  <option value="all">Todos los tipos</option>
+                  <option value="ProductVolume">Por Productos</option>
+                  <option value="AmountPurchased">Por Monto</option>
+                  <option value="Mixed">Mixto</option>
+                </select>
+                <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
+              */}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div>
+                <label className="text-sm text-muted-foreground">
+                  Inicio vigencia
+                </label>
+                <input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Fin vigencia</label>
+                <input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Inicio retiro</label>
+                <input
+                  type="date"
+                  value={filterWithdrawalStartDate}
+                  onChange={(e) => setFilterWithdrawalStartDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Fin retiro</label>
+                <input
+                  type="date"
+                  value={filterWithdrawalDeadline}
+                  onChange={(e) => setFilterWithdrawalDeadline(e.target.value)}
+                  className="w-full px-3 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </details>
+
+        {can(PERMISSIONS.INCENTIVE_RULE_CREATE) && (
+          <MaterialButton
+            variant="contained"
+            color="primary"
+            startIcon={<Plus size={18} />}
+            onClick={handleCreate}
+          >
+            Nueva Regla
+          </MaterialButton>
+        )}
       </div>
 
       {/* Reglas List */}

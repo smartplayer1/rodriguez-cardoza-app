@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { BriefcaseBusiness, Building2, Filter, Hash, Phone, Search, Users } from 'lucide-react';
+import { BriefcaseBusiness, Building2, ChevronDown, Filter, Hash, Phone, Search, Users } from 'lucide-react';
 
 import { getEmployees } from '@/app/services/employee';
 import ImportarEmpleadosModal from './importar-empleados-modal';
@@ -212,12 +212,10 @@ export default async function EmpleadosPage({
           <ImportarEmpleadosModal roleOptions={roles} branchOptions={branches} />
         </div>
 
-        <details className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm" open>
-          <summary className="cursor-pointer list-none text-foreground">
-            <div className="flex items-center justify-between gap-3">
-              <span>Filtros de búsqueda</span>
-              <span className="text-sm text-muted-foreground">Contraer / expandir</span>
-            </div>
+        <details className="group rounded-3xl border border-border/60 bg-surface p-5 shadow-sm" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Filtros de búsqueda</span>
+            <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
           </summary>
 
           <div className="mt-5">

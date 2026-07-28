@@ -280,36 +280,44 @@ export default function Cupones() {
             )}
           </div>
 
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex-1 max-w-md">
-              <div className="relative">
-                <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Buscar por nombre..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border 
-                           focus:border-primary rounded-t transition-colors outline-none"
-                />
-              </div>
-            </div>
+          <div className="flex items-center justify-between mb-6 gap-4">
+            <details className="group flex-1">
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-foreground [&::-webkit-details-marker]:hidden">
+                <span className="text-sm">Filtros de búsqueda</span>
+                <ChevronDown size={18} className="text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+              </summary>
 
-            <div className="flex items-center gap-3">
-            <div className="relative">
-              <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <select
-                value={filterEstado}
-                onChange={(e) => setFilterEstado(e.target.value as any)}
-                className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border 
-                         focus:border-primary rounded-t transition-colors outline-none appearance-none"
-              >
-                <option value="all">Todos los cupones</option>
-                <option value="activo">Activos</option>
-                <option value="vencido">Vencidos/Inactivos</option>
-              </select>
-              <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            </div>
+              <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex-1 max-w-md">
+                  <div className="relative">
+                    <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border
+                               focus:border-primary rounded-t transition-colors outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <select
+                    value={filterEstado}
+                    onChange={(e) => setFilterEstado(e.target.value as any)}
+                    className="pl-10 pr-10 py-2 bg-input-background border-b-2 border-border
+                             focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                  >
+                    <option value="all">Todos los cupones</option>
+                    <option value="activo">Activos</option>
+                    <option value="vencido">Vencidos/Inactivos</option>
+                  </select>
+                  <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+            </details>
 
             {can(PERMISSIONS.COUPON_CREATE) && (
               <MaterialButton
@@ -322,7 +330,6 @@ export default function Cupones() {
               </MaterialButton>
             )}
           </div>
-        </div>
 
         {/* Cupones List */}
         {loading ? (

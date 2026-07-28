@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { Building2, Phone, UserX, Users } from 'lucide-react';
+import { Building2, ChevronDown, Phone, UserX, Users } from 'lucide-react';
 
 import { getClientsWithoutPurchasesReport } from '@/app/services/clients/reports';
 import { getBranches } from '@/app/services/company/branch';
@@ -178,12 +178,10 @@ export default async function ClientesSinComprasPage({
           <ExportButtons filtersQueryString={filterParams.toString()} recordCount={summary.clientCount} />
         </div>
 
-        <details className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm" open>
-          <summary className="cursor-pointer list-none text-foreground">
-            <div className="flex items-center justify-between gap-3">
-              <span>Filtros de búsqueda</span>
-              <span className="text-sm text-muted-foreground">Contraer / expandir</span>
-            </div>
+        <details className="group rounded-3xl border border-border/60 bg-surface p-5 shadow-sm" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Filtros de búsqueda</span>
+            <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
           </summary>
 
           <div className="mt-5">

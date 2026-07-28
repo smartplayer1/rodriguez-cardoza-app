@@ -338,7 +338,12 @@ export default function FacturacionClient({
           </div>
         </div>
 
-        <div className="bg-surface rounded elevation-2 p-4 mb-6 space-y-4">
+        <details className="group bg-surface rounded elevation-2 p-4 mb-6 space-y-4" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Filtros de búsqueda</span>
+            <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+          </summary>
+
           <ClientSelector
             clients={clientOptions}
             loading={false}
@@ -445,7 +450,7 @@ export default function FacturacionClient({
               className="w-full px-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
             />
           </div>
-        </div>
+        </details>
 
         {fetchError && (
           <div className="mb-6 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
