@@ -12,7 +12,7 @@ const readErrorMessage = (body: unknown) => {
 };
 
 export async function GET(req: Request) {
-  let token: string | undefined;
+  let token: string | null | undefined;
 
   try {
     token = await getValidToken() || undefined;
@@ -75,7 +75,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  let token: string | undefined;
+  let token: string | null | undefined;
 
   try {
     token = await getValidToken() || undefined;

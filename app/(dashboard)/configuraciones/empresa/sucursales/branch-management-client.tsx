@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type JSX } from 'react';
 import { useRouter } from 'next/navigation';
 import { Edit, Loader2, Plus, Save, Trash2, X } from 'lucide-react';
 

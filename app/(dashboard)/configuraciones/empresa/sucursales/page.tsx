@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import { Building2, MapPin } from 'lucide-react';
+import type { JSX } from 'react';
 
 import BranchManagementClient from './branch-management-client';
 import { getBranches } from '@/app/services/company/branch';

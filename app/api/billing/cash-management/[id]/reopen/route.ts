@@ -18,7 +18,7 @@ type RouteContext = {
 };
 
 export async function POST(req: Request, context: RouteContext) {
-  let token: string | undefined;
+  let token: string | null | undefined;
 
   try {
     token = await getValidToken();
