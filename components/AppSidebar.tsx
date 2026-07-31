@@ -45,18 +45,19 @@ type MenuItemType = {
 };
 
 const menuItems: MenuItemType[] = [
-  { id: 'configurations', label: 'Configuraciones', icon: Settings, href: '/configuraciones', permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW, PERMISSIONS.BANK_VIEW, PERMISSIONS.EXCHANGE_RATE_VIEW, PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW], options:[
+  { id: 'configurations', label: 'Configuraciones', icon: Settings, href: '/configuraciones', permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW, PERMISSIONS.BANK_VIEW, PERMISSIONS.EXCHANGE_RATE_VIEW, PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW, PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW], options:[
     { id: 'usuarios', label: 'Gestion de Usuarios', href: '/configuraciones/gestion-usuario', icon: UserCircle , permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW], options: [
       { id: 'usuarios', label: 'Usuarios', href: '/configuraciones/gestion-usuario/usuarios', icon: UserCircle, permission: PERMISSIONS.USER_VIEW },
       { id: 'roles', label: 'Roles', href: '/configuraciones/gestion-usuario/roles', icon: UserCircle , permission: PERMISSIONS.ROLE_VIEW},
     ]},
     { id: 'moneda', label: 'Configuración de Moneda', href: '/configuraciones/moneda', icon: Settings, permission: PERMISSIONS.EXCHANGE_RATE_VIEW },
     { id: 'bancos', label: 'Bancos', href: '/configuraciones/bancos', icon: Settings, permission: PERMISSIONS.BANK_VIEW },
-    { id: 'empresa', label: 'Empresa', href: '/configuraciones/empresa', icon: Settings, permission: [PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW], options: [
+    { id: 'empresa', label: 'Empresa', href: '/configuraciones/empresa', icon: Settings, permission: [PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW, PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW], options: [
       { id: 'cuenta-de-banco', label: 'Cuenta de Banco', href: '/configuraciones/empresa/cuenta-de-banco', icon: Settings, permission: PERMISSIONS.ACCOUNT_BANK_VIEW },
       { id: 'sucursales', label: 'Sucursales', href: '/configuraciones/empresa/sucursales', icon: Settings, permission: PERMISSIONS.BRANCH_VIEW },
       { id: 'concepto-contable', label: 'Concepto Contable', href: '/configuraciones/empresa/concepto-contable', icon: Settings, permission: PERMISSIONS.ACCOUNTING_CONCEPT_VIEW },
       { id: 'cargos', label: 'Cargos', href: '/configuraciones/empresa/cargos', icon: Settings, permission: PERMISSIONS.JOB_ROLE_VIEW },
+      { id: 'acceso-empleados-sucursal', label: 'Obtenga acceso para empleados de sucursales', href: '/configuraciones/empresa/acceso-empleados-sucursal', icon: Settings, permission: PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW },
     ]},
 
   ] },

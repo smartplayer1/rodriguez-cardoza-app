@@ -46,6 +46,10 @@ export const PERMISSIONS = {
   ACCOUNT_BANK_EDIT: 'Company.AccountBank.Edit',
   ACCOUNT_BANK_DELETE: 'Company.AccountBank.Delete',
 
+  // NOTA: string provisional, no confirmado contra GET /v1/identity/modules todavia.
+  BRANCH_EMPLOYEE_ACCESS_VIEW: 'Company.BranchEmployeeAccess.View',
+  BRANCH_EMPLOYEE_ACCESS_EDIT: 'Company.BranchEmployeeAccess.Edit',
+
   // Módulo: Employee
   EMPLOYEE_VIEW: 'Employee.Employee.View',
   EMPLOYEE_CREATE: 'Employee.Employee.Create',

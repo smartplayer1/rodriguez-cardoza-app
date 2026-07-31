@@ -23,7 +23,7 @@ export async function GET(req: Request) {
   if (!token) {
     return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
   }
-
+console.log('Token obtenido:', token);
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
 
   if (!apiBaseUrl) {
