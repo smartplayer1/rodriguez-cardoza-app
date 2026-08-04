@@ -4,28 +4,40 @@ import React from 'react';
 import Link from 'next/link';
 import {useUserStore} from '@/app/store/useUserStore';
 import { usePathname } from 'next/navigation';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Settings, 
-  Award, 
-  Wallet, 
-  CreditCard, 
-  BarChart3, 
-  UserCircle, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  Award,
+  Wallet,
+  CreditCard,
+  BarChart3,
+  UserCircle,
   Package,
   Receipt,
-  TrendingUp,
   FileText,
   ChevronDown,
   Ticket,
-  Gift,
-  GiftIcon,
   RefreshCcw,
   ArrowUpFromLine,
+  ArrowLeftRight,
   UserX,
   Banknote,
-  ClipboardCheck
+  ClipboardCheck,
+  Users,
+  UserCog,
+  Shield,
+  Coins,
+  Landmark,
+  Building2,
+  MapPin,
+  ListCheck,
+  Briefcase,
+  KeyRound,
+  Repeat,
+  UserPlus,
+  HandCoins,
+  Store,
 
 } from 'lucide-react';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
@@ -46,38 +58,38 @@ type MenuItemType = {
 
 const menuItems: MenuItemType[] = [
   { id: 'configurations', label: 'Configuraciones', icon: Settings, href: '/configuraciones', permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW, PERMISSIONS.BANK_VIEW, PERMISSIONS.EXCHANGE_RATE_VIEW, PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW, PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW], options:[
-    { id: 'usuarios', label: 'Gestion de Usuarios', href: '/configuraciones/gestion-usuario', icon: UserCircle , permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW], options: [
+    { id: 'usuarios', label: 'Gestion de Usuarios', href: '/configuraciones/gestion-usuario', icon: UserCog , permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW], options: [
       { id: 'usuarios', label: 'Usuarios', href: '/configuraciones/gestion-usuario/usuarios', icon: UserCircle, permission: PERMISSIONS.USER_VIEW },
-      { id: 'roles', label: 'Roles', href: '/configuraciones/gestion-usuario/roles', icon: UserCircle , permission: PERMISSIONS.ROLE_VIEW},
+      { id: 'roles', label: 'Roles', href: '/configuraciones/gestion-usuario/roles', icon: Shield , permission: PERMISSIONS.ROLE_VIEW},
     ]},
-    { id: 'moneda', label: 'Configuración de Moneda', href: '/configuraciones/moneda', icon: Settings, permission: PERMISSIONS.EXCHANGE_RATE_VIEW },
-    { id: 'bancos', label: 'Bancos', href: '/configuraciones/bancos', icon: Settings, permission: PERMISSIONS.BANK_VIEW },
-    { id: 'empresa', label: 'Empresa', href: '/configuraciones/empresa', icon: Settings, permission: [PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW, PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW], options: [
-      { id: 'cuenta-de-banco', label: 'Cuenta de Banco', href: '/configuraciones/empresa/cuenta-de-banco', icon: Settings, permission: PERMISSIONS.ACCOUNT_BANK_VIEW },
-      { id: 'sucursales', label: 'Sucursales', href: '/configuraciones/empresa/sucursales', icon: Settings, permission: PERMISSIONS.BRANCH_VIEW },
-      { id: 'concepto-contable', label: 'Concepto Contable', href: '/configuraciones/empresa/concepto-contable', icon: Settings, permission: PERMISSIONS.ACCOUNTING_CONCEPT_VIEW },
-      { id: 'cargos', label: 'Cargos', href: '/configuraciones/empresa/cargos', icon: Settings, permission: PERMISSIONS.JOB_ROLE_VIEW },
-      { id: 'acceso-empleados-sucursal', label: 'Obtenga acceso para empleados de sucursales', href: '/configuraciones/empresa/acceso-empleados-sucursal', icon: Settings, permission: PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW },
+    { id: 'moneda', label: 'Configuración de Moneda', href: '/configuraciones/moneda', icon: Coins, permission: PERMISSIONS.EXCHANGE_RATE_VIEW },
+    { id: 'bancos', label: 'Bancos', href: '/configuraciones/bancos', icon: Landmark, permission: PERMISSIONS.BANK_VIEW },
+    { id: 'empresa', label: 'Empresa', href: '/configuraciones/empresa', icon: Building2, permission: [PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW, PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW], options: [
+      { id: 'cuenta-de-banco', label: 'Cuenta de Banco', href: '/configuraciones/empresa/cuenta-de-banco', icon: Banknote, permission: PERMISSIONS.ACCOUNT_BANK_VIEW },
+      { id: 'sucursales', label: 'Sucursales', href: '/configuraciones/empresa/sucursales', icon: MapPin, permission: PERMISSIONS.BRANCH_VIEW },
+      { id: 'concepto-contable', label: 'Concepto Contable', href: '/configuraciones/empresa/concepto-contable', icon: ListCheck, permission: PERMISSIONS.ACCOUNTING_CONCEPT_VIEW },
+      { id: 'cargos', label: 'Cargos', href: '/configuraciones/empresa/cargos', icon: Briefcase, permission: PERMISSIONS.JOB_ROLE_VIEW },
+      { id: 'acceso-empleados-sucursal', label: 'Obtenga acceso para empleados de sucursales', href: '/configuraciones/empresa/acceso-empleados-sucursal', icon: KeyRound, permission: PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW },
     ]},
 
   ] },
   { id: 'premios', label: 'Premios', icon: Award, href: '/premios', permission: [PERMISSIONS.COUPON_VIEW, PERMISSIONS.INCENTIVE_RULE_VIEW, PERMISSIONS.LEDGER_VIEW], options:[
   //  { id: 'seguimiento', label: 'Seguimiento', href: '/premios/seguimiento', icon: Award , permission: PERMISSIONS.LEDGER_VIEW },
     { id: 'cupones', label: 'Cupones', href: '/premios/cupones', icon: Ticket , permission: PERMISSIONS.COUPON_VIEW},
-    { id: 'incentivos-retencion', label: 'Incentivos Retención', href: '/premios/incentivos-retencion', icon: GiftIcon, permission: PERMISSIONS.INCENTIVE_RULE_VIEW},
-    { id: 'incentivos-retencion-nuevos-ingresos', label: 'Incentivos Retención Nuevos Ingresos', href: '/premios/incentivos-retencion-nuevos-ingresos', icon: Gift, permission: PERMISSIONS.INCENTIVE_RULE_VIEW}
+    { id: 'incentivos-retencion', label: 'Incentivos Retención', href: '/premios/incentivos-retencion', icon: Repeat, permission: PERMISSIONS.INCENTIVE_RULE_VIEW},
+    { id: 'incentivos-retencion-nuevos-ingresos', label: 'Incentivos Retención Nuevos Ingresos', href: '/premios/incentivos-retencion-nuevos-ingresos', icon: UserPlus, permission: PERMISSIONS.INCENTIVE_RULE_VIEW}
   ] },
   { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, permission: [PERMISSIONS.CASH_MANAGEMENT_VIEW, PERMISSIONS.CURRENCY_CONVERSION_VIEW, PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.CASH_REGISTER_VIEW, PERMISSIONS.INVOICE_VIEW, PERMISSIONS.COLLECTION_VIEW, PERMISSIONS.CREDIT_NOTE_VIEW], options: [
     {id: 'gestiones', label: 'Gestiones', href: '/gestion-de-caja/gestiones', icon: Wallet , permission: PERMISSIONS.CASH_MANAGEMENT_VIEW},
     {id: 'conversiones', label: 'Conversiones', href: '/gestion-de-caja/conversiones', icon: RefreshCcw , permission: PERMISSIONS.CURRENCY_CONVERSION_VIEW},
     {id: 'salidas', label: 'Salidas', href: '/gestion-de-caja/salidas', icon: ArrowUpFromLine , permission: PERMISSIONS.CASH_OUTFLOW_VIEW},
-    {id: 'cajas-registradoras', label: 'Cajas Registradoras', href: '/gestion-de-caja/cajas-registradoras', icon: CreditCard , permission: PERMISSIONS.CASH_REGISTER_VIEW},
+    {id: 'cajas-registradoras', label: 'Cajas Registradoras', href: '/gestion-de-caja/cajas-registradoras', icon: Store , permission: PERMISSIONS.CASH_REGISTER_VIEW},
     {id: 'facturacion', label: 'Facturación', href: '/gestion-de-caja/facturacion', icon: Receipt, permission: PERMISSIONS.INVOICE_VIEW},
-    {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: TrendingUp, permission: [PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.COLLECTION_VIEW]},
+    {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: ArrowLeftRight, permission: [PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.COLLECTION_VIEW]},
     {id: 'cobros', label: 'Cobros', href: '/gestion-de-caja/cobros', icon: CreditCard, permission: PERMISSIONS.COLLECTION_VIEW},
     {id:'notas-credito', label: 'Notas de Credito', href: '/gestion-de-caja/notas-credito', icon: FileText, permission: PERMISSIONS.CREDIT_NOTE_VIEW}
   ]},
-  { id: 'credito', label: 'Credito', icon: CreditCard, href: '/credito', permission: PERMISSIONS.INVOICE_VIEW, options:null },
+  { id: 'credito', label: 'Credito', icon: HandCoins, href: '/credito', permission: PERMISSIONS.INVOICE_VIEW, options:null },
   { id: 'reportes', label: 'Reportes', icon: BarChart3, href: '/reportes', permission: PERMISSIONS.REPORT_VIEW, options: [
     { id: 'agentes-cerca-de-meta', label: 'Agentes Cerca de Meta', href: '/reportes/agentes-cerca-de-meta', icon: BarChart3, permission: PERMISSIONS.REPORT_VIEW },
     { id: 'clientes-sin-compras', label: 'Clientes Sin Compras', href: '/reportes/clientes-sin-compras', icon: UserX, permission: PERMISSIONS.REPORT_VIEW },
@@ -88,7 +100,7 @@ const menuItems: MenuItemType[] = [
     { id: 'reporte-facturas', label: 'Facturas de Venta', href: '/reportes/facturas', icon: FileText, permission: PERMISSIONS.REPORT_VIEW },
   ] },
   {id: 'clientes', label: 'Clientes', icon: UserCircle, href: '/clientes', permission: PERMISSIONS.CLIENT_VIEW, options:null },
-  { id: 'empleados', label: 'Empleados', icon: UserCircle, href: '/empleados', permission: PERMISSIONS.EMPLOYEE_VIEW, options:null },
+  { id: 'empleados', label: 'Empleados', icon: Users, href: '/empleados', permission: PERMISSIONS.EMPLOYEE_VIEW, options:null },
   { id: 'articulos', label: 'Articulos', icon: Package, permission: PERMISSIONS.ARTICLE_VIEW, options: [
     {id: 'articulos', label: 'Lista de Articulos', href: '/articulos', icon: Package , permission: PERMISSIONS.ARTICLE_VIEW}
     /*{id: 'categorias', label: 'Categorias', href: '/articulos/categorias', icon: Package, permission: PERMISSIONS.ARTICLE_VIEW},
