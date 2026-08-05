@@ -4,20 +4,23 @@
  * Los valores deben coincidir EXACTAMENTE con `permissionName` tal cual
  * viene en ese endpoint, porque son los mismos strings que llegan en el
  * claim `PermissionClaim` del JWT y contra los que compara `useUserStore.can`.
- * No llevan el nombre del módulo como prefijo (ej. es "User.View", no
- * "Identity.User.View").
+ * La mayoría llevan el módulo repetido dos veces (ej. "Bank.Bank.View"),
+ * pero Identity usa un solo nivel de submódulo (ej. "Identity.User.View",
+ * "Identity.Role.View") y Reward.Ledger no sigue el patrón de su hermano
+ * (es "Reward.Ledger.View", no "Reward.Reward.View"). Confirmado contra el
+ * PermissionClaim real de un usuario en 2026-08-04.
  */
 export const PERMISSIONS = {
   // Módulo: Identity
-  USER_VIEW: 'User.View',
-  USER_CREATE: 'User.Create',
-  USER_EDIT: 'User.Edit',
-  USER_DELETE: 'User.Delete',
+  USER_VIEW: 'Identity.User.View',
+  USER_CREATE: 'Identity.User.Create',
+  USER_EDIT: 'Identity.User.Edit',
+  USER_DELETE: 'Identity.User.Delete',
 
-  ROLE_VIEW: 'Role.View',
-  ROLE_CREATE: 'Role.Create',
-  ROLE_EDIT: 'Role.Edit',
-  ROLE_DELETE: 'Role.Delete',
+  ROLE_VIEW: 'Identity.Role.View',
+  ROLE_CREATE: 'Identity.Role.Create',
+  ROLE_EDIT: 'Identity.Role.Edit',
+  ROLE_DELETE: 'Identity.Role.Delete',
 
   // Módulo: Bank
   BANK_VIEW: 'Bank.Bank.View',
@@ -86,7 +89,7 @@ export const PERMISSIONS = {
   INCENTIVE_RULE_EDIT: 'Reward.IncentiveRule.Edit',
   INCENTIVE_RULE_DELETE: 'Reward.IncentiveRule.Delete',
 
-  LEDGER_VIEW: 'Ledger.View',
+  LEDGER_VIEW: 'Reward.Ledger.View',
 
   // Módulo: Billing
   CASH_REGISTER_VIEW: 'Billing.CashRegister.View',

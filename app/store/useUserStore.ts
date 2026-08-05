@@ -30,14 +30,14 @@ export const useUserStore = create<UserState>()(
       setHasHydrated: (value: boolean) => set({ hasHydrated: value }),
 
       can: (permission: string) => {
-        const user = get().user;
-        if (!user) return false;
+        const { user, hasHydrated } = get();
+        if (!hasHydrated || !user) return false;
         return user.permissions.includes(permission);
       },
 
       hasRole: (role: string) => {
-        const user = get().user;
-        if (!user) return false;
+        const { user, hasHydrated } = get();
+        if (!hasHydrated || !user) return false;
         return user.roles.includes(role);
       }
     }),

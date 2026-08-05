@@ -14,7 +14,7 @@ export default function AppHeader({
   onLogout,
 }: AppHeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const user = useUserStore((state) => state.user);
+  const user = useUserStore((state) => (state.hasHydrated ? state.user : null));
 
   const fullName =
     [user?.name, user?.lastName].filter(Boolean).join(" ") || "Usuario";

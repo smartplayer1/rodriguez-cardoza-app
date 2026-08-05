@@ -10,6 +10,15 @@ import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { useUserStore } from '@/app/store/useUserStore';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
+const getErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const errorData = await response.json();
+    return errorData?.message || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export default function UserManagement() {
   const { can } = useUserStore();
   const [users, setUsers] = useState<User[]>([]);
@@ -19,6 +28,7 @@ export default function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const handleCreateUser = () => {
     setEditingUser(null);
@@ -32,12 +42,15 @@ export default function UserManagement() {
 
   const handleDeleteUser = async (userId: string) => {
     if (confirm('¿Está seguro de eliminar este usuario?')) {
-      const response = await deleteUser(userId);
-      if (response.ok) {
-        setUsers(users.filter(u => u.id !== userId));
-      } else {
-        const errorData = await response.json();
-        alert(`Error al eliminar usuario: ${errorData.message || 'Error desconocido'}`);
+      try {
+        const response = await deleteUser(userId);
+        if (response.ok) {
+          setUsers(users.filter(u => u.id !== userId));
+        } else {
+          alert(`Error al eliminar usuario: ${await getErrorMessage(response, 'Error desconocido')}`);
+        }
+      } catch (error) {
+        alert(`Error al eliminar usuario: ${error instanceof Error ? error.message : 'Error desconocido'}`);
       }
     }
   };
@@ -46,11 +59,29 @@ export default function UserManagement() {
   useEffect(() => {
      const fetchUsers = async () => {
       setLoading(true);
+      setLoadError(null);
       try {
-        const response = await getUsers(); // Implementa esta función para obtener los usuarios desde tu API
-         const data = await response.json();
+        const response = await getUsers();
+
+        if (!response.ok) {
+          let message = 'Error al obtener usuarios';
+          try {
+            const errorData = await response.json();
+            message = errorData.message || message;
+          } catch {
+            // fallback si no viene JSON
+          }
+          setLoadError(message);
+          setUsers([]);
+          return;
+        }
+
+        const data = await response.json();
 
         setUsers(data?.records || []); // Asegúrate de ajustar esto según la estructura real de tu respuesta API
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : 'Error desconocido al obtener usuarios');
+        setUsers([]);
       } finally {
         setLoading(false);
       }
@@ -61,6 +92,7 @@ export default function UserManagement() {
 
 
   const handleSaveUser = async (userData: UserFormData) => {
+   try {
   const newUser: User = {
         id: Date.now().toString(),
         name: userData.firstName,
@@ -92,8 +124,7 @@ export default function UserManagement() {
         const response = await updateUser(user);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        alert(`Error al actualizar usuario: ${errorData.message || 'Error desconocido'}`);
+        alert(`Error al actualizar usuario: ${await getErrorMessage(response, 'Error desconocido')}`);
         return;
       }
 
@@ -101,8 +132,7 @@ export default function UserManagement() {
         const employeeResponse = await assignEmployeeToUser(editingUser.id, userData.employeeId);
 
         if (!employeeResponse.ok) {
-          const errorData = await employeeResponse.json();
-          alert(`Error al asignar empleado: ${errorData.message || 'Error desconocido'}`);
+          alert(`Error al asignar empleado: ${await getErrorMessage(employeeResponse, 'Error desconocido')}`);
           return;
         }
       }
@@ -128,19 +158,17 @@ export default function UserManagement() {
       const response = await insertUser(user);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        alert(`Error al crear usuario: ${errorData.message || 'Error desconocido'}`);
+        alert(`Error al crear usuario: ${await getErrorMessage(response, 'Error desconocido')}`);
         return;
       }
-      
+
       const newlyCreatedUser : User = await response.json();
 
       if (userData.employeeId) {
         const employeeResponse = await assignEmployeeToUser(newlyCreatedUser.id, userData.employeeId);
 
         if (!employeeResponse.ok) {
-          const errorData = await employeeResponse.json();
-          alert(`Error al asignar empleado: ${errorData.message || 'Error desconocido'}`);
+          alert(`Error al asignar empleado: ${await getErrorMessage(employeeResponse, 'Error desconocido')}`);
           return;
         }
 
@@ -151,6 +179,9 @@ export default function UserManagement() {
 
     }
     setShowCreateUser(false);
+   } catch (error) {
+     alert(`Error al guardar usuario: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+   }
   };
 
   const handleCancelUser = () => {
@@ -226,6 +257,12 @@ export default function UserManagement() {
           Administra los usuarios del sistema
         </p>
       </div>
+
+      {loadError && (
+        <div className="mb-6 rounded elevation-1 bg-red-50 border border-red-200 p-4 text-sm text-red-800">
+          No se pudo cargar la lista de usuarios: {loadError}
+        </div>
+      )}
 
       {/* Action Bar */}
       <div className="bg-surface rounded elevation-2 p-6 mb-6">
