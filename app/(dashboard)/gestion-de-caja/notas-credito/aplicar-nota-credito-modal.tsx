@@ -3,14 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 
-import ClientSelector, { type ClientSearchItem } from "../cobros/client-selector";
 import { applyCreditNote } from "@/app/services/billing/credit-note";
 import { getCreditInvoices, getInvoices } from "@/app/services/invoice";
 import { getCashManagementRecords } from "@/app/services/cash-management";
-import { getclients } from "@/app/services/clients";
 import type { CreditNoteApplyPayload, CreditNoteRecord } from "@/app/type/credit-note";
 import type { CreditInvoiceRecord } from "@/app/type/invoice";
-import type { ClienteResponse } from "@/app/type/client";
 import { ListSkeleton, TableSkeleton } from "@/components/ui/loading-skeleton";
 
 type CashManagementOption = {
@@ -33,10 +30,10 @@ export default function AplicarNotaCreditoModal({
 }: AplicarNotaCreditoModalProps) {
   const isOpen = !!creditNote;
 
-  const [clientsLoading, setClientsLoading] = useState(false);
-  const [clientsError, setClientsError] = useState<string | null>(null);
-  const [clientOptions, setClientOptions] = useState<ClientSearchItem[]>([]);
   const [selectedClientCode, setSelectedClientCode] = useState("");
+  const [selectedClientName, setSelectedClientName] = useState("");
+  const [clientLoading, setClientLoading] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
 
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [invoicesError, setInvoicesError] = useState<string | null>(null);
@@ -55,6 +52,8 @@ export default function AplicarNotaCreditoModal({
 
   const resetForm = useCallback(() => {
     setSelectedClientCode("");
+    setSelectedClientName("");
+    setClientError(null);
     setInvoices([]);
     setInvoicesError(null);
     setSearchTerm("");
@@ -63,26 +62,6 @@ export default function AplicarNotaCreditoModal({
     setAmount("");
     setObservation("");
     setErrorMessage(null);
-  }, []);
-
-  const loadClients = useCallback(async () => {
-    try {
-      setClientsLoading(true);
-      setClientsError(null);
-      const response = await getclients();
-      const options = (response.records || []).map((client: ClienteResponse) => ({
-        code: client.code,
-        name: client.name,
-      }));
-      setClientOptions(options);
-    } catch (error) {
-      setClientsError(
-        error instanceof Error ? error.message : "No se pudieron cargar los clientes",
-      );
-      setClientOptions([]);
-    } finally {
-      setClientsLoading(false);
-    }
   }, []);
 
   const loadOpenCashManagementRecords = useCallback(async () => {
@@ -117,27 +96,52 @@ export default function AplicarNotaCreditoModal({
     }
 
     resetForm();
-    void loadClients();
     void loadOpenCashManagementRecords();
-  }, [isOpen, creditNote?.header.id, resetForm, loadClients, loadOpenCashManagementRecords]);
+  }, [isOpen, creditNote?.header.id, resetForm, loadOpenCashManagementRecords]);
 
+  // La nota de credito es saldo a favor de UN cliente especifico (el de la
+  // factura de origen). El cliente no es seleccionable: se resuelve aqui y
+  // se bloquea, para que solo se puedan ver/aplicar facturas de ese cliente.
   useEffect(() => {
-    if (!isOpen || !creditNote?.header.invoiceDocument) {
+    if (!isOpen) {
+      return;
+    }
+
+    const invoiceDocument = creditNote?.header.invoiceDocument;
+
+    if (!invoiceDocument) {
+      setClientError(
+        "No se pudo determinar el cliente de esta nota de credito: no tiene una factura de origen asociada.",
+      );
       return;
     }
 
     let cancelled = false;
+    setClientLoading(true);
+    setClientError(null);
 
-    getInvoices({ document: creditNote.header.invoiceDocument, perPage: 1 })
+    getInvoices({ document: invoiceDocument, perPage: 1 })
       .then((response) => {
         if (cancelled) return;
-        const clientCode = response.records?.[0]?.header.clientCode;
-        if (clientCode) {
-          setSelectedClientCode(clientCode);
+        const header = response.records?.[0]?.header;
+
+        if (!header?.clientCode) {
+          setClientError("No se pudo determinar el cliente de esta nota de credito.");
+          return;
         }
+
+        setSelectedClientCode(header.clientCode);
+        setSelectedClientName(header.clientName || "");
       })
       .catch(() => {
-        // No es critico: el usuario puede elegir el cliente manualmente.
+        if (!cancelled) {
+          setClientError("No se pudo determinar el cliente de esta nota de credito.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setClientLoading(false);
+        }
       });
 
     return () => {
@@ -183,11 +187,6 @@ export default function AplicarNotaCreditoModal({
     }
   }, [isOpen, loadClientInvoices]);
 
-  const handleSelectClient = useCallback((clientCode: string) => {
-    setSelectedClientCode(clientCode);
-    setSearchTerm("");
-  }, []);
-
   const filteredInvoices = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return invoices;
@@ -216,7 +215,7 @@ export default function AplicarNotaCreditoModal({
     setErrorMessage(null);
 
     if (!selectedClientCode) {
-      setErrorMessage("Debe seleccionar un cliente.");
+      setErrorMessage("No se pudo determinar el cliente de esta nota de credito.");
       return;
     }
 
@@ -240,6 +239,10 @@ export default function AplicarNotaCreditoModal({
       }
       if (parsedAmount > selectedInvoice.remainingBalanceNio) {
         setErrorMessage("El monto a aplicar no puede superar el saldo de la factura.");
+        return;
+      }
+      if (parsedAmount > creditNote.header.total) {
+        setErrorMessage("El monto a aplicar no puede superar el saldo de la nota de credito.");
         return;
       }
       amountNio = parsedAmount;
@@ -292,13 +295,23 @@ export default function AplicarNotaCreditoModal({
         </div>
 
         <div className="max-h-[calc(92vh-80px)] space-y-4 overflow-y-auto p-5">
-          <ClientSelector
-            clients={clientOptions}
-            loading={clientsLoading}
-            error={clientsError}
-            selectedClientCode={selectedClientCode}
-            onSelectClient={handleSelectClient}
-          />
+          <section className="space-y-2">
+            <h4 className="text-foreground">Cliente</h4>
+            {clientLoading ? (
+              <ListSkeleton count={1} itemClassName="h-11 rounded-2xl" />
+            ) : clientError ? (
+              <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {clientError}
+              </p>
+            ) : (
+              <div className="rounded-2xl border border-border bg-background/50 px-4 py-3 text-sm">
+                <span className="font-medium text-foreground">{selectedClientCode}</span>
+                {selectedClientName ? (
+                  <span className="ml-2 text-muted-foreground">{selectedClientName}</span>
+                ) : null}
+              </div>
+            )}
+          </section>
 
           <section className="rounded-3xl border border-border/60 bg-background/50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -410,11 +423,15 @@ export default function AplicarNotaCreditoModal({
 
             <label className="block space-y-2">
               <span className="text-sm text-muted-foreground">
-                Monto a aplicar {selectedInvoice ? `(saldo: ${selectedInvoice.remainingBalanceNio.toFixed(2)})` : ""}
+                Monto a aplicar
+                {selectedInvoice
+                  ? ` (saldo factura: ${selectedInvoice.remainingBalanceNio.toFixed(2)}, saldo nota: ${creditNote.header.total.toFixed(2)})`
+                  : ""}
               </span>
               <input
                 type="number"
                 min={0}
+                max={selectedInvoice ? Math.min(selectedInvoice.remainingBalanceNio, creditNote.header.total) : undefined}
                 step="0.01"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
@@ -452,7 +469,7 @@ export default function AplicarNotaCreditoModal({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || clientLoading || !!clientError || !selectedClientCode}
               className="rounded-2xl bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Aplicando..." : "Aplicar nota de credito"}

@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, Trash2, X } from 'lucide-react';
+import { CheckCircle, ChevronDown, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, Trash2, X } from 'lucide-react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import  ImportarNotaCreditoModal  from '@/components/excel-upload-credit-note';
 import AplicarNotaCreditoModal from './aplicar-nota-credito-modal';
-import { createCreditNote, getCreditNotes } from '@/app/services/billing/credit-note';
+import { createCreditNote, getCreditNotes, issueCreditNote } from '@/app/services/billing/credit-note';
 import { getCashManagementRecords } from '@/app/services/cash-management';
 import { CreditNoteCreatePayload, CreditNoteRecord } from '@/app/type/credit-note';
 import { ListSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
@@ -74,11 +74,17 @@ const isApplicableStatus = (status: string) => {
   return normalized === 'emitida' || normalized === 'issued';
 };
 
+const isDraftStatus = (status: string) => {
+  const normalized = status?.toLowerCase();
+  return normalized === 'borrador' || normalized === 'draft';
+};
+
 export default function NotasCreditoPage() {
   const { can } = useUserStore();
   const [records, setRecords] = useState<CreditNoteRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [issuingId, setIssuingId] = useState<number | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -258,6 +264,22 @@ export default function NotasCreditoPage() {
     }
   };
 
+  const handleIssue = async (record: CreditNoteRecord) => {
+    if (!confirm(`¿Aprobar la nota de crédito ${record.header.number}?`)) return;
+
+    try {
+      setIssuingId(record.header.id);
+      await issueCreditNote(record.header.id);
+      setViewingRecord(null);
+      await loadRecords();
+    } catch (error) {
+      console.error('Error issuing credit note:', error);
+      alert(error instanceof Error ? error.message : 'No se pudo aprobar la nota de crédito');
+    } finally {
+      setIssuingId(null);
+    }
+  };
+
   const totalPages = paging.totalPages || 1;
   const hasAnyFilter = !!searchTerm || !!statusFilter;
 
@@ -395,6 +417,16 @@ export default function NotasCreditoPage() {
                           >
                             <Eye size={18} />
                           </button>
+                          {can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isDraftStatus(record.header.status) && (
+                            <button
+                              onClick={() => handleIssue(record)}
+                              disabled={issuingId === record.header.id}
+                              className="p-2 rounded-lg hover:bg-emerald-100 text-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Aprobar nota de crédito"
+                            >
+                              <CheckCircle size={18} />
+                            </button>
+                          )}
                           {can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(record.header.status) && (
                             <button
                               onClick={() => setApplyingRecord(record)}
@@ -501,6 +533,17 @@ export default function NotasCreditoPage() {
                 <MaterialButton variant="outlined" color="secondary" onClick={() => setViewingRecord(null)}>
                   Cerrar
                 </MaterialButton>
+                {can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isDraftStatus(viewingRecord.header.status) && (
+                  <MaterialButton
+                    variant="contained"
+                    color="primary"
+                    startIcon={<CheckCircle size={18} />}
+                    disabled={issuingId === viewingRecord.header.id}
+                    onClick={() => handleIssue(viewingRecord)}
+                  >
+                    Aprobar
+                  </MaterialButton>
+                )}
                 {can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(viewingRecord.header.status) && (
                   <MaterialButton
                     variant="contained"

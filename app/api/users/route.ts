@@ -117,6 +117,8 @@ export async function GET() {
       );
     }
 
+    console.log('Token obtenido:', token); // Log del token para depuración
+
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/identity/user`, {
       method: 'GET',
       headers: {

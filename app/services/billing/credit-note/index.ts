@@ -73,6 +73,23 @@ export const createCreditNote = async (
   return response.json();
 };
 
+export const issueCreditNote = async (
+  creditNoteId: number,
+  context?: ServiceRequestContext,
+): Promise<CreditNoteRecord> => {
+  const response = await fetch(resolveServiceUrl(`/api/billing/credit-note/${creditNoteId}/issue`, context), {
+    method: 'POST',
+    headers: createJsonHeaders(context?.cookieHeader),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.detail || 'Failed to issue credit note');
+  }
+
+  return response.json();
+};
+
 export const applyCreditNote = async (
   creditNoteId: number,
   payload: CreditNoteApplyPayload,
