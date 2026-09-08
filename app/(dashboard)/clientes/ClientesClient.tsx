@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Award,
@@ -28,6 +28,7 @@ import {
   ErrorResponse,
 } from '@/app/type/client';
 import { ImportarClientesModal } from '@/components/excel-upload-client';
+import { withAuthRedirectSuppressed } from '@/components/AuthFetchGuard';
 import { createClient } from '@/app/services/clients';
 import { BranchResponse } from '@/app/type/branch';
 import ModaleErrorCreateClient from '@/components/modal-error-create-client';
@@ -68,6 +69,10 @@ const chunkArray = <T,>(items: T[], size: number): T[][] => {
 export default function ClientesClient({ initialClientes, branches }: Props) {
   const router = useRouter();
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [clientes, setClientes] = useState<ClienteResponse[]>(initialClientes);
   const [errorCreateClient, setErrorCreateClient] = useState<ClientErrorItem[]>([]);
 
@@ -128,43 +133,51 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
     const rows = dataProcessed.map((client, index) => ({ client, index }));
     const batches = chunkArray(rows, IMPORT_CONCURRENCY);
 
-    for (const batch of batches) {
-      await Promise.all(
-        batch.map(async ({ client, index }) => {
-          try {
-            const response = await createClient({ ...client, promotorCode: String(client.promotorCode) });
-            if (!response.ok) {
-              const errorData: ErrorResponse | null = await response.json().catch(() => null);
-              console.error(`Error al importar cliente ${client.name}:`, errorData);
+    // Se suprime la redirección global a /login por 401 mientras dura el
+    // import: con muchas peticiones seguidas, basta que UNA reciba 401 (token
+    // venciendo a mitad del proceso, etc.) para que ese guard navegara fuera
+    // de la página y abortara todo el lote sin dejar rastro de qué filas ya
+    // se habían creado. Un 401 durante el import se trata como cualquier
+    // otro error de fila.
+    await withAuthRedirectSuppressed(async () => {
+      for (const batch of batches) {
+        await Promise.all(
+          batch.map(async ({ client, index }) => {
+            try {
+              const response = await createClient({ ...client, promotorCode: String(client.promotorCode) });
+              if (!response.ok) {
+                const errorData: ErrorResponse | null = await response.json().catch(() => null);
+                console.error(`Error al importar cliente ${client.name}:`, errorData);
+                setErrorCreateClient((prev) => [
+                  ...prev,
+                  {
+                    fila: index + 1,
+                    name: client.name,
+                    error: errorData?.detail || 'Error desconocido',
+                    titulo: errorData?.title || 'Error',
+                  },
+                ]);
+              } else {
+                setImportSuccessCount((prev) => prev + 1);
+              }
+            } catch (error) {
+              console.error(`Error al importar cliente ${client.name}:`, error);
               setErrorCreateClient((prev) => [
                 ...prev,
                 {
                   fila: index + 1,
                   name: client.name,
-                  error: errorData?.detail || 'Error desconocido',
-                  titulo: errorData?.title || 'Error',
+                  error: error instanceof Error ? error.message : 'Error de conexión al importar',
+                  titulo: 'Error de red',
                 },
               ]);
-            } else {
-              setImportSuccessCount((prev) => prev + 1);
+            } finally {
+              setImportProcessed((prev) => prev + 1);
             }
-          } catch (error) {
-            console.error(`Error al importar cliente ${client.name}:`, error);
-            setErrorCreateClient((prev) => [
-              ...prev,
-              {
-                fila: index + 1,
-                name: client.name,
-                error: error instanceof Error ? error.message : 'Error de conexión al importar',
-                titulo: 'Error de red',
-              },
-            ]);
-          } finally {
-            setImportProcessed((prev) => prev + 1);
-          }
-        }),
-      );
-    }
+          }),
+        );
+      }
+    });
 
     setImporting(false);
     router.refresh();
@@ -262,7 +275,7 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
   return (
     <>
       <div className="flex items-center justify-end mb-4">
-        {can(PERMISSIONS.CLIENT_CREATE) && (
+        {mounted && can(PERMISSIONS.CLIENT_CREATE) && (
           <MaterialButton
             variant="contained"
             color="primary"
@@ -318,7 +331,7 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
                           <Award size={18} />
                         </button>
 
-                        {can(PERMISSIONS.CLIENT_EDIT) && (
+                        {mounted && can(PERMISSIONS.CLIENT_EDIT) && (
                           <button
                             className="p-2 rounded-lg hover:bg-blue-100 text-blue-600"
                             onClick={() => setEditingCliente(cliente)}
@@ -328,7 +341,7 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
                           </button>
                         )}
 
-                        {can(PERMISSIONS.CLIENT_DELETE) && (
+                        {mounted && can(PERMISSIONS.CLIENT_DELETE) && (
                           <button
                             onClick={() => handleDelete(cliente.id)}
                             className="p-2 rounded-lg hover:bg-red-100 text-red-600"

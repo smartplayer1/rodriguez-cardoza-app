@@ -44,6 +44,14 @@ export default async function ClientesPage({
   const baseUrl = host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_URL_LOCAL;
   const context = { baseUrl, cookieHeader };
 
+  // El backend de /v1/client sí respeta PerPage como límite (corta la lista a
+  // ese tamaño), pero su objeto de paginación no refleja el total real de
+  // clientes ni cuántas páginas hay. Si le pidiéramos justo el PerPage que
+  // el usuario eligió, recibiríamos solo esa página y no sabríamos si hay
+  // más — por eso se pide un lote grande (todo lo que exista, hasta este
+  // tope) y la paginación real se calcula aquí, en el servidor de Next.
+  const FETCH_ALL_CAP = 5000;
+
   let clientes: ClienteResponse[] = [];
   let paging: Paging = { perPage, currentPage: page, totalRecords: 0, totalPages: 1 };
   let fetchError: string | null = null;
@@ -51,12 +59,19 @@ export default async function ClientesPage({
   try {
     const response = await getclients({
       branchCode: branchCode || undefined,
-      page,
-      perPage,
+      page: 1,
+      perPage: FETCH_ALL_CAP,
       ...context,
     });
-    clientes = response.records ?? [];
-    paging = response.paging ?? paging;
+    const allRecords: ClienteResponse[] = response.records ?? [];
+
+    const totalRecords = allRecords.length;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / perPage));
+    const currentPage = Math.min(Math.max(page, 1), totalPages);
+    const start = (currentPage - 1) * perPage;
+
+    clientes = allRecords.slice(start, start + perPage);
+    paging = { perPage, currentPage, totalRecords, totalPages };
   } catch (error) {
     fetchError = error instanceof Error ? error.message : 'No se pudieron cargar los clientes';
   }
