@@ -1,3 +1,16 @@
+export type SaleType =
+  | "ENTREGA INMEDIATA"
+  | "DELIVERY INMEDIATO"
+  | "DELIVERY PENDIENTE"
+  | "RETIRO EN TIENDA";
+
+export const SALE_TYPE_OPTIONS: SaleType[] = [
+  "ENTREGA INMEDIATA",
+  "DELIVERY INMEDIATO",
+  "DELIVERY PENDIENTE",
+  "RETIRO EN TIENDA",
+];
+
 export interface ServerInvoicePayload {
   header: {
     document: string;
@@ -11,6 +24,7 @@ export interface ServerInvoicePayload {
     store: string;
     promoterCode: string;
     priceLevel: string;
+    saleType: SaleType;
     coupon: number;
   };
   details: Array<{
@@ -24,6 +38,7 @@ export interface ServerInvoicePayload {
     generalDiscount: number;
     isExempt: string;
   }>;
+  collectionBankTransferIds?: number[];
 }
 
 export interface ServerInvoiceResponse {
@@ -41,6 +56,7 @@ export interface ServerInvoiceResponse {
     promoterCode: string;
     promoterName: string;
     priceLevel: string;
+    saleType: SaleType | string;
     coupon: number;
     grossTotal: number;
     lineDiscountTotal: number;
@@ -149,6 +165,7 @@ export interface ServerInvoiceUpdateHeaderPayload {
   store: string | null;
   promoterCode: string | null;
   priceLevel: string | null;
+  saleType: SaleType | null;
   coupon: number | null;
 }
 

@@ -8,6 +8,7 @@ import {
   Upload,
   FileSpreadsheet,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   X
 } from 'lucide-react';
@@ -41,6 +42,7 @@ export function ImportarClientesModal({
 }: Props) {
   const [clientes, setClientes] = useState<ClienteExcel[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [rowWarnings, setRowWarnings] = useState<string[][]>([]);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -62,13 +64,69 @@ export function ImportarClientesModal({
         `Fila ${index}: Nombre requerido`
       );
     }
- if (!row['Cliente']) {
+
+    if (!row['Sucursal']) {
       rowErrors.push(
-        `Fila ${index}: Código cliente requerido`
+        `Fila ${index}: Sucursal requerida`
+      );
+    }
+
+    if (!row['Tipo'] || String(row['Tipo']).trim() === '') {
+      rowErrors.push(
+        `Fila ${index}: Tipo requerido`
       );
     }
 
     return rowErrors;
+  };
+
+  const isBlank = (value: any) => value === null || value === undefined || String(value).trim() === '';
+
+  const getRowWarnings = (row: any): string[] => {
+    const rowWarnings: string[] = [];
+
+    if (isBlank(row['Cedula'])) {
+      rowWarnings.push('Cédula vacía');
+    }
+
+    if (
+      isBlank(row['Tel1']) &&
+      isBlank(row['Tel2']) &&
+      isBlank(row['Tel3']) &&
+      isBlank(row['Tel4'])
+    ) {
+      rowWarnings.push('Teléfono vacío');
+    }
+
+    if (isBlank(row['Dirección'])) {
+      rowWarnings.push('Dirección vacía');
+    }
+
+    if (isBlank(row['Provincia'])) {
+      rowWarnings.push('Provincia vacía');
+    }
+
+    if (isBlank(row['Cantón'])) {
+      rowWarnings.push('Cantón vacío');
+    }
+
+    if (isBlank(row['Distrito'])) {
+      rowWarnings.push('Distrito vacío');
+    }
+
+    if (isBlank(row['Zona'])) {
+      rowWarnings.push('Zona vacía');
+    }
+
+    if (isBlank(row['Prom'])) {
+      rowWarnings.push('Código de promotor vacío');
+    }
+
+    if (isBlank(row['Ingreso'])) {
+      rowWarnings.push('Fecha de ingreso vacía (se usará la fecha actual)');
+    }
+
+    return rowWarnings;
   };
 
   const formatDate = (excelDate: any) => {
@@ -91,6 +149,7 @@ export function ImportarClientesModal({
     try {
       setLoading(true);
       setErrors([]);
+      setRowWarnings([]);
 
       const file = e.target.files?.[0];
 
@@ -110,6 +169,7 @@ export function ImportarClientesModal({
       );
 
       const validationErrors: string[] = [];
+      const warningsPorFila: string[][] = [];
 
       const clientesParseados: ClienteExcel[] =
         jsonData.map((row, index) => {
@@ -119,6 +179,7 @@ export function ImportarClientesModal({
           );
 
           validationErrors.push(...rowErrors);
+          warningsPorFila.push(getRowWarnings(row));
 
           return {
             code: String(
@@ -174,12 +235,14 @@ export function ImportarClientesModal({
 
       setClientes(clientesParseados);
       setErrors(validationErrors);
+      setRowWarnings(warningsPorFila);
     } catch (error) {
       console.error(error);
 
       setErrors([
         'Error procesando el archivo Excel'
       ]);
+      setRowWarnings([]);
     } finally {
       setLoading(false);
     }
@@ -448,6 +511,34 @@ export function ImportarClientesModal({
               </div>
             )}
 
+          {/* Advertencias de campos opcionales vacíos */}
+          {rowWarnings.some((warnings) => warnings.length > 0) && (
+            <div
+              className="
+                mt-6
+                bg-amber-50
+                border
+                border-amber-200
+                rounded-xl
+                p-4
+              "
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle
+                  size={18}
+                  className="text-amber-600"
+                />
+
+                <h4 className="font-medium text-amber-700">
+                  {rowWarnings.filter((warnings) => warnings.length > 0).length} fila(s) con campos opcionales vacíos
+                </h4>
+              </div>
+              <p className="text-sm text-amber-700 mt-1">
+                No bloquean la importación. Revise la columna &quot;Advertencias&quot; en la vista previa y decida si desea completarlos antes de importar.
+              </p>
+            </div>
+          )}
+
           {/* Preview */}
           {clientes.length > 0 && (
             <div className="mt-6">
@@ -463,31 +554,23 @@ export function ImportarClientesModal({
                 "
               >
                 <div className="overflow-auto max-h-80">
-                  <table className="w-full">
+                  <table className="w-full min-w-[1600px]">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm">
-                          Código
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-sm">
-                          Nombre
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-sm">
-                          Cédula
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-sm">
-                          Teléfono
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-sm">
-                          Zona
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm">
-                          Codigo Promotor
-                        </th>
+                        <th className="px-4 py-3 text-left text-sm">Código *</th>
+                        <th className="px-4 py-3 text-left text-sm">Nombre *</th>
+                        <th className="px-4 py-3 text-left text-sm">Sucursal *</th>
+                        <th className="px-4 py-3 text-left text-sm">Tipo *</th>
+                        <th className="px-4 py-3 text-left text-sm">Cédula</th>
+                        <th className="px-4 py-3 text-left text-sm">Teléfono</th>
+                        <th className="px-4 py-3 text-left text-sm">Dirección</th>
+                        <th className="px-4 py-3 text-left text-sm">Provincia</th>
+                        <th className="px-4 py-3 text-left text-sm">Cantón</th>
+                        <th className="px-4 py-3 text-left text-sm">Distrito</th>
+                        <th className="px-4 py-3 text-left text-sm">Zona</th>
+                        <th className="px-4 py-3 text-left text-sm">Codigo Promotor</th>
+                        <th className="px-4 py-3 text-left text-sm">Fecha Ingreso</th>
+                        <th className="px-4 py-3 text-left text-sm">Advertencias</th>
                       </tr>
                     </thead>
 
@@ -498,27 +581,34 @@ export function ImportarClientesModal({
                             key={index}
                             className="border-t"
                           >
-                            <td className="px-4 py-3 text-sm">
-                              {cliente.code}
-                            </td>
-
-                            <td className="px-4 py-3 text-sm">
-                              {cliente.name}
-                            </td>
-
-                            <td className="px-4 py-3 text-sm">
-                              {cliente.idNumber}
-                            </td>
-
-                            <td className="px-4 py-3 text-sm">
-                              {cliente.phoneNumber}
-                            </td>
-
-                            <td className="px-4 py-3 text-sm">
-                              {cliente.zoneCode}
-                            </td>
-                            <td className="px-4 py-3 text-sm">
-                              {cliente.promoterCode}
+                            <PreviewCell value={cliente.code} required />
+                            <PreviewCell value={cliente.name} required />
+                            <PreviewCell value={cliente.branchName} required />
+                            <PreviewCell value={cliente.clientType} required />
+                            <PreviewCell value={cliente.idNumber} />
+                            <PreviewCell value={cliente.phoneNumber} />
+                            <PreviewCell value={cliente.address} />
+                            <PreviewCell value={cliente.province} />
+                            <PreviewCell value={cliente.canton} />
+                            <PreviewCell value={cliente.district} />
+                            <PreviewCell value={cliente.zoneCode} />
+                            <PreviewCell value={cliente.promoterCode} />
+                            <PreviewCell
+                              value={
+                                cliente.dateOfEntry
+                                  ? new Date(cliente.dateOfEntry).toLocaleDateString()
+                                  : null
+                              }
+                            />
+                            <td className="px-4 py-3 text-sm whitespace-normal max-w-xs">
+                              {(rowWarnings[index] || []).length > 0 ? (
+                                <div className="flex items-start gap-1.5 text-amber-700">
+                                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                                  <span>{(rowWarnings[index] || []).join(', ')}</span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -575,5 +665,29 @@ export function ImportarClientesModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function PreviewCell({
+  value,
+  required = false,
+}: {
+  value: string | null | undefined;
+  required?: boolean;
+}) {
+  const isEmpty = value === null || value === undefined || String(value).trim() === '';
+
+  if (!isEmpty) {
+    return <td className="px-4 py-3 text-sm whitespace-nowrap">{value}</td>;
+  }
+
+  return (
+    <td
+      className={`px-4 py-3 text-sm whitespace-nowrap ${
+        required ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50'
+      }`}
+    >
+      —
+    </td>
   );
 }

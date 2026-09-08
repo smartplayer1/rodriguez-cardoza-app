@@ -12,10 +12,12 @@ import {
   CreditCard,
   Edit,
   Upload,
+  Link2,
 } from "lucide-react";
 import VerDetalle from "./modals/VerDetalle";
 import ImportarFactura from "./modals/ImportarFactura";
 import EditarFactura from "./modals/EditarFactura";
+import RelacionarTransferenciaModal from "./modals/RelacionarTransferencia";
 import { getInvoices, updateInvoice } from "@/app/services/invoice";
 import { TableSkeleton } from "@/components/ui/loading-skeleton";
 import {
@@ -52,6 +54,7 @@ interface Factura {
   usuarioGenero: string;
   moneda: string;
   tipoPago: "Contado" | "Crédito";
+  tipoVenta: string;
   detalles: FacturaDetalle[];
   subtotal: number;
   iva: number;
@@ -120,6 +123,7 @@ const mapInvoiceToFactura = (invoice: ServerInvoiceResponse): Factura => {
     usuarioGenero: invoice.header.cashier || "N/A",
     moneda: "NIO (Córdoba)",
     tipoPago: mapChargeStatusToTipoPago(invoice.header.chargeStatus),
+    tipoVenta: invoice.header.saleType || "N/A",
     detalles: invoice.details.map((detail) => ({
       id: String(detail.id),
       articuloId: detail.article,
@@ -144,6 +148,10 @@ export default function FacturacionClient({
   branchOptions,
 }: Props) {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [facturas, setFacturas] = useState<Factura[]>(() =>
     initialRecords.map(mapInvoiceToFactura),
   );
@@ -158,6 +166,10 @@ export default function FacturacionClient({
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingInvoiceServer, setEditingInvoiceServer] =
     useState<ServerInvoiceResponse | null>(null);
+  const [linkingInvoice, setLinkingInvoice] = useState<{
+    id: number;
+    document: string;
+  } | null>(null);
 
   const [documentFilter, setDocumentFilter] = useState(initialFilters.document);
   const [filterTipoPago, setFilterTipoPago] = useState<
@@ -322,7 +334,7 @@ export default function FacturacionClient({
             </p>
           </div>
           <div className="flex flex-row">
-            {can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
+            {mounted && can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
               <MaterialButton
                 variant="contained"
                 color="secondary"
@@ -479,6 +491,9 @@ export default function FacturacionClient({
                     <th className="px-6 py-4 text-left text-sm text-foreground">
                       Tipo de Pago
                     </th>
+                    <th className="px-6 py-4 text-left text-sm text-foreground">
+                      Tipo de Venta
+                    </th>
                     <th className="px-6 py-4 text-right text-sm text-foreground">
                       Subtotal
                     </th>
@@ -497,7 +512,7 @@ export default function FacturacionClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  <TableSkeleton columns={10} />
+                  <TableSkeleton columns={11} />
                 </tbody>
               </table>
             </div>
@@ -545,6 +560,9 @@ export default function FacturacionClient({
                       </th>
                       <th className="px-6 py-4 text-left text-sm text-foreground">
                         Tipo de Pago
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm text-foreground">
+                        Tipo de Venta
                       </th>
                       <th className="px-6 py-4 text-right text-sm text-foreground">
                         Subtotal
@@ -613,6 +631,9 @@ export default function FacturacionClient({
                             {factura.tipoPago}
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-sm text-foreground">
+                          {factura.tipoVenta}
+                        </td>
                         <td className="px-6 py-4 text-sm text-foreground text-right font-mono">
                           {factura.subtotal.toFixed(2)}
                         </td>
@@ -627,7 +648,7 @@ export default function FacturacionClient({
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2 justify-end">
-                            {can(PERMISSIONS.INVOICE_EDIT) && (
+                            {mounted && can(PERMISSIONS.INVOICE_EDIT) && (
                               <MaterialButton
                                 variant="text"
                                 color="secondary"
@@ -646,6 +667,7 @@ export default function FacturacionClient({
                               Ver Detalle
                             </MaterialButton>
                             {factura.tipoPago === "Crédito" &&
+                              mounted &&
                               can(PERMISSIONS.COLLECTION_CREATE) && (
                                 <MaterialButton
                                   variant="text"
@@ -656,6 +678,21 @@ export default function FacturacionClient({
                                   Generar Cobro
                                 </MaterialButton>
                               )}
+                            {mounted && can(PERMISSIONS.BANK_TRANSFER_CREATE) && (
+                              <MaterialButton
+                                variant="text"
+                                color="secondary"
+                                startIcon={<Link2 size={16} />}
+                                onClick={() =>
+                                  setLinkingInvoice({
+                                    id: Number(factura.id),
+                                    document: factura.numeroFactura,
+                                  })
+                                }
+                              >
+                                Relacionar Transferencia
+                              </MaterialButton>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -719,6 +756,15 @@ export default function FacturacionClient({
               }}
               onSave={handleSaveEdit}
             />
+            <RelacionarTransferenciaModal
+              isOpen={!!linkingInvoice}
+              invoiceId={linkingInvoice?.id ?? 0}
+              invoiceDocument={linkingInvoice?.document ?? ""}
+              onClose={() => setLinkingInvoice(null)}
+              onLinked={() => {
+                alert("Transferencia relacionada correctamente");
+              }}
+            />
           </>
         ) : (
           <div className="bg-surface rounded elevation-2 py-16 text-center">
@@ -729,7 +775,7 @@ export default function FacturacionClient({
             <p className="text-muted-foreground mb-6">
               Comience creando una nueva factura
             </p>
-            {can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
+            {mounted && can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
               <MaterialButton
                 variant="contained"
                 color="secondary"

@@ -366,7 +366,25 @@ export default function ClosingSummaryModal({
                   label="Conversiones"
                   value={summary.conversions.length}
                 />
+                <CountCard
+                  label="Transferencias"
+                  value={summary.bankTransfers?.length ?? 0}
+                />
               </div>
+
+              {(summary.bankTransfers?.length ?? 0) > 0 ? (
+                <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">
+                      Ingresos por transferencia (informativo, no afecta el cuadre de
+                      efectivo)
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {formatAmount(summary.bankTransferIncomeTotalNio ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
 
               <button
                 type="button"
@@ -855,6 +873,76 @@ function ClosingSummaryDetailModal({
               </div>
             ) : (
               <EmptyDetail text="No hay salidas registradas." />
+            )}
+          </DetailSection>
+
+          <DetailSection title="Transferencias bancarias (ingreso informativo)">
+            {(summary.bankTransfers?.length ?? 0) > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-muted/30">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Banco
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Cuenta origen
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Cuenta empresa
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Fecha
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Relacionada
+                      </th>
+                      <th className="px-4 py-2 text-right font-medium text-muted-foreground">
+                        Monto
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.bankTransfers.map((transfer) => (
+                      <tr key={transfer.id} className="border-t border-border/40">
+                        <td className="px-4 py-2 text-foreground">
+                          {transfer.bankName}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {transfer.accountNumber}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {transfer.companyBankAccountDescription}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {formatDateTime(transfer.transferDate)}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {transfer.isRelated ? "Sí" : "No"}
+                        </td>
+                        <td className="px-4 py-2 text-right text-foreground">
+                          {formatAmount(transfer.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-border/60 bg-muted/20">
+                      <td
+                        colSpan={5}
+                        className="px-4 py-2 text-right font-medium text-muted-foreground"
+                      >
+                        Total ingresos por transferencia
+                      </td>
+                      <td className="px-4 py-2 text-right font-medium text-foreground">
+                        {formatAmount(summary.bankTransferIncomeTotalNio ?? 0)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ) : (
+              <EmptyDetail text="No hay transferencias bancarias registradas." />
             )}
           </DetailSection>
 

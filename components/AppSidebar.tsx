@@ -38,6 +38,9 @@ import {
   UserPlus,
   HandCoins,
   Store,
+  Gift,
+  Repeat1,
+  ShieldAlert,
 
 } from 'lucide-react';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
@@ -57,13 +60,14 @@ type MenuItemType = {
 };
 
 const menuItems: MenuItemType[] = [
-  { id: 'configurations', label: 'Configuraciones', icon: Settings, href: '/configuraciones', permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW, PERMISSIONS.BANK_VIEW, PERMISSIONS.EXCHANGE_RATE_VIEW, PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW, PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW], options:[
+  { id: 'configurations', label: 'Configuraciones', icon: Settings, href: '/configuraciones', permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW, PERMISSIONS.BANK_VIEW, PERMISSIONS.EXCHANGE_RATE_VIEW, PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW, PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW, PERMISSIONS.MONTHLY_COUPON_ACCRUAL_VIEW], options:[
     { id: 'usuarios', label: 'Gestion de Usuarios', href: '/configuraciones/gestion-usuario', icon: UserCog , permission: [PERMISSIONS.USER_VIEW, PERMISSIONS.ROLE_VIEW], options: [
       { id: 'usuarios', label: 'Usuarios', href: '/configuraciones/gestion-usuario/usuarios', icon: UserCircle, permission: PERMISSIONS.USER_VIEW },
       { id: 'roles', label: 'Roles', href: '/configuraciones/gestion-usuario/roles', icon: Shield , permission: PERMISSIONS.ROLE_VIEW},
     ]},
     { id: 'moneda', label: 'Configuración de Moneda', href: '/configuraciones/moneda', icon: Coins, permission: PERMISSIONS.EXCHANGE_RATE_VIEW },
     { id: 'bancos', label: 'Bancos', href: '/configuraciones/bancos', icon: Landmark, permission: PERMISSIONS.BANK_VIEW },
+    { id: 'bonificacion-mensual', label: 'Bonificación Mensual', href: '/configuraciones/bonificacion-mensual', icon: Gift, permission: PERMISSIONS.MONTHLY_COUPON_ACCRUAL_VIEW },
     { id: 'empresa', label: 'Empresa', href: '/configuraciones/empresa', icon: Building2, permission: [PERMISSIONS.ACCOUNT_BANK_VIEW, PERMISSIONS.BRANCH_VIEW, PERMISSIONS.ACCOUNTING_CONCEPT_VIEW, PERMISSIONS.JOB_ROLE_VIEW, PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_VIEW], options: [
       { id: 'cuenta-de-banco', label: 'Cuenta de Banco', href: '/configuraciones/empresa/cuenta-de-banco', icon: Banknote, permission: PERMISSIONS.ACCOUNT_BANK_VIEW },
       { id: 'sucursales', label: 'Sucursales', href: '/configuraciones/empresa/sucursales', icon: MapPin, permission: PERMISSIONS.BRANCH_VIEW },
@@ -73,13 +77,13 @@ const menuItems: MenuItemType[] = [
     ]},
 
   ] },
-  { id: 'premios', label: 'Premios', icon: Award, href: '/premios', permission: [PERMISSIONS.COUPON_VIEW, PERMISSIONS.INCENTIVE_RULE_VIEW, PERMISSIONS.LEDGER_VIEW], options:[
+  { id: 'premios', label: 'Premios', icon: Award, href: '/premios', permission: [PERMISSIONS.INCENTIVE_RULE_VIEW, PERMISSIONS.LEDGER_VIEW], options:[
   //  { id: 'seguimiento', label: 'Seguimiento', href: '/premios/seguimiento', icon: Award , permission: PERMISSIONS.LEDGER_VIEW },
-    { id: 'cupones', label: 'Cupones', href: '/premios/cupones', icon: Ticket , permission: PERMISSIONS.COUPON_VIEW},
     { id: 'incentivos-retencion', label: 'Incentivos Retención', href: '/premios/incentivos-retencion', icon: Repeat, permission: PERMISSIONS.INCENTIVE_RULE_VIEW},
-    { id: 'incentivos-retencion-nuevos-ingresos', label: 'Incentivos Retención Nuevos Ingresos', href: '/premios/incentivos-retencion-nuevos-ingresos', icon: UserPlus, permission: PERMISSIONS.INCENTIVE_RULE_VIEW}
+    { id: 'incentivos-retencion-nuevos-ingresos', label: 'Incentivos Retención Nuevos Ingresos', href: '/premios/incentivos-retencion-nuevos-ingresos', icon: UserPlus, permission: PERMISSIONS.INCENTIVE_RULE_VIEW},
+    { id: 'auditoria-cupones', label: 'Auditoría de Cupones', href: '/premios/auditoria-cupones', icon: ShieldAlert, permission: PERMISSIONS.LEDGER_VIEW}
   ] },
-  { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, permission: [PERMISSIONS.CASH_MANAGEMENT_VIEW, PERMISSIONS.CURRENCY_CONVERSION_VIEW, PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.CASH_REGISTER_VIEW, PERMISSIONS.INVOICE_VIEW, PERMISSIONS.COLLECTION_VIEW, PERMISSIONS.CREDIT_NOTE_VIEW], options: [
+  { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, permission: [PERMISSIONS.CASH_MANAGEMENT_VIEW, PERMISSIONS.CURRENCY_CONVERSION_VIEW, PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.CASH_REGISTER_VIEW, PERMISSIONS.INVOICE_VIEW, PERMISSIONS.COLLECTION_VIEW, PERMISSIONS.CREDIT_NOTE_VIEW, PERMISSIONS.BANK_TRANSFER_VIEW], options: [
     {id: 'gestiones', label: 'Gestiones', href: '/gestion-de-caja/gestiones', icon: Wallet , permission: PERMISSIONS.CASH_MANAGEMENT_VIEW},
     {id: 'conversiones', label: 'Conversiones', href: '/gestion-de-caja/conversiones', icon: RefreshCcw , permission: PERMISSIONS.CURRENCY_CONVERSION_VIEW},
     {id: 'salidas', label: 'Salidas', href: '/gestion-de-caja/salidas', icon: ArrowUpFromLine , permission: PERMISSIONS.CASH_OUTFLOW_VIEW},
@@ -87,6 +91,7 @@ const menuItems: MenuItemType[] = [
     {id: 'facturacion', label: 'Facturación', href: '/gestion-de-caja/facturacion', icon: Receipt, permission: PERMISSIONS.INVOICE_VIEW},
     {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: ArrowLeftRight, permission: [PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.COLLECTION_VIEW]},
     {id: 'cobros', label: 'Cobros', href: '/gestion-de-caja/cobros', icon: CreditCard, permission: PERMISSIONS.COLLECTION_VIEW},
+    {id: 'transferencias', label: 'Transferencias Bancarias', href: '/gestion-de-caja/transferencias', icon: Repeat1, permission: PERMISSIONS.BANK_TRANSFER_VIEW},
     {id:'notas-credito', label: 'Notas de Credito', href: '/gestion-de-caja/notas-credito', icon: FileText, permission: PERMISSIONS.CREDIT_NOTE_VIEW}
   ]},
   { id: 'credito', label: 'Credito', icon: HandCoins, href: '/credito', permission: PERMISSIONS.INVOICE_VIEW, options:null },
@@ -98,6 +103,7 @@ const menuItems: MenuItemType[] = [
     { id: 'reporte-arqueo-de-caja', label: 'Arqueo de Caja', href: '/reportes/arqueo-de-caja', icon: ClipboardCheck, permission: PERMISSIONS.REPORT_VIEW },
     { id: 'reporte-cobros', label: 'Cobros', href: '/reportes/cobros', icon: Receipt, permission: PERMISSIONS.REPORT_VIEW },
     { id: 'reporte-facturas', label: 'Facturas de Venta', href: '/reportes/facturas', icon: FileText, permission: PERMISSIONS.REPORT_VIEW },
+    { id: 'reporte-movimientos-de-cupon', label: 'Movimientos de Cupón', href: '/reportes/movimientos-de-cupon', icon: Ticket, permission: PERMISSIONS.REPORT_VIEW },
   ] },
   {id: 'clientes', label: 'Clientes', icon: UserCircle, href: '/clientes', permission: PERMISSIONS.CLIENT_VIEW, options:null },
   { id: 'empleados', label: 'Empleados', icon: Users, href: '/empleados', permission: PERMISSIONS.EMPLOYEE_VIEW, options:null },

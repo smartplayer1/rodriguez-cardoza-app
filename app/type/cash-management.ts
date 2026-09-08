@@ -284,6 +284,19 @@ export type CashManagementClosingPreview = {
   requiresObservationIfClosingNow: boolean;
 };
 
+export type CashManagementBankTransferSummary = {
+  id: number;
+  accountNumber: string;
+  companyBankAccountId: number;
+  companyBankAccountDescription: string;
+  bankName: string;
+  transferDate: string;
+  amount: number;
+  collectionId: number | null;
+  cashManagementId: number | null;
+  isRelated: boolean;
+};
+
 export type CashManagementClosingSummary = {
   cashManagement: CashManagementRecord;
   balances: CashManagementBalance;
@@ -296,4 +309,6 @@ export type CashManagementClosingSummary = {
   outflows: CashManagementOutflowRecord[];
   conversions: CashManagementConversionSummary[];
   closingPreview: CashManagementClosingPreview;
+  bankTransfers: CashManagementBankTransferSummary[];
+  bankTransferIncomeTotalNio: number;
 };

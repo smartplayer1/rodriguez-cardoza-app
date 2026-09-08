@@ -1,6 +1,15 @@
 import {NextResponse} from 'next/server';
 import { getValidToken } from '@/app/lib/helper';
 
+const readErrorMessage = (body: unknown, fallback: string) => {
+    if (!body || typeof body !== 'object') {
+        return fallback;
+    }
+
+    const errorBody = body as { detail?: string; message?: string; error?: string };
+    return errorBody.detail || errorBody.message || errorBody.error || fallback;
+};
+
 export async function GET(request: Request) {
     let token: string | null = null;
     try {
@@ -12,21 +21,22 @@ export async function GET(request: Request) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
 
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/branch`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!res.ok) {
-            throw new Error('Failed to fetch branches');
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/branch`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
         }
-        const branches = await res.json();
-        return NextResponse.json(branches);
-    } catch (error) {
-        console.error('Error fetching branches:', error);
-        return NextResponse.json({error: 'Failed to fetch branches'}, {status: 500});
+    });
+
+    const responseBody = await res.json().catch(() => null);
+
+    if (!res.ok) {
+        return NextResponse.json(
+            { error: readErrorMessage(responseBody, 'Failed to fetch branches') },
+            { status: res.status },
+        );
     }
+
+    return NextResponse.json(responseBody);
 }
 
 export async function POST(req: Request) {
@@ -40,24 +50,26 @@ export async function POST(req: Request) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
     const body = await req.json();
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/branch`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-            throw new Error('Failed to create branch');
-        }
-        const branch = await res.json();
-        return NextResponse.json(branch);
-    } catch (error) {
-        console.error('Error creating branch:', error);
-        return NextResponse.json({error: 'Failed to create branch'}, {status: 500});
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/branch`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    const responseBody = await res.json().catch(() => null);
+
+    if (!res.ok) {
+        return NextResponse.json(
+            { error: readErrorMessage(responseBody, 'Failed to create branch') },
+            { status: res.status },
+        );
     }
+
+    return NextResponse.json(responseBody);
 }
 
 export async function PUT(req: Request) {
@@ -72,24 +84,26 @@ export async function PUT(req: Request) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
     const body = await req.json();
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/branch/${body.id}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-            throw new Error('Failed to update branch');
-        }
-        const branch = await res.json();
-        return NextResponse.json(branch);
-    } catch (error) {
-        console.error('Error updating branch:', error);
-        return NextResponse.json({error: 'Failed to update branch'}, {status: 500});
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/branch/${body.id}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    const responseBody = await res.json().catch(() => null);
+
+    if (!res.ok) {
+        return NextResponse.json(
+            { error: readErrorMessage(responseBody, 'Failed to update branch') },
+            { status: res.status },
+        );
     }
+
+    return NextResponse.json(responseBody);
 }
 
 export async function DELETE(req: Request) {
@@ -103,19 +117,21 @@ export async function DELETE(req: Request) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
     const body = await req.json();
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/branch/${body.id}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!res.ok) {
-            throw new Error('Failed to delete branch');
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/company/branch/${body.id}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
         }
-        return NextResponse.json({message: 'Branch deleted successfully'});
-    } catch (error) {
-        console.error('Error deleting branch:', error);
-        return NextResponse.json({error: 'Failed to delete branch'}, {status: 500});
+    });
+
+    if (!res.ok) {
+        const responseBody = await res.json().catch(() => null);
+        return NextResponse.json(
+            { error: readErrorMessage(responseBody, 'Failed to delete branch') },
+            { status: res.status },
+        );
     }
+
+    return NextResponse.json({message: 'Branch deleted successfully'});
 }

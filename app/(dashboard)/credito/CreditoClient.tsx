@@ -179,6 +179,7 @@ interface CreditInvoiceItem {
   usuarioGenero: string;
   moneda: string;
   tipoPago: 'Contado' | 'Crédito';
+  tipoVenta: string;
   detalles: CreditInvoiceDetalle[];
   subtotal: number;
   iva: number;
@@ -199,6 +200,7 @@ const EMPTY_CREDIT_INVOICE: CreditInvoiceItem = {
   usuarioGenero: '',
   moneda: '',
   tipoPago: 'Crédito',
+  tipoVenta: '',
   detalles: [],
   subtotal: 0,
   iva: 0,
@@ -231,6 +233,7 @@ const mapInvoiceToCreditItem = (invoice: ServerInvoiceResponse): CreditInvoiceIt
     usuarioGenero: invoice.header.cashier || 'N/A',
     moneda: 'NIO (Córdoba)',
     tipoPago: 'Crédito',
+    tipoVenta: invoice.header.saleType || 'N/A',
     detalles: invoice.details.map((detail) => ({
       id: String(detail.id),
       articuloId: detail.article,

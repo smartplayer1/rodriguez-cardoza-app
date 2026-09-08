@@ -1,24 +1,53 @@
-export interface CouponRecord {
+export interface MonthlyAccrualSetting {
   id: number;
-  name: string;
-  amount: number;
-  expirationDate: string;
+  purchaseAmountThreshold: number;
+  couponBonusAmount: number;
+  expirationDays: number;
   isActive: boolean;
 }
 
-export interface CouponResponse {
-  records: CouponRecord[];
-  paging: {
-    perPage: number;
-    currentPage: number;
-    totalRecords: number;
-    totalPages: number;
-  };
+export interface UpdateMonthlyAccrualSettingPayload {
+  purchaseAmountThreshold?: number;
+  couponBonusAmount?: number;
+  expirationDays?: number;
+  isActive?: boolean;
 }
 
-export interface CreateCouponPayload {
-  name: string;
-  amount: number;
-  expirationDate: string;
-  isActive: boolean;
+export interface RunMonthlyAccrualPayload {
+  period?: string;
 }
+
+export interface RunMonthlyAccrualResult {
+  periodStart: string;
+  clientsCredited: number;
+  totalAmountCredited: number;
+}
+
+export interface RecalculateRewardsPayload {
+  month: string;
+}
+
+export interface RecalculateRewardsResult {
+  periodStart: string;
+  clientsProcessed: number;
+  clientsFailed: number;
+  failedClientCodes: string[];
+}
+
+export interface CouponConsistencyFlag {
+  id: number;
+  invoiceId: number;
+  invoiceDocument: string;
+  clientCode: string;
+  period: string;
+  indicatedCouponAmount: number;
+  monthCumulativeCouponAmount: number;
+  monthCumulativeNetTotal: number;
+  expectedMonthlyBonusAmount: number;
+  detectedAt: string;
+}
+
+export type CouponConsistencyFlagFilters = {
+  clientCode?: string;
+  period?: string;
+};

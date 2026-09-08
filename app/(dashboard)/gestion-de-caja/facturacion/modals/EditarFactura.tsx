@@ -7,6 +7,8 @@ import { getCashManagementRecords } from "@/app/services/cash-management";
 import { CashManagementRecord } from "@/app/type/cash-management";
 import { ListSkeleton } from "@/components/ui/loading-skeleton";
 import {
+  SALE_TYPE_OPTIONS,
+  SaleType,
   ServerInvoiceResponse,
   ServerInvoiceUpdateDetailPayload,
   ServerInvoiceUpdateHeaderPayload,
@@ -33,6 +35,7 @@ type EditableHeader = {
   promoterCode: string;
   promoterName: string;
   priceLevel: string;
+  saleType: SaleType | "";
   coupon: number;
 };
 
@@ -141,6 +144,7 @@ export default function EditarFactura({
       promoterCode: invoice.header.promoterCode || "",
       promoterName: invoice.header.promoterName || "",
       priceLevel: invoice.header.priceLevel || "",
+      saleType: (invoice.header.saleType as SaleType) || "",
       coupon: safeNumber(invoice.header.coupon),
     });
 
@@ -262,6 +266,9 @@ export default function EditarFactura({
         : null,
       priceLevel: hasChanged(source.priceLevel, headerForm.priceLevel)
         ? headerForm.priceLevel
+        : null,
+      saleType: hasChanged(source.saleType, headerForm.saleType)
+        ? (headerForm.saleType as SaleType)
         : null,
       coupon: hasChanged(source.coupon, headerForm.coupon)
         ? headerForm.coupon
@@ -465,6 +472,25 @@ export default function EditarFactura({
                   updateHeaderField("priceLevel", e.target.value)
                 }
               />
+              <div>
+                <label className="block text-sm font-medium text-foreground">
+                  Tipo de venta
+                </label>
+                <select
+                  value={headerForm.saleType}
+                  onChange={(e) =>
+                    updateHeaderField("saleType", e.target.value as SaleType)
+                  }
+                  className="w-full pl-4 pr-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                >
+                  <option value="">Seleccione un tipo de venta</option>
+                  {SALE_TYPE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <MaterialInput
                 label="Cupón"
                 type="number"

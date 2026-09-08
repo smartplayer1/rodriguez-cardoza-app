@@ -79,17 +79,19 @@ export const PERMISSIONS = {
   INVOICE_IMPORT_HISTORICAL: 'Invoice.Invoice.ImportHistorical',
 
   // Módulo: Reward
-  COUPON_VIEW: 'Reward.Coupon.View',
-  COUPON_CREATE: 'Reward.Coupon.Create',
-  COUPON_EDIT: 'Reward.Coupon.Edit',
-  COUPON_DELETE: 'Reward.Coupon.Delete',
-
   INCENTIVE_RULE_VIEW: 'Reward.IncentiveRule.View',
   INCENTIVE_RULE_CREATE: 'Reward.IncentiveRule.Create',
   INCENTIVE_RULE_EDIT: 'Reward.IncentiveRule.Edit',
   INCENTIVE_RULE_DELETE: 'Reward.IncentiveRule.Delete',
 
   LEDGER_VIEW: 'Reward.Ledger.View',
+  LEDGER_RECALCULATE: 'Reward.Ledger.Recalculate',
+  LEDGER_CLOSE: 'Reward.Ledger.Close',
+  LEDGER_EDIT: 'Reward.Ledger.Edit',
+
+  MONTHLY_COUPON_ACCRUAL_VIEW: 'Reward.MonthlyCouponAccrual.View',
+  MONTHLY_COUPON_ACCRUAL_EDIT: 'Reward.MonthlyCouponAccrual.Edit',
+  MONTHLY_COUPON_ACCRUAL_RUN: 'Reward.MonthlyCouponAccrual.Run',
 
   // Módulo: Billing
   CASH_REGISTER_VIEW: 'Billing.CashRegister.View',
@@ -104,6 +106,9 @@ export const PERMISSIONS = {
   COLLECTION_VIEW: 'Billing.Collection.View',
   COLLECTION_CREATE: 'Billing.Collection.Create',
   COLLECTION_VOID: 'Billing.Collection.Void',
+
+  BANK_TRANSFER_VIEW: 'Billing.BankTransfer.View',
+  BANK_TRANSFER_CREATE: 'Billing.BankTransfer.Create',
 
   EXCHANGE_RATE_VIEW: 'Billing.ExchangeRate.View',
   EXCHANGE_RATE_CREATE: 'Billing.ExchangeRate.Create',

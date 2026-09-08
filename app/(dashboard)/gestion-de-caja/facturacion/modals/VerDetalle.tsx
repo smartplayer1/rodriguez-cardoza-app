@@ -24,6 +24,7 @@ interface Factura {
   usuarioGenero: string;
   moneda: string;
   tipoPago: 'Contado' | 'Crédito';
+  tipoVenta: string;
   detalles: FacturaDetalle[];
   subtotal: number;
   iva: number;
@@ -106,6 +107,10 @@ export default function VerDetalle({editingFactura, isOpen, onClose}: VerDetalle
                         {editingFactura.tipoPago}
                         </span>
                     </p>
+                    </div>
+                    <div>
+                    <span className="text-muted-foreground">Tipo de Venta:</span>
+                    <p className="text-foreground">{editingFactura.tipoVenta}</p>
                     </div>
                 </div>
                 </div>

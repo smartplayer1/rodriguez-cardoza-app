@@ -10,14 +10,6 @@ export interface IncentiveResponse {
   };
 }
 
-export interface Coupon {
-  id: number;
-  name: string;
-  amount: number;
-  expirationDate: string;
-  isActive: boolean;
-}
-
 export interface ProductVolumeCondition {
   id: number;
   articleCode: string;
@@ -28,13 +20,6 @@ export interface RewardProduct {
   articleCode: string;
   quantity: number;
 }
-
-export interface RewardCoupon {
-  id: number;
-  couponId: number;
-  coupon: Coupon;
-}
-
 
 export interface Promotion {
   id: number;
@@ -54,7 +39,6 @@ export interface Promotion {
   createdAt?: string;
   productVolumeConditions: ProductVolumeCondition[];
   rewardProducts: RewardProduct[];
-  rewardCoupons: RewardCoupon[];
 }
 
 export interface IncentivoGenerado {
@@ -67,7 +51,6 @@ export interface IncentivoGenerado {
   fechaEntrega?: string;
   estado: 'generado' | 'pendiente' | 'entregado';
   productosIncentivo: RewardProduct[];
-  cuponesIncentivo: RewardCoupon[];
   tipoCumplimiento: 'productos' | 'monto';
   montoComprado?: number;
   productosComprados?: ProductVolumeCondition[];
@@ -105,9 +88,6 @@ export interface CreatePromotionRequest {
     articleCode: string;
     quantity: number;
   }[];
-  rewardCoupons: {
-    couponId: number;
-  }[];
 }
 
 
@@ -127,7 +107,6 @@ export interface Incentive {
   participantClientType: 'Promotor'|'Asesor' | 'Ambos';
   productVolumeConditions: ProductVolumeCondition[];
   rewardProducts: RewardProduct[];
-  rewardCoupons: RewardCoupon[];
 }
 
 export interface IncentiveProgressRecord {

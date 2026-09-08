@@ -377,34 +377,6 @@ function ReglasIncentivos() {
                   </div>
                 </div>
               )}
-              {viewingRegla.rewardCoupons.length > 0 && (
-                <div>
-                  <h4 className="text-sm text-muted-foreground mb-3">
-                    Cupones del Incentivo
-                  </h4>
-                  <div className="bg-muted/30 rounded p-4 space-y-2">
-                    {viewingRegla.rewardCoupons.map((cupon, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between bg-surface p-3 rounded"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Ticket size={16} className="text-primary" />
-                          <span className="text-sm text-foreground">
-                            {cupon.coupon.name}
-                          </span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          Monto:{" "}
-                          <span className="text-foreground font-mono">
-                            ${cupon.coupon.amount.toFixed(2)}
-                          </span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="mt-6 flex justify-end">
@@ -615,12 +587,6 @@ function ReglasIncentivos() {
                         Vigencia: {regla.startDate} - {regla.endDate}
                       </span>
                     </div>
-                    {regla.rewardCoupons.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Ticket size={14} />
-                        <span>{regla.rewardCoupons.length} cupón(es)</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 

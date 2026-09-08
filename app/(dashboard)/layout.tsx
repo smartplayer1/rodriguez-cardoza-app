@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppHeader from '@/components/AppHeader';
 import AppSidebar from '@/components/AppSidebar';
 import { Toaster } from 'sonner';
+import { useUserStore } from '@/app/store/useUserStore';
 
 export default function DashboardLayout({
   children,
@@ -14,7 +15,13 @@ export default function DashboardLayout({
   const router = useRouter();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    useUserStore.getState().logout();
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+    } catch {
+      // Si falla la llamada, igual cerramos la sesión localmente y navegamos a login.
+    }
     router.push('/login');
   };
 

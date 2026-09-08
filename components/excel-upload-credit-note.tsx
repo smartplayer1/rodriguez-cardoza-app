@@ -12,7 +12,7 @@ import { createCreditNote } from "@/app/services/billing/credit-note";
 import { getCashManagementRecords } from "@/app/services/cash-management";
 import { CreditNoteCreatePayload } from "@/app/type/credit-note";
 import { CashManagementRecord } from "@/app/type/cash-management";
-import { ServerInvoicePayload } from "@/app/type/invoice";
+import { SaleType, ServerInvoicePayload } from "@/app/type/invoice";
 import { ListSkeleton } from "@/components/ui/loading-skeleton";
 const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO"];
 const TEMP_RESPONSIBLE_EMPLOYEE_ID = null;
@@ -133,6 +133,7 @@ export default function ImportarNotaCreditoModal({ open, onClose }: Props) {
             tienda: row.tienda,
             promotora: row.promotora,
             nivel_precio: row.nivel_precio,
+            tipo_venta: row.tipo_venta,
             cupon: row.cupon,
             total_bruto: 0,
             total_descuento_linea: 0,
@@ -206,6 +207,7 @@ export default function ImportarNotaCreditoModal({ open, onClose }: Props) {
         store: factura.encabezado.tienda,
         promoterCode: String(factura.encabezado.promotora),
         priceLevel: factura.encabezado.nivel_precio,
+        saleType: factura.encabezado.tipo_venta as SaleType,
         coupon: Number(factura.encabezado.cupon) || 0,
       },
       details: factura.detalle.map((detalle) => ({

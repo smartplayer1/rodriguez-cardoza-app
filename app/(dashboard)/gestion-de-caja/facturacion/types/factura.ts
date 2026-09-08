@@ -22,6 +22,7 @@ export interface FacturaDetalleExcel {
   tienda: string;
   promotora: string;
   nivel_precio: string;
+  tipo_venta: string;
   exento: string;
 
   mpremio: number;
@@ -46,6 +47,7 @@ export interface FacturaEncabezado {
   tienda: string;
   promotora: string;
   nivel_precio: string;
+  tipo_venta: string;
   cupon: string;
 
   total_bruto: number;

@@ -58,3 +58,49 @@ export type AgentsNearGoalsFilters = {
   page?: number;
   perPage?: number;
 };
+
+export type CouponMovementType = 'MonthlyAccrualCredit' | 'MonthlyAccrualDebit';
+
+export interface CouponMovementReportRecord {
+  id: number;
+  movementType: CouponMovementType;
+  clientCode: string;
+  clientName: string;
+  clientType: string;
+  invoiceId: number | null;
+  invoiceDocument: string | null;
+  amount: number;
+  remainingAmount: number | null;
+  movementDate: string;
+  branchCode: string;
+  branchName: string;
+}
+
+export interface CouponMovementsSummary {
+  recordCount: number;
+  monthlyAccrualCreditCount: number;
+  monthlyAccrualDebitCount: number;
+  totalCreditedAmount: number;
+  totalDebitedAmount: number;
+  netAmount: number;
+}
+
+export interface CouponMovementsRecords {
+  records: CouponMovementReportRecord[];
+  paging: Paging;
+}
+
+export interface CouponMovementsReportResponse {
+  summary: CouponMovementsSummary;
+  records: CouponMovementsRecords;
+}
+
+export type CouponMovementsReportFilters = {
+  dateFrom?: string;
+  dateTo?: string;
+  clientCode?: string;
+  movementType?: CouponMovementType;
+  branchCode?: string;
+  page?: number;
+  perPage?: number;
+};

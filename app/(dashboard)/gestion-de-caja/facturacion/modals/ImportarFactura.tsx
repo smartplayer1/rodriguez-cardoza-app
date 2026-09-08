@@ -7,12 +7,19 @@ import { mapExcelToFactura } from "../mappers/excel.mapper";
 import { createInvoices } from "@/app/services/invoice";
 import { getCashManagementRecords } from "@/app/services/cash-management";
 import { getBranches } from "@/app/services/company/branch";
+import { getUnrelatedBankTransfers } from "@/app/services/billing/bank-transfer";
 import { CashManagementRecord } from "@/app/type/cash-management";
 import { BranchResponse, RecordsBranch } from "@/app/type/branch";
-import { InvoiceBatchPostResponse, ServerInvoicePayload } from "@/app/type/invoice";
+import {
+  InvoiceBatchPostResponse,
+  SALE_TYPE_OPTIONS,
+  SaleType,
+  ServerInvoicePayload,
+} from "@/app/type/invoice";
+import { BankTransferRecord } from "@/app/type/bank-transfer";
 import { ListSkeleton } from "@/components/ui/loading-skeleton";
 
-const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO"];
+const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO", "TIPO_VENTA"];
 
 interface Props {
   open: boolean;
@@ -77,6 +84,11 @@ export default function ImportarFactura({ open , onClose } : Props) {
   const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
   const [branchLoading, setBranchLoading] = useState(false);
   const [branchCode, setBranchCode] = useState("");
+  const [unrelatedTransfers, setUnrelatedTransfers] = useState<BankTransferRecord[]>([]);
+  const [unrelatedTransfersLoading, setUnrelatedTransfersLoading] = useState(false);
+  const [selectedTransfersByDocument, setSelectedTransfersByDocument] = useState<
+    Record<string, number[]>
+  >({});
   const [fileName, setFileName] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [expandedFacturas, setExpandedFacturas] = useState<Record<string, boolean>>({})
@@ -128,11 +140,44 @@ export default function ImportarFactura({ open , onClose } : Props) {
     }
   }, []);
 
+  const loadUnrelatedTransfers = useCallback(async () => {
+    try {
+      setUnrelatedTransfersLoading(true);
+      const response = await getUnrelatedBankTransfers({ page: 1, perPage: 500 });
+      setUnrelatedTransfers(response.records || []);
+    } catch (error) {
+      console.error("Error loading unrelated bank transfers:", error);
+      setUnrelatedTransfers([]);
+    } finally {
+      setUnrelatedTransfersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     void loadOpenCashManagementRecords();
     void loadBranchOptions();
-  }, [open, loadOpenCashManagementRecords, loadBranchOptions]);
+    void loadUnrelatedTransfers();
+  }, [open, loadOpenCashManagementRecords, loadBranchOptions, loadUnrelatedTransfers]);
+
+  const toggleTransferSelection = useCallback((documento: string, transferId: number) => {
+    setSelectedTransfersByDocument((previous) => {
+      const current = previous[documento] || [];
+      const next = current.includes(transferId)
+        ? current.filter((id) => id !== transferId)
+        : [...current, transferId];
+
+      return { ...previous, [documento]: next };
+    });
+  }, []);
+
+  const transferDocumentById = useMemo(() => {
+    const map = new Map<number, string>();
+    Object.entries(selectedTransfersByDocument).forEach(([documento, ids]) => {
+      ids.forEach((id) => map.set(id, documento));
+    });
+    return map;
+  }, [selectedTransfersByDocument]);
 
   const groupedFacturas = useMemo<Factura[]>(() => {
     const facturasMap = new Map<string, Factura>()
@@ -153,6 +198,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
             tienda: row.tienda,
             promotora: row.promotora,
             nivel_precio: row.nivel_precio,
+            tipo_venta: row.tipo_venta,
             cupon: row.cupon,
             total_bruto: 0,
             total_descuento_linea: 0,
@@ -228,6 +274,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
         store: factura.encabezado.tienda,
         promoterCode: String(factura.encabezado.promotora),
         priceLevel: factura.encabezado.nivel_precio,
+        saleType: factura.encabezado.tipo_venta as SaleType,
         coupon: Number(factura.encabezado.cupon) || 0,
       },
       details: factura.detalle.map((detalle) => ({
@@ -241,8 +288,10 @@ export default function ImportarFactura({ open , onClose } : Props) {
         generalDiscount: Number(detalle.desc_gen) || 0,
         isExempt: detalle.exento,
       })),
+      collectionBankTransferIds:
+        selectedTransfersByDocument[factura.encabezado.documento] || [],
     }))
-  }, [groupedFacturas, branchCode, selectedCashManagementId])
+  }, [groupedFacturas, branchCode, selectedCashManagementId, selectedTransfersByDocument])
 
   const clearFile = useCallback(() => {
     setFileName(null)
@@ -252,6 +301,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
     setUploadProgress(null)
     setUploadErrors([])
     setExpandedFacturas({})
+    setSelectedTransfersByDocument({})
     if (inputRef.current) inputRef.current.value = ""
   }, [])
 
@@ -404,6 +454,12 @@ console.log("serverPayload", serverPayload);
       Number(row.precio) < 0
     ) {
       errs.push("Precio inválido");
+    }
+
+    if (!row.tipo_venta || !SALE_TYPE_OPTIONS.includes(row.tipo_venta as SaleType)) {
+      errs.push(
+        `Tipo de venta inválido (debe ser una de: ${SALE_TYPE_OPTIONS.join(", ")})`,
+      );
     }
 
     return errs.length > 0
@@ -760,7 +816,7 @@ const handleFileUpload = useCallback(
                             Factura: {documento}
                           </p>
                           <p className="text-xs text-gray-600">
-                            Cliente: {factura.encabezado.cliente} | Fecha: {factura.encabezado.fecha} | Ítems: {factura.encabezado.total_items}
+                            Cliente: {factura.encabezado.cliente} | Fecha: {factura.encabezado.fecha} | Ítems: {factura.encabezado.total_items} | Tipo de venta: {factura.encabezado.tipo_venta}
                           </p>
                         </div>
 
@@ -774,6 +830,33 @@ const handleFileUpload = useCallback(
                         </div>
                       </div>
                     </button>
+
+                    {isExpanded && (
+                      <div className="border-t p-3">
+                        <p className="text-sm font-medium text-gray-700 mb-1">
+                          Transferencias bancarias a relacionar con esta factura (opcional)
+                        </p>
+                        {unrelatedTransfersLoading ? (
+                          <ListSkeleton count={2} itemClassName="h-9 rounded" />
+                        ) : unrelatedTransfers.length === 0 ? (
+                          <p className="text-sm text-gray-500 rounded border border-gray-200 px-3 py-2">
+                            No hay transferencias pendientes de relacionar.
+                          </p>
+                        ) : (
+                          <TransferRelationSelector
+                            transfers={unrelatedTransfers}
+                            selectedIds={selectedTransfersByDocument[documento] || []}
+                            claimedByDocument={transferDocumentById}
+                            currentDocument={documento}
+                            disabled={saving}
+                            formatAmount={formatAmount}
+                            onToggle={(transferId) =>
+                              toggleTransferSelection(documento, transferId)
+                            }
+                          />
+                        )}
+                      </div>
+                    )}
 
                     {isExpanded && (
                       <div className="border-t overflow-auto">
@@ -837,4 +920,90 @@ const handleFileUpload = useCallback(
     </div>
   </div>
 );
+}
+
+function TransferRelationSelector({
+  transfers,
+  selectedIds,
+  claimedByDocument,
+  currentDocument,
+  disabled,
+  formatAmount,
+  onToggle,
+}: {
+  transfers: BankTransferRecord[];
+  selectedIds: number[];
+  claimedByDocument: Map<number, string>;
+  currentDocument: string;
+  disabled: boolean;
+  formatAmount: (value: number) => string;
+  onToggle: (transferId: number) => void;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredTransfers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return transfers;
+
+    return transfers.filter((transfer) => {
+      const haystack = `${transfer.bankName} ${transfer.accountNumber} ${transfer.amount}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [transfers, search]);
+
+  return (
+    <div className="space-y-2">
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Buscar por banco, cuenta o monto..."
+        className="w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+      />
+
+      <div className="max-h-48 overflow-auto rounded border border-gray-300 divide-y">
+        {filteredTransfers.length === 0 ? (
+          <p className="px-3 py-2 text-sm text-gray-500">Sin resultados.</p>
+        ) : (
+          filteredTransfers.map((transfer) => {
+            const isSelected = selectedIds.includes(transfer.id);
+            const claimedDocument = claimedByDocument.get(transfer.id);
+            const isClaimedElsewhere = !!claimedDocument && claimedDocument !== currentDocument;
+
+            return (
+              <label
+                key={transfer.id}
+                className={`flex items-center justify-between gap-3 px-3 py-2 text-sm ${
+                  isClaimedElsewhere
+                    ? "cursor-not-allowed opacity-50"
+                    : "cursor-pointer hover:bg-gray-50"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onToggle(transfer.id)}
+                    disabled={disabled || isClaimedElsewhere}
+                  />
+                  <span>
+                    {transfer.bankName} · {transfer.accountNumber} ·{" "}
+                    {new Date(transfer.transferDate).toLocaleDateString()}
+                    {isClaimedElsewhere ? (
+                      <span className="ml-2 text-xs text-amber-600">
+                        Ya asignada a factura {claimedDocument}
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
+                <span className="font-medium text-gray-700">
+                  {formatAmount(transfer.amount)}
+                </span>
+              </label>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
 }

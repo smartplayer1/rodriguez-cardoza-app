@@ -1,10 +1,17 @@
 import {
   AgentsNearGoalsFilters,
   AgentsNearGoalsResponse,
+  CouponMovementsReportFilters,
+  CouponMovementsReportResponse,
 } from "@/app/type/reward-report";
 import { createJsonHeaders, resolveServiceUrl } from "@/app/services/http";
 
 type AgentsNearGoalsFiltersWithContext = AgentsNearGoalsFilters & {
+  baseUrl?: string;
+  cookieHeader?: string;
+};
+
+type CouponMovementsReportFiltersWithContext = CouponMovementsReportFilters & {
   baseUrl?: string;
   cookieHeader?: string;
 };
@@ -55,6 +62,45 @@ export const getAgentsNearGoalsReport = async (
 
   if (!response.ok) {
     throw new Error("Failed to fetch agents near goals report");
+  }
+
+  return await response.json();
+};
+
+const buildCouponMovementsQueryString = (filters?: CouponMovementsReportFiltersWithContext) => {
+  if (!filters) {
+    return "";
+  }
+
+  const params = new URLSearchParams();
+
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.clientCode?.trim()) params.set("clientCode", filters.clientCode.trim());
+  if (filters.movementType) params.set("movementType", filters.movementType);
+  if (filters.branchCode?.trim()) params.set("branchCode", filters.branchCode.trim());
+  if (typeof filters.page === "number") params.set("Page", String(filters.page));
+  if (typeof filters.perPage === "number") params.set("PerPage", String(filters.perPage));
+
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : "";
+};
+
+export const getCouponMovementsReport = async (
+  filters?: CouponMovementsReportFiltersWithContext,
+): Promise<CouponMovementsReportResponse> => {
+  const response = await fetch(
+    resolveServiceUrl(`/api/reward/reports/coupon-movements${buildCouponMovementsQueryString(filters)}`, {
+      baseUrl: filters?.baseUrl,
+    }),
+    {
+      method: "GET",
+      headers: createJsonHeaders(filters?.cookieHeader),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch coupon movements report");
   }
 
   return await response.json();

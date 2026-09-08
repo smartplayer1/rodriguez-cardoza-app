@@ -78,6 +78,7 @@ export const mapExcelToFactura = (row: any): FacturaDetalleExcel => ({
   tienda: row?.TIENDA,
   promotora: row?.PROMOTORA,
   nivel_precio: row?.NIVEL_PRECIO,
+  tipo_venta: typeof row?.TIPO_VENTA === "string" ? row.TIPO_VENTA.trim() : row?.TIPO_VENTA,
   exento: row?.EXENTO,
 
   mpremio: toDecimal(Math.abs(row?.Mpremio)),

@@ -10,6 +10,7 @@ export interface ClientPromoterReceivableRecord {
   invoiceNumber: string;
   invoiceTotalNio: number;
   paidAmountNio: number;
+  creditedAmountNio: number;
   pendingBalanceNio: number;
   dueDate: string | null;
   branchCode: string;
@@ -21,6 +22,7 @@ export interface AccountsReceivableSummary {
   invoiceCount: number;
   invoiceTotalNio: number;
   paidTotalNio: number;
+  creditedTotalNio: number;
   pendingBalanceTotalNio: number;
 }
 

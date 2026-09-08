@@ -237,10 +237,7 @@ export default function CrearCobroModal() {
 
     setBankTransfers((previous) =>
       previous.map((transfer) => {
-        if (
-          transfer.companyBankAccountId > 0 &&
-          transfer.accountNumber.trim()
-        ) {
+        if (transfer.companyBankAccountId > 0) {
           return transfer;
         }
 
@@ -248,7 +245,6 @@ export default function CrearCobroModal() {
         return {
           ...transfer,
           companyBankAccountId: firstAccount.id,
-          accountNumber: firstAccount.accountNumber,
         };
       }),
     );
@@ -857,14 +853,8 @@ export default function CrearCobroModal() {
                                   const selectedId = Number(
                                     event.target.value,
                                   );
-                                  const selectedAccount =
-                                    bankAccountOptions.find(
-                                      (option) => option.id === selectedId,
-                                    );
                                   updateRow(index, {
                                     companyBankAccountId: selectedId,
-                                    accountNumber:
-                                      selectedAccount?.accountNumber || "",
                                   });
                                 }}
                                 className="block w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-60"
@@ -882,14 +872,18 @@ export default function CrearCobroModal() {
                           </label>
                           <label className="block space-y-1 min-w-0 sm:col-span-2">
                             <span className="text-xs text-muted-foreground">
-                              Número de cuenta
+                              Número de referencia / documento
                             </span>
                             <input
                               type="text"
                               value={row.accountNumber}
+                              onChange={(event) =>
+                                updateRow(index, {
+                                  accountNumber: event.target.value,
+                                })
+                              }
                               className="block w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm"
-                              placeholder="Número de cuenta"
-                              readOnly
+                              placeholder="Número de referencia o documento de la transferencia"
                             />
                           </label>
                           <label className="block space-y-1 min-w-0">

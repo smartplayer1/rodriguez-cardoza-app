@@ -24,6 +24,7 @@ const buildRows = (records: ClientPromoterReceivableRecord[]) =>
     'Fecha Vencimiento': formatDate(record.dueDate),
     'Total C$': formatCurrency(record.invoiceTotalNio),
     'Pagado C$': formatCurrency(record.paidAmountNio),
+    'Notas de Crédito Aplicadas C$': formatCurrency(record.creditedAmountNio),
     'Saldo Pendiente C$': formatCurrency(record.pendingBalanceNio),
     Sucursal: record.branchName ?? record.branchCode,
     Cantón: record.branchCanton ?? '-',
@@ -43,6 +44,7 @@ export const exportAccountsReceivableToExcel = (
       `Facturas: ${summary.invoiceCount}`,
       `Total: C$${formatCurrency(summary.invoiceTotalNio)}`,
       `Pagado: C$${formatCurrency(summary.paidTotalNio)}`,
+      `Notas de crédito: C$${formatCurrency(summary.creditedTotalNio)}`,
       `Pendiente: C$${formatCurrency(summary.pendingBalanceTotalNio)}`,
     ]],
     { origin: -1 },
@@ -62,7 +64,7 @@ export const exportAccountsReceivableToPdf = (
   doc.text('Reporte de Cuentas por Cobrar - Cliente / Promotor', 40, 40);
   doc.setFontSize(10);
   doc.text(
-    `Facturas: ${summary.invoiceCount}    Total: C$${formatCurrency(summary.invoiceTotalNio)}    Pagado: C$${formatCurrency(summary.paidTotalNio)}    Pendiente: C$${formatCurrency(summary.pendingBalanceTotalNio)}`,
+    `Facturas: ${summary.invoiceCount}    Total: C$${formatCurrency(summary.invoiceTotalNio)}    Pagado: C$${formatCurrency(summary.paidTotalNio)}    Notas de crédito: C$${formatCurrency(summary.creditedTotalNio)}    Pendiente: C$${formatCurrency(summary.pendingBalanceTotalNio)}`,
     40,
     58,
   );
@@ -79,6 +81,7 @@ export const exportAccountsReceivableToPdf = (
       'Vencimiento',
       'Total C$',
       'Pagado C$',
+      'Créditos C$',
       'Saldo C$',
       'Sucursal',
     ]],
@@ -90,6 +93,7 @@ export const exportAccountsReceivableToPdf = (
       formatDate(record.dueDate),
       formatCurrency(record.invoiceTotalNio),
       formatCurrency(record.paidAmountNio),
+      formatCurrency(record.creditedAmountNio),
       formatCurrency(record.pendingBalanceNio),
       record.branchName ?? record.branchCode,
     ]),

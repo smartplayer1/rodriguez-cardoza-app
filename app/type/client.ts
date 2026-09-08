@@ -93,6 +93,14 @@ export interface ClientRewardProgress {
   maxWinsPerClient: number | null;
 }
 
+export interface EarnedRewardArticle {
+  articleCode: string;
+  articleName: string;
+  category: string;
+  description: string;
+  quantity: number;
+}
+
 export interface ClientEarnedReward {
   id: number;
   incentiveRuleId: number;
@@ -104,21 +112,52 @@ export interface ClientEarnedReward {
   status: string;
   articleCode: string | null;
   quantity: number;
-  couponId: number | null;
-  couponName: string | null;
-  couponAmount: number;
+  article?: EarnedRewardArticle | null;
+}
+
+export interface RewardLedgerStatus {
+  clientCode: string;
+  isRewardLedgerClosed: boolean;
+  rewardLedgerClosedAt: string | null;
+  rewardLedgerClosedBy: string | null;
+}
+
+export type EarnedRewardStatus = 'Pending' | 'Credited';
+
+export interface UpdateEarnedRewardPayload {
+  status?: EarnedRewardStatus;
+  articleCode?: string;
+  quantity?: number;
 }
 
 export interface ClientCouponMovement {
   id: number;
-  movementType: string;
-  incentiveRuleId: number | null;
-  incentiveRuleName: string | null;
-  invoiceId: number;
-  invoiceDocument: string;
-  couponId: number;
-  couponName: string;
+  movementType: 'MonthlyAccrualCredit' | 'MonthlyAccrualDebit';
+  invoiceId: number | null;
+  invoiceDocument: string | null;
   amount: number;
   remainingAmount: number | null;
   appliedAt: string;
 }
+
+export interface ClientCouponBalance {
+  clientCode: string;
+  totalBalance: number;
+}
+
+export type UpdateClientPayload = {
+  Code?: string;
+  Name?: string;
+  PhoneNumber?: string | null;
+  IDNumber?: string;
+  ClientType?: 'ASESOR' | 'PROMOTOR';
+  ZoneCode?: string;
+  DateOfEntry?: string;
+  Address?: string | null;
+  Province?: string | null;
+  District?: string | null;
+  Canton?: string | null;
+  BranchCode?: string;
+  PromoterCode?: string;
+  IsZermat?: boolean;
+};

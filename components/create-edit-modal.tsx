@@ -8,7 +8,6 @@ import {
   Package,
   Plus,
   Save,
-  Ticket,
   Trash2,
   TrendingUp,
   X,
@@ -17,14 +16,12 @@ import {
   CreatePromotionRequest,
   ProductVolumeCondition,
   Promotion,
-  RewardCoupon,
   RewardProduct,
 } from "@/app/type/incentive";
 import { getArticles } from "@/app/services/article";
 import { ArticleRecord } from "@/app/type/article";
-import { CouponRecord } from "@/app/type/reward";
-import { getRewardCoupon } from "@/app/services/coupon";
 import { ListSkeleton } from "@/components/ui/loading-skeleton";
+import { SearchableSelect } from "@/components/SearchableSelect";
 const generateUniqueId = () => Date.now();
 
 const toDateInputValue = (value?: string) => {
@@ -58,7 +55,6 @@ interface FormData {
   participantClientType: ClientType;
   productVolumeConditions: ProductVolumeCondition[];
   rewardProducts: RewardProduct[];
-  rewardCoupons: RewardCoupon[];
 }
 
 interface CreateEditModalProps {
@@ -76,7 +72,6 @@ export default function CreateEditModal({
 }: CreateEditModalProps) {
   const [showAddCondicion, setShowAddCondicion] = useState(false);
   const [showAddIncentivo, setShowAddIncentivo] = useState(false);
-  const [showAddCupon, setShowAddCupon] = useState(false);
 
   const editingRegla = initialRule;
   const [productosCondicion, setProductosCondicion] = useState<
@@ -85,9 +80,6 @@ export default function CreateEditModal({
   const [productosIncentivo, setProductosIncentivo] = useState<RewardProduct[]>(
     initialRule?.rewardProducts || [],
   );
-  const [cuponesIncentivo, setCuponesIncentivo] = useState<RewardCoupon[]>(
-    initialRule?.rewardCoupons || [],
-  );
 
   const [selectedProductoCondicion, setSelectedProductoCondicion] =
     useState("");
@@ -95,9 +87,7 @@ export default function CreateEditModal({
   const [selectedProductoIncentivo, setSelectedProductoIncentivo] =
     useState("");
   const [cantidadIncentivo, setCantidadIncentivo] = useState(1);
-  const [selectedCupon, setSelectedCupon] = useState("");
   const [articles, setArticles] = useState<ArticleRecord[]>([]);
-  const [coupones, setCoupones] = useState<CouponRecord[]>([]);
   const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isMaxWinsUnlimited, setIsMaxWinsUnlimited] = useState(
     initialRule?.maxWinsPerClient == null,
@@ -117,7 +107,6 @@ export default function CreateEditModal({
     participantClientType: initialRule?.participantClientType || "Ambos",
     productVolumeConditions: initialRule?.productVolumeConditions || [],
     rewardProducts: initialRule?.rewardProducts || [],
-    rewardCoupons: initialRule?.rewardCoupons || [],
   });
 
 
@@ -127,13 +116,9 @@ export default function CreateEditModal({
     const fetchResources = async () => {
       setIsLoadingResources(true);
       try {
-        const [articlesRes, couponsRes] = await Promise.all([
-          getArticles(),
-          getRewardCoupon(),
-        ]);
+        const articlesRes = await getArticles();
         if (!mounted) return;
         setArticles(articlesRes?.records ?? []);
-        setCoupones(couponsRes?.records ?? []);
       } catch (error) {
         if (!mounted) return;
         console.error("Error loading resources", error);
@@ -201,40 +186,6 @@ export default function CreateEditModal({
     );
   };
 
-  const addCupon = () => {
-    if (!selectedCupon) {
-      alert("Seleccione un cupón");
-      return;
-    }
-
-    const cupon = coupones.find((c) => c.id === Number(selectedCupon));
-    if (!cupon) return;
-
-    const exists = cuponesIncentivo.find((c) => c.couponId === cupon.id);
-    if (exists) {
-      alert("Este cupón ya está agregado");
-      return;
-    }
-
-    setCuponesIncentivo([
-      ...cuponesIncentivo,
-      {
-        id: generateUniqueId(),
-        couponId: cupon.id,
-        coupon: cupon,
-      },
-    ]);
-
-    setSelectedCupon("");
-    setShowAddCupon(false);
-  };
-
-  const removeCupon = (couponId: number) => {
-    setCuponesIncentivo(
-      cuponesIncentivo.filter((c) => c.couponId !== couponId),
-    );
-  };
-
   const handleSave = async () => {
     if (!formData.name.trim()) {
       alert("Por favor ingrese el nombre de la regla");
@@ -271,8 +222,8 @@ export default function CreateEditModal({
       return;
     }
 
-    if (productosIncentivo.length === 0 && cuponesIncentivo.length === 0) {
-      alert("Por favor agregue al menos un producto o cupón como incentivo");
+    if (productosIncentivo.length === 0) {
+      alert("Por favor agregue al menos un producto como incentivo");
       return;
     }
 
@@ -295,9 +246,6 @@ export default function CreateEditModal({
       rewardProducts: productosIncentivo.map((p) => ({
         articleCode: p.articleCode,
         quantity: p.quantity,
-      })),
-      rewardCoupons: cuponesIncentivo.map((c) => ({
-        couponId: c.couponId
       })),
     };
 
@@ -604,34 +552,22 @@ export default function CreateEditModal({
                               <label className="text-sm text-foreground mb-2 block">
                                 Producto *
                               </label>
-                              <div className="relative">
-                                <select
-                                  value={selectedProductoCondicion}
-                                  onChange={(e) =>
-                                    setSelectedProductoCondicion(e.target.value)
-                                  }
-                                  className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
-                                         focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                                >
-                                  <option value="">Seleccione un producto</option>
-                                  {articles
-                                    .filter(
-                                      (a) =>
-                                        !productosCondicion.find(
-                                          (p) => p.articleCode === a.code,
-                                        ),
-                                    )
-                                    .map((articulo) => (
-                                      <option key={articulo.id} value={articulo.id}>
-                                        {articulo.name} ({articulo.code})
-                                      </option>
-                                    ))}
-                                </select>
-                                <ChevronDown
-                                  size={20}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                                />
-                              </div>
+                              <SearchableSelect
+                                value={selectedProductoCondicion}
+                                onChange={setSelectedProductoCondicion}
+                                placeholder="Buscar por nombre o código"
+                                options={articles
+                                  .filter(
+                                    (a) =>
+                                      !productosCondicion.find(
+                                        (p) => p.articleCode === a.code,
+                                      ),
+                                  )
+                                  .map((articulo) => ({
+                                    value: String(articulo.id),
+                                    label: `${articulo.name} (${articulo.code})`,
+                                  }))}
+                              />
                             </div>
                           </div>
 
@@ -799,34 +735,22 @@ export default function CreateEditModal({
                           <label className="text-sm text-foreground mb-2 block">
                             Producto *
                           </label>
-                          <div className="relative">
-                            <select
-                              value={selectedProductoIncentivo}
-                              onChange={(e) =>
-                                setSelectedProductoIncentivo(e.target.value)
-                              }
-                              className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
-                                     focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                            >
-                              <option value="">Seleccione un producto</option>
-                              {articles
-                                .filter(
-                                  (a) =>
-                                    !productosIncentivo.find(
-                                      (p) => p.articleCode === a.code,
-                                    ),
-                                )
-                                .map((articulo) => (
-                                  <option key={articulo.id} value={articulo.id}>
-                                    {articulo.name} ({articulo.code})
-                                  </option>
-                                ))}
-                            </select>
-                            <ChevronDown
-                              size={20}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                            />
-                          </div>
+                          <SearchableSelect
+                            value={selectedProductoIncentivo}
+                            onChange={setSelectedProductoIncentivo}
+                            placeholder="Buscar por nombre o código"
+                            options={articles
+                              .filter(
+                                (a) =>
+                                  !productosIncentivo.find(
+                                    (p) => p.articleCode === a.code,
+                                  ),
+                              )
+                              .map((articulo) => ({
+                                value: String(articulo.id),
+                                label: `${articulo.name} (${articulo.code})`,
+                              }))}
+                          />
                         </div>
 
                         <MaterialInput
@@ -874,125 +798,6 @@ export default function CreateEditModal({
                   onClick={() => setShowAddIncentivo(true)}
                 >
                   Agregar Producto Incentivo
-                </MaterialButton>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Cupones del Incentivo */}
-        <div className="bg-surface rounded elevation-1 p-6">
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Ticket size={24} className="text-primary" />
-              <div className="flex-1">
-                <h3 className="text-foreground">Cupones del Incentivo</h3>
-                <p className="text-sm text-muted-foreground">
-                  Configure los cupones que se entregarán
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {/* Lista de Cupones Agregados */}
-              {cuponesIncentivo.length > 0 && (
-                <div className="space-y-2">
-                  {cuponesIncentivo.map((cupon) => (
-                    <div
-                      key={cupon.couponId}
-                      className="flex items-center justify-between bg-background p-4 rounded border border-border"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Ticket size={20} className="text-primary" />
-                        <div>
-                          <p className="text-foreground">{cupon.coupon.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Monto: ${cupon.coupon.amount.toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeCupon(cupon.couponId)}
-                        className="text-red-600 hover:text-red-700 transition-colors p-2"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Formulario para Agregar Cupón */}
-              {showAddCupon ? (
-                <div className="bg-background p-4 rounded border-2 border-primary/50">
-                  {isLoadingResources ? (
-                    <ListSkeleton count={2} />
-                  ) : (
-                    <>
-                      <div className="mb-4">
-                        <label className="block text-sm text-muted-foreground mb-2">
-                          Seleccionar Cupón *
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={selectedCupon}
-                            onChange={(e) => setSelectedCupon(e.target.value)}
-                            className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
-                                   focus:border-primary rounded-t transition-colors outline-none appearance-none"
-                          >
-                            <option value="">Seleccione un cupón</option>
-                            {coupones
-                              .filter(
-                                (c) =>
-                                  !cuponesIncentivo.find(
-                                    (ci) => ci.couponId === c.id,
-                                  ),
-                              )
-                              .map((cupon) => (
-                                <option key={cupon.id} value={cupon.id}>
-                                  {cupon.name} - ${cupon.amount.toFixed(2)}
-                                </option>
-                              ))}
-                          </select>
-                          <ChevronDown
-                            size={20}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3">
-                        <MaterialButton
-                          variant="contained"
-                          color="primary"
-                          startIcon={<Plus size={18} />}
-                          onClick={addCupon}
-                        >
-                          Agregar Cupón
-                        </MaterialButton>
-                        <MaterialButton
-                          variant="outlined"
-                          color="secondary"
-                          startIcon={<X size={18} />}
-                          onClick={() => {
-                            setShowAddCupon(false);
-                            setSelectedCupon("");
-                          }}
-                        >
-                          Cancelar
-                        </MaterialButton>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <MaterialButton
-                  variant="outlined"
-                  color="primary"
-                  startIcon={<Plus size={18} />}
-                  onClick={() => setShowAddCupon(true)}
-                >
-                  Agregar Cupón
                 </MaterialButton>
               )}
             </div>

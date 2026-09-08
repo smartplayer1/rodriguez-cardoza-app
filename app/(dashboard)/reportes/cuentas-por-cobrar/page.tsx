@@ -166,7 +166,13 @@ export default async function CuentasPorCobrarPage({
   } catch (error) {
     fetchError = error instanceof Error ? error.message : 'No se pudo consultar el reporte';
     response = {
-      summary: { invoiceCount: 0, invoiceTotalNio: 0, paidTotalNio: 0, pendingBalanceTotalNio: 0 },
+      summary: {
+        invoiceCount: 0,
+        invoiceTotalNio: 0,
+        paidTotalNio: 0,
+        creditedTotalNio: 0,
+        pendingBalanceTotalNio: 0,
+      },
       records: { records: [], paging: { perPage, currentPage: page, totalRecords: 0, totalPages: 1 } },
     };
   }
@@ -191,7 +197,7 @@ export default async function CuentasPorCobrarPage({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
               <StatCard label="Facturas" value={summary.invoiceCount} icon={<Receipt className="size-4" />} />
               <StatCard
                 label="Total C$"
@@ -202,6 +208,11 @@ export default async function CuentasPorCobrarPage({
                 label="Pagado C$"
                 value={formatCurrency(summary.paidTotalNio)}
                 icon={<DollarSign className="size-4" />}
+              />
+              <StatCard
+                label="Notas de crédito C$"
+                value={formatCurrency(summary.creditedTotalNio)}
+                icon={<FileText className="size-4" />}
               />
               <StatCard
                 label="Pendiente C$"
@@ -335,6 +346,7 @@ export default async function CuentasPorCobrarPage({
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Vencimiento</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total C$</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Pagado C$</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Notas de crédito aplicadas</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Saldo C$</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Sucursal</th>
                 </tr>
@@ -364,6 +376,9 @@ export default async function CuentasPorCobrarPage({
                         {formatCurrency(record.paidAmountNio)}
                       </td>
                       <td className="px-4 py-4 text-right font-mono text-foreground">
+                        {formatCurrency(record.creditedAmountNio)}
+                      </td>
+                      <td className="px-4 py-4 text-right font-mono text-foreground">
                         {formatCurrency(record.pendingBalanceNio)}
                       </td>
                       <td className="px-4 py-4 text-foreground">
@@ -376,7 +391,7 @@ export default async function CuentasPorCobrarPage({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
                       No hay registros para mostrar.
                     </td>
                   </tr>
