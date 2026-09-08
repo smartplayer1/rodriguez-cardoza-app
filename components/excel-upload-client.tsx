@@ -642,12 +642,14 @@ export function ImportarClientesModal({
         >
           <button
             onClick={onClose}
+            disabled={loadingImport}
             className="
               px-5
               py-2.5
               rounded-lg
               border
               hover:bg-gray-50
+              disabled:opacity-50
             "
           >
             Cancelar

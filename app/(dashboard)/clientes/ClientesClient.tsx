@@ -51,6 +51,20 @@ type Props = {
   branches: BranchResponse['records'];
 };
 
+// Máximo de creaciones de cliente en vuelo al mismo tiempo durante el import.
+// Sin este límite, un Excel grande dispara todas las peticiones POST /v1/client
+// en paralelo y satura las conexiones a la base de datos del backend
+// ("too many clients already").
+const IMPORT_CONCURRENCY = 5;
+
+const chunkArray = <T,>(items: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
+
 export default function ClientesClient({ initialClientes, branches }: Props) {
   const router = useRouter();
   const { can } = useUserStore();
@@ -59,6 +73,9 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
 
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importProcessed, setImportProcessed] = useState(0);
+  const [importTotal, setImportTotal] = useState(0);
+  const [importSuccessCount, setImportSuccessCount] = useState(0);
 
   const [showRewardsModal, setShowRewardsModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClienteResponse | null>(null);
@@ -78,6 +95,9 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
 
   const handleImport = async (data: ClienteExcel[]) => {
     setImporting(true);
+    setErrorCreateClient([]);
+    setImportSuccessCount(0);
+    setImportProcessed(0);
 
     const dataProcessed: Client[] = data.map((item) => ({
       id: 0,
@@ -100,28 +120,51 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
       creator: 'admin',
     }));
 
-    await Promise.all(
-      dataProcessed.map(async (client, index) => {
-        try {
-          const response = await createClient({ ...client, promotorCode: String(client.promotorCode) });
-          if (!response.ok) {
-            const errorData: ErrorResponse = await response.json();
-            console.error(`Error al importar cliente ${client.name}:`, errorData);
+    setImportTotal(dataProcessed.length);
+
+    // Se procesa en lotes pequeños (Promise.all por lote, lotes en serie) en
+    // vez de disparar todas las peticiones a la vez: eso saturaba las
+    // conexiones a la base de datos del backend.
+    const rows = dataProcessed.map((client, index) => ({ client, index }));
+    const batches = chunkArray(rows, IMPORT_CONCURRENCY);
+
+    for (const batch of batches) {
+      await Promise.all(
+        batch.map(async ({ client, index }) => {
+          try {
+            const response = await createClient({ ...client, promotorCode: String(client.promotorCode) });
+            if (!response.ok) {
+              const errorData: ErrorResponse | null = await response.json().catch(() => null);
+              console.error(`Error al importar cliente ${client.name}:`, errorData);
+              setErrorCreateClient((prev) => [
+                ...prev,
+                {
+                  fila: index + 1,
+                  name: client.name,
+                  error: errorData?.detail || 'Error desconocido',
+                  titulo: errorData?.title || 'Error',
+                },
+              ]);
+            } else {
+              setImportSuccessCount((prev) => prev + 1);
+            }
+          } catch (error) {
+            console.error(`Error al importar cliente ${client.name}:`, error);
             setErrorCreateClient((prev) => [
               ...prev,
               {
                 fila: index + 1,
                 name: client.name,
-                error: errorData.detail || 'Error desconocido',
-                titulo: errorData.title || 'Error',
+                error: error instanceof Error ? error.message : 'Error de conexión al importar',
+                titulo: 'Error de red',
               },
             ]);
+          } finally {
+            setImportProcessed((prev) => prev + 1);
           }
-        } catch (error) {
-          console.error(`Error al importar cliente ${client.name}:`, error);
-        }
-      }),
-    );
+        }),
+      );
+    }
 
     setImporting(false);
     router.refresh();
@@ -612,6 +655,10 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
         isOpen={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         onImport={handleImport}
+        loadingImport={importing}
+        processed={importProcessed}
+        total={importTotal}
+        successCount={importSuccessCount}
       />
       <ModaleErrorCreateClient
         open={errorCreateClient.length > 0}
