@@ -47,6 +47,8 @@ export function ImportarClientesModal({
 
   if (!isOpen) return null;
 
+  const isBlank = (value: any) => value === null || value === undefined || String(value).trim() === '';
+
   const validateRow = (
     row: any,
     index: number
@@ -77,29 +79,31 @@ export function ImportarClientesModal({
       );
     }
 
-    return rowErrors;
-  };
-
-  const isBlank = (value: any) => value === null || value === undefined || String(value).trim() === '';
-
-  const getRowWarnings = (row: any): string[] => {
-    const rowWarnings: string[] = [];
-
-    if (isBlank(row['Cedula'])) {
-      rowWarnings.push('Cédula vacía');
-    }
-
     if (
       isBlank(row['Tel1']) &&
       isBlank(row['Tel2']) &&
       isBlank(row['Tel3']) &&
       isBlank(row['Tel4'])
     ) {
-      rowWarnings.push('Teléfono vacío');
+      rowErrors.push(
+        `Fila ${index}: Teléfono requerido`
+      );
     }
 
     if (isBlank(row['Dirección'])) {
-      rowWarnings.push('Dirección vacía');
+      rowErrors.push(
+        `Fila ${index}: Dirección requerida`
+      );
+    }
+
+    return rowErrors;
+  };
+
+  const getRowWarnings = (row: any): string[] => {
+    const rowWarnings: string[] = [];
+
+    if (isBlank(row['Cedula'])) {
+      rowWarnings.push('Cédula vacía');
     }
 
     if (isBlank(row['Provincia'])) {
@@ -271,9 +275,12 @@ export function ImportarClientesModal({
           bg-white
           w-full
           max-w-5xl
+          max-h-[90vh]
           rounded-2xl
           shadow-2xl
           overflow-hidden
+          flex
+          flex-col
         "
       >
         {/* HEADER */}
@@ -285,6 +292,7 @@ export function ImportarClientesModal({
             px-6
             py-5
             border-b
+            shrink-0
           "
         >
           <div className="flex items-center gap-3">
@@ -331,7 +339,7 @@ export function ImportarClientesModal({
         </div>
 
         {/* CONTENT */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {/* Upload */}
           <label
             className="
@@ -562,8 +570,8 @@ export function ImportarClientesModal({
                         <th className="px-4 py-3 text-left text-sm">Sucursal *</th>
                         <th className="px-4 py-3 text-left text-sm">Tipo *</th>
                         <th className="px-4 py-3 text-left text-sm">Cédula</th>
-                        <th className="px-4 py-3 text-left text-sm">Teléfono</th>
-                        <th className="px-4 py-3 text-left text-sm">Dirección</th>
+                        <th className="px-4 py-3 text-left text-sm">Teléfono *</th>
+                        <th className="px-4 py-3 text-left text-sm">Dirección *</th>
                         <th className="px-4 py-3 text-left text-sm">Provincia</th>
                         <th className="px-4 py-3 text-left text-sm">Cantón</th>
                         <th className="px-4 py-3 text-left text-sm">Distrito</th>
@@ -586,8 +594,8 @@ export function ImportarClientesModal({
                             <PreviewCell value={cliente.branchName} required />
                             <PreviewCell value={cliente.clientType} required />
                             <PreviewCell value={cliente.idNumber} />
-                            <PreviewCell value={cliente.phoneNumber} />
-                            <PreviewCell value={cliente.address} />
+                            <PreviewCell value={cliente.phoneNumber} required />
+                            <PreviewCell value={cliente.address} required />
                             <PreviewCell value={cliente.province} />
                             <PreviewCell value={cliente.canton} />
                             <PreviewCell value={cliente.district} />
@@ -629,6 +637,7 @@ export function ImportarClientesModal({
             flex
             justify-end
             gap-3
+            shrink-0
           "
         >
           <button

@@ -39,8 +39,17 @@ export default function EditarClienteModal({ cliente, branches, onClose, onSaved
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSave = async () => {
-    if (!name.trim() || !idNumber.trim() || !zoneCode.trim() || !branchCode) {
-      setErrorMessage('Complete los campos obligatorios: nombre, identificación, zona y sucursal');
+    if (
+      !name.trim() ||
+      !idNumber.trim() ||
+      !zoneCode.trim() ||
+      !branchCode ||
+      !phoneNumber.trim() ||
+      !address.trim()
+    ) {
+      setErrorMessage(
+        'Complete los campos obligatorios: nombre, identificación, teléfono, dirección, zona y sucursal',
+      );
       return;
     }
 
@@ -124,7 +133,7 @@ export default function EditarClienteModal({ cliente, branches, onClose, onSaved
           />
 
           <MaterialInput
-            label="Teléfono"
+            label="Teléfono *"
             fullWidth
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
@@ -197,7 +206,7 @@ export default function EditarClienteModal({ cliente, branches, onClose, onSaved
           />
 
           <MaterialInput
-            label="Dirección"
+            label="Dirección *"
             fullWidth
             value={address}
             onChange={(e) => setAddress(e.target.value)}
