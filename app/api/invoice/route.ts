@@ -24,6 +24,21 @@ const buildQueryString = (filters: InvoiceGetFilters) => {
   return query ? `?${query}` : "";
 };
 
+// Máximo de creaciones de factura en vuelo al mismo tiempo cuando llega un
+// lote con varias facturas. Sin este límite, un POST con muchas facturas
+// dispara todas las peticiones a /v1/invoice en paralelo y satura las
+// conexiones a la base de datos del backend (mismo problema que se dio con
+// el import de clientes).
+const CREATE_CONCURRENCY = 5;
+
+const chunkArray = <T,>(items: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
+
 const readErrorMessage = (body: unknown) => {
   if (!body || typeof body !== "object") {
     return "Error al crear la factura";
@@ -159,7 +174,12 @@ export async function POST(req: Request) {
       return NextResponse.json(singleSuccessResponse, { status: 201 });
     }
 
-    const results = await Promise.all(invoices.map((invoice) => sendInvoice(token, invoice)));
+    const results: Awaited<ReturnType<typeof sendInvoice>>[] = [];
+
+    for (const batch of chunkArray(invoices, CREATE_CONCURRENCY)) {
+      const batchResults = await Promise.all(batch.map((invoice) => sendInvoice(token, invoice)));
+      results.push(...batchResults);
+    }
 
     const failed = results.filter((result) => !result.ok);
 
