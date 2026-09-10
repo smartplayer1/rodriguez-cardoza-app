@@ -41,6 +41,7 @@ import {
   Gift,
   Repeat1,
   ShieldAlert,
+  CheckCheck,
 
 } from 'lucide-react';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
@@ -92,6 +93,7 @@ const menuItems: MenuItemType[] = [
     {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: ArrowLeftRight, permission: [PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.COLLECTION_VIEW]},
     {id: 'cobros', label: 'Cobros', href: '/gestion-de-caja/cobros', icon: CreditCard, permission: PERMISSIONS.COLLECTION_VIEW},
     {id: 'transferencias', label: 'Transferencias Bancarias', href: '/gestion-de-caja/transferencias', icon: Repeat1, permission: PERMISSIONS.BANK_TRANSFER_VIEW},
+    {id: 'conciliacion-bancaria', label: 'Conciliación Bancaria', href: '/gestion-de-caja/conciliacion-bancaria', icon: CheckCheck, permission: PERMISSIONS.BANK_TRANSFER_VIEW},
     {id:'notas-credito', label: 'Notas de Credito', href: '/gestion-de-caja/notas-credito', icon: FileText, permission: PERMISSIONS.CREDIT_NOTE_VIEW}
   ]},
   { id: 'credito', label: 'Credito', icon: HandCoins, href: '/credito', permission: PERMISSIONS.INVOICE_VIEW, options:null },
