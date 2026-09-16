@@ -11,6 +11,10 @@ import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 export default function Bancos() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -188,7 +192,7 @@ useEffect(() => {
               Gestione las instituciones bancarias del sistema
             </p>
           </div>
-          {can(PERMISSIONS.BANK_CREATE) && (
+          {mounted && can(PERMISSIONS.BANK_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"
@@ -231,7 +235,7 @@ useEffect(() => {
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-4 border-t border-border">
-                  {can(PERMISSIONS.BANK_EDIT) && (
+                  {mounted && can(PERMISSIONS.BANK_EDIT) && (
                     <MaterialButton
                       variant="outlined"
                       color="primary"
@@ -242,7 +246,7 @@ useEffect(() => {
                       Editar
                     </MaterialButton>
                   )}
-                  {can(PERMISSIONS.BANK_DELETE) && (
+                  {mounted && can(PERMISSIONS.BANK_DELETE) && (
                     <MaterialButton
                       variant="outlined"
                       color="secondary"
@@ -267,7 +271,7 @@ useEffect(() => {
             <p className="text-muted-foreground mb-6">
               Comience agregando un nuevo banco al sistema
             </p>
-            {can(PERMISSIONS.BANK_CREATE) && (
+            {mounted && can(PERMISSIONS.BANK_CREATE) && (
               <MaterialButton
                 variant="contained"
                 color="primary"

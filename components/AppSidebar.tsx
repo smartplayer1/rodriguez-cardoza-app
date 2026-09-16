@@ -82,7 +82,8 @@ const menuItems: MenuItemType[] = [
   //  { id: 'seguimiento', label: 'Seguimiento', href: '/premios/seguimiento', icon: Award , permission: PERMISSIONS.LEDGER_VIEW },
     { id: 'incentivos-retencion', label: 'Incentivos Retención', href: '/premios/incentivos-retencion', icon: Repeat, permission: PERMISSIONS.INCENTIVE_RULE_VIEW},
     { id: 'incentivos-retencion-nuevos-ingresos', label: 'Incentivos Retención Nuevos Ingresos', href: '/premios/incentivos-retencion-nuevos-ingresos', icon: UserPlus, permission: PERMISSIONS.INCENTIVE_RULE_VIEW},
-    { id: 'auditoria-cupones', label: 'Auditoría de Cupones', href: '/premios/auditoria-cupones', icon: ShieldAlert, permission: PERMISSIONS.LEDGER_VIEW}
+    { id: 'auditoria-cupones', label: 'Auditoría de Cupones', href: '/premios/auditoria-cupones', icon: ShieldAlert, permission: PERMISSIONS.LEDGER_VIEW},
+    { id: 'premios-ganados', label: 'Recalcular y Premios Ganados', href: '/premios/premios-ganados', icon: Award, permission: [PERMISSIONS.LEDGER_VIEW, PERMISSIONS.LEDGER_RECALCULATE]}
   ] },
   { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, permission: [PERMISSIONS.CASH_MANAGEMENT_VIEW, PERMISSIONS.CURRENCY_CONVERSION_VIEW, PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.CASH_REGISTER_VIEW, PERMISSIONS.INVOICE_VIEW, PERMISSIONS.COLLECTION_VIEW, PERMISSIONS.CREDIT_NOTE_VIEW, PERMISSIONS.BANK_TRANSFER_VIEW], options: [
     {id: 'gestiones', label: 'Gestiones', href: '/gestion-de-caja/gestiones', icon: Wallet , permission: PERMISSIONS.CASH_MANAGEMENT_VIEW},

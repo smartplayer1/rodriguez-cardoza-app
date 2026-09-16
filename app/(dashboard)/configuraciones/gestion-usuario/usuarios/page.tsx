@@ -21,6 +21,10 @@ const getErrorMessage = async (response: Response, fallback: string) => {
 
 export default function UserManagement() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -276,7 +280,7 @@ export default function UserManagement() {
               </p>
             </div>
           </div>
-          {can(PERMISSIONS.USER_CREATE) && (
+          {mounted && can(PERMISSIONS.USER_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"
@@ -349,7 +353,7 @@ export default function UserManagement() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
-                      {can(PERMISSIONS.USER_EDIT) && (
+                      {mounted && can(PERMISSIONS.USER_EDIT) && (
                         <MaterialButton
                           variant="text"
                           color="primary"
@@ -358,7 +362,7 @@ export default function UserManagement() {
                           <Edit size={16} />
                         </MaterialButton>
                       )}
-                      {can(PERMISSIONS.USER_DELETE) && (
+                      {mounted && can(PERMISSIONS.USER_DELETE) && (
                         <MaterialButton
                           variant="text"
                           color="error"
@@ -367,7 +371,7 @@ export default function UserManagement() {
                           <Trash2 size={16} />
                         </MaterialButton>
                       )}
-                      {can(PERMISSIONS.USER_EDIT) && (
+                      {mounted && can(PERMISSIONS.USER_EDIT) && (
                         <MaterialButton
                           variant="text"
                           color="primary"
@@ -393,7 +397,7 @@ export default function UserManagement() {
           <p className="text-muted-foreground mb-4">
             No hay usuarios registrados en el sistema
           </p>
-          {can(PERMISSIONS.USER_CREATE) && (
+          {mounted && can(PERMISSIONS.USER_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"

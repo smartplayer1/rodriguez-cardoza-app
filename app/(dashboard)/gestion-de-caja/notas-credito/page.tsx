@@ -81,6 +81,10 @@ const isDraftStatus = (status: string) => {
 
 export default function NotasCreditoPage() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [records, setRecords] = useState<CreditNoteRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -296,12 +300,12 @@ export default function NotasCreditoPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {can(PERMISSIONS.CREDIT_NOTE_CREATE) && (
+            {mounted && can(PERMISSIONS.CREDIT_NOTE_CREATE) && (
               <MaterialButton variant="contained" color="primary" startIcon={<Plus size={18} />} onClick={openCreate}>
                 Nueva Nota
               </MaterialButton>
             )}
-            {can(PERMISSIONS.CREDIT_NOTE_CREATE) && (
+            {mounted && can(PERMISSIONS.CREDIT_NOTE_CREATE) && (
               <MaterialButton variant="outlined" color="secondary" startIcon={<FileSpreadsheet size={18} />} onClick={() => setIsImportOpen(true)}>
                 Importar Excel
               </MaterialButton>
@@ -417,7 +421,7 @@ export default function NotasCreditoPage() {
                           >
                             <Eye size={18} />
                           </button>
-                          {can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isDraftStatus(record.header.status) && (
+                          {mounted && can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isDraftStatus(record.header.status) && (
                             <button
                               onClick={() => handleIssue(record)}
                               disabled={issuingId === record.header.id}
@@ -427,7 +431,7 @@ export default function NotasCreditoPage() {
                               <CheckCircle size={18} />
                             </button>
                           )}
-                          {can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(record.header.status) && (
+                          {mounted && can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(record.header.status) && (
                             <button
                               onClick={() => setApplyingRecord(record)}
                               className="p-2 rounded-lg hover:bg-green-100 text-green-600"
@@ -533,7 +537,7 @@ export default function NotasCreditoPage() {
                 <MaterialButton variant="outlined" color="secondary" onClick={() => setViewingRecord(null)}>
                   Cerrar
                 </MaterialButton>
-                {can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isDraftStatus(viewingRecord.header.status) && (
+                {mounted && can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isDraftStatus(viewingRecord.header.status) && (
                   <MaterialButton
                     variant="contained"
                     color="primary"
@@ -544,7 +548,7 @@ export default function NotasCreditoPage() {
                     Aprobar
                   </MaterialButton>
                 )}
-                {can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(viewingRecord.header.status) && (
+                {mounted && can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(viewingRecord.header.status) && (
                   <MaterialButton
                     variant="contained"
                     color="primary"

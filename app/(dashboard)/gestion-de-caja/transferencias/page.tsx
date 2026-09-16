@@ -2,17 +2,23 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
-import { ArrowLeftRight, ChevronDown, Save } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, Image as ImageIcon, Save } from 'lucide-react';
 import { useUserStore } from '@/app/store/useUserStore';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
 import { getBankAccounts } from '@/app/services/company/account';
 import { getCashManagementRecords } from '@/app/services/cash-management';
+import { getAccountingConcepts } from '@/app/services/company/accounting-concept';
 import {
   createBankTransfer,
+  deleteBankTransferImage,
+  getBankTransferImages,
   getUnrelatedBankTransfers,
+  updateBankTransferAccountingConcept,
+  uploadBankTransferImage,
 } from '@/app/services/billing/bank-transfer';
-import { BankTransferRecord } from '@/app/type/bank-transfer';
+import { AccountingConceptOption, BankTransferRecord } from '@/app/type/bank-transfer';
 import { ListSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
+import EntityImageGallery from '@/components/EntityImageGallery';
 
 type BankAccountOption = {
   id: number;
@@ -37,8 +43,12 @@ const formatAmount = (value: number) => {
 
 export default function TransferenciasBancariasPage() {
   const { can } = useUserStore();
-  const canCreate = can(PERMISSIONS.BANK_TRANSFER_CREATE);
-  const canView = can(PERMISSIONS.BANK_TRANSFER_VIEW);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const canCreate = mounted && can(PERMISSIONS.BANK_TRANSFER_CREATE);
+  const canView = mounted && can(PERMISSIONS.BANK_TRANSFER_VIEW);
 
   const [bankAccountOptions, setBankAccountOptions] = useState<BankAccountOption[]>([]);
   const [bankAccountsLoading, setBankAccountsLoading] = useState(false);
@@ -46,12 +56,16 @@ export default function TransferenciasBancariasPage() {
   const [cashManagementOptions, setCashManagementOptions] = useState<CashManagementOption[]>([]);
   const [cashManagementLoading, setCashManagementLoading] = useState(false);
 
+  const [conceptOptions, setConceptOptions] = useState<AccountingConceptOption[]>([]);
+  const [conceptsLoading, setConceptsLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     companyBankAccountId: '',
     accountNumber: '',
     transferDate: new Date().toISOString().slice(0, 10),
     amount: '',
     cashManagementId: '',
+    accountingConceptId: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -60,6 +74,8 @@ export default function TransferenciasBancariasPage() {
   const [transfersError, setTransfersError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [conceptUpdatingId, setConceptUpdatingId] = useState<number | null>(null);
+  const [imagesTransfer, setImagesTransfer] = useState<BankTransferRecord | null>(null);
 
   const loadBankAccounts = useCallback(async () => {
     try {
@@ -78,6 +94,19 @@ export default function TransferenciasBancariasPage() {
       setBankAccountOptions([]);
     } finally {
       setBankAccountsLoading(false);
+    }
+  }, []);
+
+  const loadConceptOptions = useCallback(async () => {
+    try {
+      setConceptsLoading(true);
+      const response = await getAccountingConcepts();
+      setConceptOptions(response || []);
+    } catch (error) {
+      console.error('Error loading accounting concepts:', error);
+      setConceptOptions([]);
+    } finally {
+      setConceptsLoading(false);
     }
   }, []);
 
@@ -135,6 +164,10 @@ export default function TransferenciasBancariasPage() {
   }, [loadCashManagementOptions]);
 
   useEffect(() => {
+    void loadConceptOptions();
+  }, [loadConceptOptions]);
+
+  useEffect(() => {
     void loadTransfers();
   }, [loadTransfers]);
 
@@ -172,6 +205,9 @@ export default function TransferenciasBancariasPage() {
         cashManagementId: formData.cashManagementId
           ? Number(formData.cashManagementId)
           : null,
+        accountingConceptId: formData.accountingConceptId
+          ? Number(formData.accountingConceptId)
+          : null,
       });
       setFormData({
         companyBankAccountId: '',
@@ -179,6 +215,7 @@ export default function TransferenciasBancariasPage() {
         transferDate: new Date().toISOString().slice(0, 10),
         amount: '',
         cashManagementId: '',
+        accountingConceptId: '',
       });
       setCurrentPage(1);
       await loadTransfers();
@@ -190,6 +227,24 @@ export default function TransferenciasBancariasPage() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleConceptChange = async (transferId: number, rawValue: string) => {
+    const accountingConceptId = rawValue ? Number(rawValue) : null;
+
+    try {
+      setConceptUpdatingId(transferId);
+      const updated = await updateBankTransferAccountingConcept(transferId, accountingConceptId);
+      setTransfers((prev) =>
+        prev.map((transfer) => (transfer.id === transferId ? updated : transfer)),
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error ? error.message : 'No se pudo asignar el concepto contable',
+      );
+    } finally {
+      setConceptUpdatingId(null);
     }
   };
 
@@ -307,6 +362,37 @@ export default function TransferenciasBancariasPage() {
                   </p>
                 </div>
 
+                <div>
+                  <label className="text-sm text-foreground mb-2 block">
+                    Concepto contable (opcional)
+                  </label>
+                  {conceptsLoading ? (
+                    <ListSkeleton count={1} itemClassName="h-12 rounded-t" />
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={formData.accountingConceptId}
+                        onChange={(e) =>
+                          setFormData({ ...formData, accountingConceptId: e.target.value })
+                        }
+                        className="w-full pl-4 pr-10 py-3 bg-input-background border-b-2 border-border
+                                 focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                      >
+                        <option value="">Sin concepto</option>
+                        {conceptOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.name} ({option.category.name})
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={20}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <MaterialButton
                   variant="contained"
                   color="primary"
@@ -343,11 +429,13 @@ export default function TransferenciasBancariasPage() {
                         <th className="px-4 py-3 text-left">Cuenta empresa</th>
                         <th className="px-4 py-3 text-left">Fecha</th>
                         <th className="px-4 py-3 text-right">Monto</th>
+                        <th className="px-4 py-3 text-left">Concepto contable</th>
+                        <th className="px-4 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {transfersLoading ? (
-                        <TableSkeleton columns={5} />
+                        <TableSkeleton columns={7} />
                       ) : transfers.length > 0 ? (
                         transfers.map((transfer) => (
                           <tr key={transfer.id} className="hover:bg-muted/20">
@@ -366,11 +454,47 @@ export default function TransferenciasBancariasPage() {
                             <td className="px-4 py-3 text-right font-mono text-foreground">
                               {formatAmount(transfer.amount)}
                             </td>
+                            <td className="px-4 py-3">
+                              {canCreate ? (
+                                <select
+                                  value={transfer.accountingConceptId ?? ''}
+                                  onChange={(e) => handleConceptChange(transfer.id, e.target.value)}
+                                  disabled={conceptUpdatingId === transfer.id}
+                                  className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary disabled:opacity-50"
+                                >
+                                  <option value="">Sin concepto</option>
+                                  {conceptOptions.map((option) => (
+                                    <option key={option.id} value={option.id}>
+                                      {option.name} ({option.category.name})
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : transfer.accountingConceptName ? (
+                                <span className="text-foreground">
+                                  {transfer.accountingConceptName}
+                                  {transfer.accountingConceptCategoryName
+                                    ? ` (${transfer.accountingConceptCategoryName})`
+                                    : ''}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">Sin concepto</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <MaterialButton
+                                variant="text"
+                                color="secondary"
+                                startIcon={<ImageIcon size={16} />}
+                                onClick={() => setImagesTransfer(transfer)}
+                              >
+                                Imágenes
+                              </MaterialButton>
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                          <td colSpan={7} className="text-center py-8 text-muted-foreground">
                             No hay transferencias pendientes de relacionar
                           </td>
                         </tr>
@@ -409,6 +533,19 @@ export default function TransferenciasBancariasPage() {
           </div>
         )}
       </div>
+
+      {imagesTransfer && (
+        <EntityImageGallery
+          isOpen={!!imagesTransfer}
+          onClose={() => setImagesTransfer(null)}
+          title={`Imágenes · ${imagesTransfer.bankName} · ${imagesTransfer.accountNumber}`}
+          canUpload={canCreate}
+          canDelete={canCreate}
+          loadImages={() => getBankTransferImages(imagesTransfer.id)}
+          uploadImage={(file) => uploadBankTransferImage(imagesTransfer.id, file)}
+          deleteImage={(imageId) => deleteBankTransferImage(imageId)}
+        />
+      )}
     </div>
   );
 }

@@ -15,6 +15,10 @@ import { PERMISSIONS } from '@/app/domain/auth/permissions';
 export default function NuevoCajaRegistradoraModal() {
   const router = useRouter();
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [branches, setBranches] = useState<RecordsBranch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
@@ -119,7 +123,7 @@ export default function NuevoCajaRegistradoraModal() {
     }
   };
 
-  if (!can(PERMISSIONS.CASH_REGISTER_CREATE)) {
+  if (!mounted || !can(PERMISSIONS.CASH_REGISTER_CREATE)) {
     return null;
   }
 

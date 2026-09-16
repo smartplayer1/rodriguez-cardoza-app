@@ -8,7 +8,19 @@ export interface BankTransferRecord {
   amount: number;
   collectionId: number | null;
   cashManagementId: number | null;
+  accountingConceptId: number | null;
+  accountingConceptName: string | null;
+  accountingConceptCategoryName: string | null;
   isRelated: boolean;
+}
+
+export interface AccountingConceptOption {
+  id: number;
+  name: string;
+  category: {
+    id: number;
+    name: string;
+  };
 }
 
 export interface BankTransferPaging {
@@ -29,6 +41,11 @@ export interface CreateBankTransferPayload {
   transferDate: string;
   amount: number;
   cashManagementId?: number | null;
+  accountingConceptId?: number | null;
+}
+
+export interface UpdateBankTransferAccountingConceptPayload {
+  accountingConceptId: number | null;
 }
 
 // Conciliación bancaria (bank-transfer-import): el frontend lee el Excel del

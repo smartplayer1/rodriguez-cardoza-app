@@ -74,6 +74,10 @@ const mapCreditInvoice = (invoice: CreditInvoiceRecord): InvoiceOption => ({
 export default function CrearCobroModal() {
   const router = useRouter();
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [cashManagementLoading, setCashManagementLoading] = useState(false);
   const [cashManagementOptions, setCashManagementOptions] = useState<
@@ -484,7 +488,7 @@ export default function CrearCobroModal() {
     }
   };
 
-  if (!can(PERMISSIONS.COLLECTION_CREATE)) {
+  if (!mounted || !can(PERMISSIONS.COLLECTION_CREATE)) {
     return null;
   }
 

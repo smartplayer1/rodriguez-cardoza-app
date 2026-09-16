@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload, X } from 'lucide-react';
@@ -86,6 +86,10 @@ const resolveNumericId = (rawValue: string, options: OptionItem[]) => {
 export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: Props) {
   const router = useRouter();
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [isOpen, setIsOpen] = useState(false);
   const [rows, setRows] = useState<EmployeeCreatePayload[]>([]);
@@ -251,7 +255,7 @@ export default function ImportarEmpleadosModal({ roleOptions, branchOptions }: P
     }
   };
 
-  if (!can(PERMISSIONS.EMPLOYEE_CREATE)) {
+  if (!mounted || !can(PERMISSIONS.EMPLOYEE_CREATE)) {
     return null;
   }
 

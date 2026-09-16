@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { TrendingUp, TrendingDown, Plus, ChevronDown, ChevronUp, Search, Filter, Wallet } from 'lucide-react';
 import { useUserStore } from '@/app/store/useUserStore';
@@ -8,7 +8,15 @@ import CrearIngresoEgresoModal, { type IngresoEgreso } from './crear-ingreso-egr
 
 export default function IngresosEgresos() {
   const { can } = useUserStore();
-  const canCreate = can(PERMISSIONS.CASH_OUTFLOW_CREATE) || can(PERMISSIONS.COLLECTION_CREATE);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // Marca que ya montó en el cliente: can() depende del store de permisos
+    // (hidratado desde localStorage), que difiere entre SSR y el primer
+    // render del cliente. Sin este flag se produce un hydration mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+  const canCreate = mounted && (can(PERMISSIONS.CASH_OUTFLOW_CREATE) || can(PERMISSIONS.COLLECTION_CREATE));
   const [registros, setRegistros] = useState<IngresoEgreso[]>([
     {
       id: '1',

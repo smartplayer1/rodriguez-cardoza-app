@@ -154,6 +154,14 @@ export default function RelacionarManualModal({ isOpen, bankImportRow, onClose, 
                     <span className="text-foreground">
                       {transfer.bankName} · {transfer.accountNumber} ·{' '}
                       {new Date(transfer.transferDate).toLocaleDateString('es-NI')}
+                      {transfer.accountingConceptName ? (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {transfer.accountingConceptName}
+                          {transfer.accountingConceptCategoryName
+                            ? ` (${transfer.accountingConceptCategoryName})`
+                            : ''}
+                        </span>
+                      ) : null}
                     </span>
                   </span>
                   <span className="font-medium text-foreground">{formatAmount(transfer.amount)}</span>

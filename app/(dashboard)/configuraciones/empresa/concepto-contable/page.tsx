@@ -21,6 +21,10 @@ type TabType = 'Egreso' | 'Ingreso';
 
 export default function ConceptosContables() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [activeTab, setActiveTab] = useState<TabType>('Egreso');
   
   const [conceptos, setConceptos] = useState<Concepto[]>([]);
@@ -300,7 +304,7 @@ export default function ConceptosContables() {
 
         {/* Action Button */}
         <div className="mb-6 flex justify-end">
-          {can(PERMISSIONS.ACCOUNTING_CONCEPT_CREATE) && (
+          {mounted && can(PERMISSIONS.ACCOUNTING_CONCEPT_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"
@@ -362,7 +366,7 @@ export default function ConceptosContables() {
                         </td> */}
                         <td className="px-6 py-4">
                           <div className="flex gap-2 justify-end">
-                            {can(PERMISSIONS.ACCOUNTING_CONCEPT_EDIT) && (
+                            {mounted && can(PERMISSIONS.ACCOUNTING_CONCEPT_EDIT) && (
                               <MaterialButton
                                 variant="text"
                                 color="primary"
@@ -372,7 +376,7 @@ export default function ConceptosContables() {
                                 Editar
                               </MaterialButton>
                             )}
-                            {can(PERMISSIONS.ACCOUNTING_CONCEPT_DELETE) && (
+                            {mounted && can(PERMISSIONS.ACCOUNTING_CONCEPT_DELETE) && (
                               <MaterialButton
                                 variant="text"
                                 color="secondary"
@@ -404,7 +408,7 @@ export default function ConceptosContables() {
             <p className="text-muted-foreground mb-6">
               Comience agregando un nuevo concepto para clasificar sus {activeTab === 'Egreso' ? 'egresos' : 'ingresos'}
             </p>
-            {can(PERMISSIONS.ACCOUNTING_CONCEPT_CREATE) && (
+            {mounted && can(PERMISSIONS.ACCOUNTING_CONCEPT_CREATE) && (
               <MaterialButton
                 variant="contained"
                 color="primary"

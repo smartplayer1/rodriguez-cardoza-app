@@ -1,3 +1,6 @@
+import type { ClientEarnedReward, EarnedRewardStatus } from '@/app/type/client';
+import type { Paging } from '@/app/type/incentive';
+
 export interface MonthlyAccrualSetting {
   id: number;
   purchaseAmountThreshold: number;
@@ -28,7 +31,7 @@ export interface RecalculateRewardsPayload {
 }
 
 export interface RecalculateRewardsResult {
-  periodStart: string;
+  period: string;
   clientsProcessed: number;
   clientsFailed: number;
   failedClientCodes: string[];
@@ -51,3 +54,27 @@ export type CouponConsistencyFlagFilters = {
   clientCode?: string;
   period?: string;
 };
+
+// Listado administrativo (global, no por cliente) de premios ganados por
+// incentivos, con filtros y paginación.
+export interface EarnedRewardRecord extends ClientEarnedReward {
+  clientCode: string;
+  clientName: string;
+  sourceInvoiceIssuedAt: string;
+}
+
+export type EarnedRewardListFilters = {
+  clientCode?: string;
+  incentiveRuleId?: number;
+  status?: EarnedRewardStatus;
+  rewardType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  perPage?: number;
+};
+
+export interface EarnedRewardListResponse {
+  records: EarnedRewardRecord[];
+  paging: Paging;
+}

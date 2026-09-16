@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2, X } from 'lucide-react';
 
@@ -35,6 +35,10 @@ const createDenominationRow = (): DenominationRow => ({
 export default function NuevaConversionModal() {
   const router = useRouter();
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [cashManagementId, setCashManagementId] = useState('');
   const [direction, setDirection] = useState('NIO_TO_USD');
@@ -139,7 +143,7 @@ export default function NuevaConversionModal() {
     }
   };
 
-  if (!can(PERMISSIONS.CURRENCY_CONVERSION_CREATE)) {
+  if (!mounted || !can(PERMISSIONS.CURRENCY_CONVERSION_CREATE)) {
     return null;
   }
 

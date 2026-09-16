@@ -1,5 +1,15 @@
 import { Article, UpdateArticle } from "@/app/type/article";
+import { EntityImage } from "@/app/type/entity-image";
 import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
+
+const readImageErrorMessage = async (response: Response, fallback: string) => {
+  const errorBody = await response.json().catch(() => null);
+  return (
+    (errorBody as { message?: string; detail?: string } | null)?.detail ||
+    (errorBody as { message?: string; detail?: string } | null)?.message ||
+    fallback
+  );
+};
 
 export type GetArticleFilters = {
     name?: string;
@@ -73,4 +83,70 @@ export const deleteArticle = async (articleId: number, context?: ServiceRequestC
 
     return res.json();
 }
+
+export const getArticleImages = async (
+    articleId: number,
+    context?: ServiceRequestContext,
+): Promise<EntityImage[]> => {
+    const response = await fetch(resolveServiceUrl(`/api/article/${articleId}/images`, context), {
+        method: 'GET',
+        headers: createJsonHeaders(context?.cookieHeader),
+        cache: 'no-store',
+    });
+
+    if (!response.ok) {
+        throw new Error(await readImageErrorMessage(response, 'No se pudieron cargar las imágenes del artículo'));
+    }
+
+    return response.json();
+};
+
+export const uploadArticleImage = async (
+    articleId: number,
+    file: File,
+    context?: ServiceRequestContext,
+): Promise<EntityImage> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(resolveServiceUrl(`/api/article/${articleId}/images`, context), {
+        method: 'POST',
+        headers: context?.cookieHeader ? { Cookie: context.cookieHeader } : undefined,
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(await readImageErrorMessage(response, 'No se pudo subir la imagen'));
+    }
+
+    return response.json();
+};
+
+export const deleteArticleImage = async (
+    imageId: number,
+    context?: ServiceRequestContext,
+): Promise<void> => {
+    const response = await fetch(resolveServiceUrl(`/api/article/images/${imageId}`, context), {
+        method: 'DELETE',
+        headers: createJsonHeaders(context?.cookieHeader),
+    });
+
+    if (!response.ok) {
+        throw new Error(await readImageErrorMessage(response, 'No se pudo eliminar la imagen'));
+    }
+};
+
+export const setArticleImagePrimary = async (
+    imageId: number,
+    context?: ServiceRequestContext,
+): Promise<void> => {
+    const response = await fetch(resolveServiceUrl(`/api/article/images/${imageId}/primary`, context), {
+        method: 'POST',
+        headers: createJsonHeaders(context?.cookieHeader),
+    });
+
+    if (!response.ok) {
+        throw new Error(await readImageErrorMessage(response, 'No se pudo marcar la imagen como principal'));
+    }
+};
 

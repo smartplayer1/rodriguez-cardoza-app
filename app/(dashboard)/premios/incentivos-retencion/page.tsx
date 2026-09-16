@@ -35,6 +35,10 @@ export default function IncentivosRetencion() {
 
 function ReglasIncentivos() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [reglas, setReglas] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -476,7 +480,7 @@ function ReglasIncentivos() {
           </div>
         </details>
 
-        {can(PERMISSIONS.INCENTIVE_RULE_CREATE) && (
+        {mounted && can(PERMISSIONS.INCENTIVE_RULE_CREATE) && (
           <MaterialButton
             variant="contained"
             color="primary"
@@ -549,7 +553,7 @@ function ReglasIncentivos() {
                   >
                     <Eye size={18} />
                   </button>
-                  {can(PERMISSIONS.INCENTIVE_RULE_EDIT) && (
+                  {mounted && can(PERMISSIONS.INCENTIVE_RULE_EDIT) && (
                     <button
                       onClick={() => handleEdit(regla)}
                       className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
@@ -558,7 +562,7 @@ function ReglasIncentivos() {
                       <Edit size={18} />
                     </button>
                   )}
-                  {can(PERMISSIONS.INCENTIVE_RULE_DELETE) && (
+                  {mounted && can(PERMISSIONS.INCENTIVE_RULE_DELETE) && (
                     <button
                       onClick={() => handleDelete(regla.id)}
                       className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-destructive"
@@ -581,7 +585,7 @@ function ReglasIncentivos() {
               ? "No se encontraron reglas con los filtros aplicados"
               : "Cree su primera regla de incentivo para comenzar"}
           </p>
-          {!hasAnyFilter && can(PERMISSIONS.INCENTIVE_RULE_CREATE) && (
+          {!hasAnyFilter && mounted && can(PERMISSIONS.INCENTIVE_RULE_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"

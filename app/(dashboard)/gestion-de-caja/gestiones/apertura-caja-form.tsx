@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, X } from "lucide-react";
 
@@ -37,6 +37,10 @@ export default function AperturaCajaForm({
 }) {
   const router = useRouter();
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [cashRegisterId, setCashRegisterId] = useState("");
   const [responsibleEmployeeId, setResponsibleEmployeeId] = useState("");
@@ -183,7 +187,7 @@ export default function AperturaCajaForm({
 
   return (
     <section className="space-y-3">
-      {can(PERMISSIONS.CASH_MANAGEMENT_OPEN) && (
+      {mounted && can(PERMISSIONS.CASH_MANAGEMENT_OPEN) && (
         <div className="flex justify-end">
           <button
             type="button"

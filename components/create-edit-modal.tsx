@@ -20,9 +20,13 @@ import {
 } from "@/app/type/incentive";
 import { getArticles } from "@/app/services/article";
 import { ArticleRecord } from "@/app/type/article";
-import { ListSkeleton } from "@/components/ui/loading-skeleton";
-import { SearchableSelect } from "@/components/SearchableSelect";
-const generateUniqueId = () => Date.now();
+import { MultiProductPicker } from "@/components/MultiProductPicker";
+
+let idSeq = 0;
+const generateUniqueId = () => {
+  idSeq += 1;
+  return Date.now() * 1000 + idSeq;
+};
 
 const toDateInputValue = (value?: string) => {
   if (!value) {
@@ -81,12 +85,6 @@ export default function CreateEditModal({
     initialRule?.rewardProducts || [],
   );
 
-  const [selectedProductoCondicion, setSelectedProductoCondicion] =
-    useState("");
-  const [cantidadCondicion, setCantidadCondicion] = useState(1);
-  const [selectedProductoIncentivo, setSelectedProductoIncentivo] =
-    useState("");
-  const [cantidadIncentivo, setCantidadIncentivo] = useState(1);
   const [articles, setArticles] = useState<ArticleRecord[]>([]);
   const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isMaxWinsUnlimited, setIsMaxWinsUnlimited] = useState(
@@ -147,37 +145,22 @@ export default function CreateEditModal({
     );
   };
 
-  const addProductoIncentivo = () => {
-    if (!selectedProductoIncentivo || cantidadIncentivo <= 0) {
-      alert("Seleccione un producto y cantidad válida");
-      return;
-    }
-
-    const producto = articles.find(
-      (a) => a.id === Number(selectedProductoIncentivo),
-    );
-    if (!producto) return;
-
-    const exists = productosIncentivo.find(
-      (p) => p.articleCode === producto.code,
-    );
-    if (exists) {
-      alert("Este producto ya está agregado");
-      return;
-    }
-
-    setProductosIncentivo([
-      ...productosIncentivo,
-      {
+  const addProductosIncentivoBatch = (
+    selected: ArticleRecord[],
+    quantity: number,
+  ) => {
+    const existingCodes = new Set(productosIncentivo.map((p) => p.articleCode));
+    const nuevos = selected
+      .filter((a) => !existingCodes.has(a.code))
+      .map((a) => ({
         id: generateUniqueId(),
-        articleCode: producto.code,
-        quantity: cantidadIncentivo,
-      },
-    ]);
+        articleCode: a.code,
+        quantity,
+      }));
 
-    setSelectedProductoIncentivo("");
-    setCantidadIncentivo(1);
-    setShowAddIncentivo(false);
+    if (nuevos.length > 0) {
+      setProductosIncentivo((prev) => [...prev, ...nuevos]);
+    }
   };
 
   const removeProductoIncentivo = (articleCode: string) => {
@@ -252,36 +235,18 @@ export default function CreateEditModal({
    await onSave(nuevaRegla);
   };
 
-  const addProductoCondicion = () => {
-    if (!selectedProductoCondicion || cantidadCondicion <= 0) {
-      alert("Seleccione un producto y cantidad válida");
-      return;
-    }
-
-    const producto = articles.find(
-      (a) => a.id === Number(selectedProductoCondicion),
-    );
-    if (!producto) return;
-
-    const exists = productosCondicion.find(
-      (p) => p.articleCode === producto.code,
-    );
-    if (exists) {
-      alert("Este producto ya está agregado");
-      return;
-    }
-
-    setProductosCondicion([
-      ...productosCondicion,
-      {
+  const addProductosCondicionBatch = (selected: ArticleRecord[]) => {
+    const existingCodes = new Set(productosCondicion.map((p) => p.articleCode));
+    const nuevos = selected
+      .filter((a) => !existingCodes.has(a.code))
+      .map((a) => ({
         id: generateUniqueId(),
-        articleCode: producto.code,
-      },
-    ]);
+        articleCode: a.code,
+      }));
 
-    setSelectedProductoCondicion("");
-    setCantidadCondicion(1);
-    setShowAddCondicion(false);
+    if (nuevos.length > 0) {
+      setProductosCondicion((prev) => [...prev, ...nuevos]);
+    }
   };
 
   return (
@@ -540,72 +505,25 @@ export default function CreateEditModal({
                     </div>
                   )}
 
-                  {/* Formulario agregar producto */}
-                  {showAddCondicion ? (
-                    <div className="bg-surface p-4 rounded border border-border">
-                      {isLoadingResources ? (
-                        <ListSkeleton count={2} />
-                      ) : (
-                        <>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <label className="text-sm text-foreground mb-2 block">
-                                Producto *
-                              </label>
-                              <SearchableSelect
-                                value={selectedProductoCondicion}
-                                onChange={setSelectedProductoCondicion}
-                                placeholder="Buscar por nombre o código"
-                                options={articles
-                                  .filter(
-                                    (a) =>
-                                      !productosCondicion.find(
-                                        (p) => p.articleCode === a.code,
-                                      ),
-                                  )
-                                  .map((articulo) => ({
-                                    value: String(articulo.id),
-                                    label: `${articulo.name} (${articulo.code})`,
-                                  }))}
-                              />
-                            </div>
-                          </div>
+                  {/* Selector múltiple de productos */}
+                  <MaterialButton
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<Plus size={18} />}
+                    disabled={isLoadingResources}
+                    onClick={() => setShowAddCondicion(true)}
+                  >
+                    Agregar Productos Condición
+                  </MaterialButton>
 
-                          <div className="flex gap-3">
-                            <MaterialButton
-                              variant="contained"
-                              color="primary"
-                              startIcon={<Plus size={18} />}
-                              onClick={addProductoCondicion}
-                            >
-                              Agregar Producto
-                            </MaterialButton>
-                            <MaterialButton
-                              variant="outlined"
-                              color="secondary"
-                              startIcon={<X size={18} />}
-                              onClick={() => {
-                                setShowAddCondicion(false);
-                                setSelectedProductoCondicion("");
-                                setCantidadCondicion(1);
-                              }}
-                            >
-                              Cancelar
-                            </MaterialButton>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <MaterialButton
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<Plus size={18} />}
-                      onClick={() => setShowAddCondicion(true)}
-                    >
-                      Agregar Producto Condición
-                    </MaterialButton>
-                  )}
+                  <MultiProductPicker
+                    isOpen={showAddCondicion}
+                    onClose={() => setShowAddCondicion(false)}
+                    title="Seleccionar productos condición"
+                    articles={articles}
+                    excludeCodes={productosCondicion.map((p) => p.articleCode)}
+                    onConfirm={(selected) => addProductosCondicionBatch(selected)}
+                  />
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -723,83 +641,28 @@ export default function CreateEditModal({
                 </div>
               )}
 
-              {/* Formulario agregar producto */}
-              {showAddIncentivo ? (
-                <div className="bg-surface p-4 rounded border border-border">
-                  {isLoadingResources ? (
-                    <ListSkeleton count={2} />
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <label className="text-sm text-foreground mb-2 block">
-                            Producto *
-                          </label>
-                          <SearchableSelect
-                            value={selectedProductoIncentivo}
-                            onChange={setSelectedProductoIncentivo}
-                            placeholder="Buscar por nombre o código"
-                            options={articles
-                              .filter(
-                                (a) =>
-                                  !productosIncentivo.find(
-                                    (p) => p.articleCode === a.code,
-                                  ),
-                              )
-                              .map((articulo) => ({
-                                value: String(articulo.id),
-                                label: `${articulo.name} (${articulo.code})`,
-                              }))}
-                          />
-                        </div>
+              {/* Selector múltiple de productos */}
+              <MaterialButton
+                variant="outlined"
+                color="primary"
+                startIcon={<Plus size={18} />}
+                disabled={isLoadingResources}
+                onClick={() => setShowAddIncentivo(true)}
+              >
+                Agregar Productos Incentivo
+              </MaterialButton>
 
-                        <MaterialInput
-                          label="Cantidad *"
-                          type="number"
-                          fullWidth
-                          value={cantidadIncentivo}
-                          onChange={(e) =>
-                            setCantidadIncentivo(Number(e.target.value))
-                          }
-                          min={1}
-                        />
-                      </div>
-
-                      <div className="flex gap-3">
-                        <MaterialButton
-                          variant="contained"
-                          color="primary"
-                          startIcon={<Plus size={18} />}
-                          onClick={addProductoIncentivo}
-                        >
-                          Agregar Producto
-                        </MaterialButton>
-                        <MaterialButton
-                          variant="outlined"
-                          color="secondary"
-                          startIcon={<X size={18} />}
-                          onClick={() => {
-                            setShowAddIncentivo(false);
-                            setSelectedProductoIncentivo("");
-                            setCantidadIncentivo(1);
-                          }}
-                        >
-                          Cancelar
-                        </MaterialButton>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <MaterialButton
-                  variant="outlined"
-                  color="primary"
-                  startIcon={<Plus size={18} />}
-                  onClick={() => setShowAddIncentivo(true)}
-                >
-                  Agregar Producto Incentivo
-                </MaterialButton>
-              )}
+              <MultiProductPicker
+                isOpen={showAddIncentivo}
+                onClose={() => setShowAddIncentivo(false)}
+                title="Seleccionar productos incentivo"
+                articles={articles}
+                excludeCodes={productosIncentivo.map((p) => p.articleCode)}
+                showQuantity
+                onConfirm={(selected, quantity) =>
+                  addProductosIncentivoBatch(selected, quantity)
+                }
+              />
             </div>
           </div>
         </div>

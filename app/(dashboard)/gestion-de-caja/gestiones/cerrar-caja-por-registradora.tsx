@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Lock, X } from "lucide-react";
 
 import { getActiveCashManagementByCashRegister } from "@/app/services/cash-management";
@@ -20,6 +20,10 @@ export default function CerrarCajaPorRegistradora({
   cashRegisterOptions: SelectOption[];
 }) {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [cashRegisterId, setCashRegisterId] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -74,7 +78,7 @@ export default function CerrarCajaPorRegistradora({
     }
   };
 
-  if (!can(PERMISSIONS.CASH_MANAGEMENT_CLOSE)) {
+  if (!mounted || !can(PERMISSIONS.CASH_MANAGEMENT_CLOSE)) {
     return null;
   }
 

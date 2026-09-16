@@ -18,6 +18,10 @@ interface RoleFormData {
 
 export default function RolesScreen() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -124,7 +128,7 @@ export default function RolesScreen() {
               </p>
             </div>
           </div>
-          {can(PERMISSIONS.ROLE_CREATE) && (
+          {mounted && can(PERMISSIONS.ROLE_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"
@@ -178,7 +182,7 @@ export default function RolesScreen() {
 
             {/* Actions */}
             <div className="flex gap-2">
-              {can(PERMISSIONS.ROLE_EDIT) && (
+              {mounted && can(PERMISSIONS.ROLE_EDIT) && (
                 <MaterialButton
                   variant="outlined"
                   color="primary"
@@ -189,7 +193,7 @@ export default function RolesScreen() {
                   Editar
                 </MaterialButton>
               )}
-              {can(PERMISSIONS.ROLE_DELETE) && (
+              {mounted && can(PERMISSIONS.ROLE_DELETE) && (
                 <MaterialButton
                   variant="outlined"
                   color="error"
@@ -211,7 +215,7 @@ export default function RolesScreen() {
           <p className="text-muted-foreground mb-4">
             No hay roles configurados en el sistema
           </p>
-          {can(PERMISSIONS.ROLE_CREATE) && (
+          {mounted && can(PERMISSIONS.ROLE_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"

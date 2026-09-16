@@ -49,6 +49,10 @@ const createDenominationRow = (): DenominationRow => ({
 export default function NuevaSalidaModal() {
   const router = useRouter();
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [cashManagementId, setCashManagementId] = useState("");
   const [cashManagementOptions, setCashManagementOptions] = useState<
@@ -240,7 +244,7 @@ export default function NuevaSalidaModal() {
     }
   };
 
-  if (!can(PERMISSIONS.CASH_OUTFLOW_CREATE)) {
+  if (!mounted || !can(PERMISSIONS.CASH_OUTFLOW_CREATE)) {
     return null;
   }
 

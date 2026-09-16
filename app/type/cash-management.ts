@@ -45,6 +45,9 @@ export type CashManagementRecord = {
   responsibleEmployeeName: string;
   openedByUserId: string;
   openedByUserName: string;
+  branchId: number;
+  branchName: string;
+  branchCode: string;
   openedAt: string;
   closedByUserId: string | null;
   closedByUserName: string | null;

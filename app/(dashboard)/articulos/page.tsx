@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { MaterialButton } from "../../../components/MaterialButton";
-import { ChevronDown, Package, Plus, Edit, Trash2, Sparkles, Import } from "lucide-react";
+import { ChevronDown, Image as ImageIcon, Package, Plus, Edit, Trash2, Sparkles, Import } from "lucide-react";
 import { CrearArticulo } from "./modals/CrearArticulo";
 import { ImportarArticuloModal } from "@/components/excel-upload-article";
 import {
@@ -10,10 +10,20 @@ import {
   ArticleExcel,
   ArticleResponse,
 } from "@/app/type/article";
-import { createArticle, getArticles, updateArticle, deleteArticle } from "@/app/services/article";
+import {
+  createArticle,
+  deleteArticle,
+  deleteArticleImage,
+  getArticleImages,
+  getArticles,
+  setArticleImagePrimary,
+  updateArticle,
+  uploadArticleImage,
+} from "@/app/services/article";
 import { TableSkeleton } from "@/components/ui/loading-skeleton";
 import { useUserStore } from "@/app/store/useUserStore";
 import { PERMISSIONS } from "@/app/domain/auth/permissions";
+import EntityImageGallery from "@/components/EntityImageGallery";
 
 interface ErrorResponse {
   name: string;
@@ -41,7 +51,12 @@ interface ModalArticleState {
 
 export default function Articulos() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [modalArticle, setModalArticle] = useState<ModalArticleState>({article: null, open: false});
+  const [imagesArticle, setImagesArticle] = useState<ArticleRecord | null>(null);
   const [importModalOpen, setImportModalOpen] = useState<boolean>(false);
   const [importing, setImporting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -308,7 +323,7 @@ const handleChange = async (article: ArticleRecord) => {
             </p>
           </div>
           <div className="flex flex-row gap-2">
-            {can(PERMISSIONS.ARTICLE_CREATE) && (
+            {mounted && can(PERMISSIONS.ARTICLE_CREATE) && (
               <MaterialButton
                 variant="contained"
                 color="primary"
@@ -321,7 +336,7 @@ const handleChange = async (article: ArticleRecord) => {
                   : "Importar Artículo"}
               </MaterialButton>
             )}
-            {can(PERMISSIONS.ARTICLE_CREATE) && (
+            {mounted && can(PERMISSIONS.ARTICLE_CREATE) && (
               <MaterialButton
                 variant="contained"
                 color="primary"
@@ -470,7 +485,18 @@ const handleChange = async (article: ArticleRecord) => {
 
                       <td className="px-6 py-4">
                         <div className="flex gap-2 justify-end">
-                          {can(PERMISSIONS.ARTICLE_EDIT) && (
+                          {mounted && can(PERMISSIONS.ARTICLE_VIEW) && (
+                            <MaterialButton
+                              variant="text"
+                              color="secondary"
+                              startIcon={<ImageIcon size={16} />}
+                              onClick={() => setImagesArticle(articulo)}
+                            >
+                              Imágenes
+                            </MaterialButton>
+                          )}
+
+                          {mounted && can(PERMISSIONS.ARTICLE_EDIT) && (
                             <MaterialButton
                               variant="text"
                               color="primary"
@@ -481,7 +507,7 @@ const handleChange = async (article: ArticleRecord) => {
                             </MaterialButton>
                           )}
 
-                          {can(PERMISSIONS.ARTICLE_DELETE) && (
+                          {mounted && can(PERMISSIONS.ARTICLE_DELETE) && (
                             <MaterialButton
                               variant="text"
                               color="secondary"
@@ -554,7 +580,7 @@ const handleChange = async (article: ArticleRecord) => {
               Comience agregando un nuevo artículo al catálogo
             </p>
 
-            {can(PERMISSIONS.ARTICLE_CREATE) && (
+            {mounted && can(PERMISSIONS.ARTICLE_CREATE) && (
               <MaterialButton
                 variant="contained"
                 color="primary"
@@ -587,6 +613,20 @@ const handleChange = async (article: ArticleRecord) => {
         successCount={successCount}
         errorsImport={errorResponse}
       />
+      {imagesArticle && (
+        <EntityImageGallery
+          isOpen={!!imagesArticle}
+          onClose={() => setImagesArticle(null)}
+          title={`Imágenes · ${imagesArticle.name}`}
+          canUpload={mounted && can(PERMISSIONS.ARTICLE_EDIT)}
+          canDelete={mounted && can(PERMISSIONS.ARTICLE_EDIT)}
+          canSetPrimary={mounted && can(PERMISSIONS.ARTICLE_EDIT)}
+          loadImages={() => getArticleImages(imagesArticle.id)}
+          uploadImage={(file) => uploadArticleImage(imagesArticle.id, file)}
+          deleteImage={(imageId) => deleteArticleImage(imageId)}
+          setPrimaryImage={(imageId) => setArticleImagePrimary(imageId)}
+        />
+      )}
     </div>
   );
 }

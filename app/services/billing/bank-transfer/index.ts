@@ -10,6 +10,7 @@ import {
   ReconcileBankTransferFilters,
   ReconcileBankTransferResponse,
 } from '@/app/type/bank-transfer';
+import { EntityImage } from '@/app/type/entity-image';
 import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
 const readServiceErrorMessage = async (response: Response, fallback: string) => {
@@ -235,6 +236,29 @@ export const linkBankTransferImport = async (
   return response.json();
 };
 
+export const updateBankTransferAccountingConcept = async (
+  bankTransferId: number,
+  accountingConceptId: number | null,
+  context?: ServiceRequestContext,
+): Promise<BankTransferRecord> => {
+  const response = await fetch(
+    resolveServiceUrl(`/api/billing/bank-transfer/${bankTransferId}/accounting-concept`, context),
+    {
+      method: 'PUT',
+      headers: createJsonHeaders(context?.cookieHeader),
+      body: JSON.stringify({ accountingConceptId }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readServiceErrorMessage(response, 'No se pudo asignar el concepto contable a la transferencia'),
+    );
+  }
+
+  return response.json();
+};
+
 export const unlinkBankTransferImport = async (
   bankTransferImportId: number,
   context?: ServiceRequestContext,
@@ -254,4 +278,64 @@ export const unlinkBankTransferImport = async (
   }
 
   return response.json();
+};
+
+export const getBankTransferImages = async (
+  bankTransferId: number,
+  context?: ServiceRequestContext,
+): Promise<EntityImage[]> => {
+  const response = await fetch(
+    resolveServiceUrl(`/api/billing/bank-transfer/${bankTransferId}/images`, context),
+    {
+      method: 'GET',
+      headers: createJsonHeaders(context?.cookieHeader),
+      cache: 'no-store',
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readServiceErrorMessage(response, 'No se pudieron cargar las imágenes de la transferencia'),
+    );
+  }
+
+  return response.json();
+};
+
+export const uploadBankTransferImage = async (
+  bankTransferId: number,
+  file: File,
+  context?: ServiceRequestContext,
+): Promise<EntityImage> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(
+    resolveServiceUrl(`/api/billing/bank-transfer/${bankTransferId}/images`, context),
+    {
+      method: 'POST',
+      headers: context?.cookieHeader ? { Cookie: context.cookieHeader } : undefined,
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readServiceErrorMessage(response, 'No se pudo subir la imagen'));
+  }
+
+  return response.json();
+};
+
+export const deleteBankTransferImage = async (
+  imageId: number,
+  context?: ServiceRequestContext,
+): Promise<void> => {
+  const response = await fetch(resolveServiceUrl(`/api/billing/bank-transfer/images/${imageId}`, context), {
+    method: 'DELETE',
+    headers: createJsonHeaders(context?.cookieHeader),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readServiceErrorMessage(response, 'No se pudo eliminar la imagen'));
+  }
 };

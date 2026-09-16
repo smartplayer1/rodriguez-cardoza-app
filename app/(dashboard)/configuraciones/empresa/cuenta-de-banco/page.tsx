@@ -14,6 +14,10 @@ import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
 export default function CuentasBanco() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -266,7 +270,7 @@ export default function CuentasBanco() {
               Administre las cuentas bancarias de la empresa
             </p>
           </div>
-          {can(PERMISSIONS.ACCOUNT_BANK_CREATE) && (
+          {mounted && can(PERMISSIONS.ACCOUNT_BANK_CREATE) && (
             <MaterialButton
               variant="contained"
               color="primary"
@@ -323,7 +327,7 @@ export default function CuentasBanco() {
                       </td> */}
                       <td className="px-6 py-4">
                         <div className="flex gap-2 justify-end">
-                          {can(PERMISSIONS.ACCOUNT_BANK_EDIT) && (
+                          {mounted && can(PERMISSIONS.ACCOUNT_BANK_EDIT) && (
                             <MaterialButton
                               variant="text"
                               color="primary"
@@ -333,7 +337,7 @@ export default function CuentasBanco() {
                               Editar
                             </MaterialButton>
                           )}
-                          {can(PERMISSIONS.ACCOUNT_BANK_DELETE) && (
+                          {mounted && can(PERMISSIONS.ACCOUNT_BANK_DELETE) && (
                             <MaterialButton
                               variant="text"
                               color="secondary"
@@ -360,7 +364,7 @@ export default function CuentasBanco() {
             <p className="text-muted-foreground mb-6">
               Comience agregando una nueva cuenta bancaria de la empresa
             </p>
-            {can(PERMISSIONS.ACCOUNT_BANK_CREATE) && (
+            {mounted && can(PERMISSIONS.ACCOUNT_BANK_CREATE) && (
               <MaterialButton
                 variant="contained"
                 color="primary"

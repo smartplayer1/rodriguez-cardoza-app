@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import { DollarSign, ArrowRight, Save, RefreshCw } from 'lucide-react';
@@ -17,6 +17,14 @@ interface ExchangeRate {
 
 export default function CurrencySettings() {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // Marca que ya montó en el cliente: can() depende del store de permisos
+    // (hidratado desde localStorage), que difiere entre SSR y el primer
+    // render del cliente. Sin este flag se produce un hydration mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
   const [rates, setRates] = useState<ExchangeRate[]>([
     {
       id: '1',
@@ -177,7 +185,7 @@ export default function CurrencySettings() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 mt-4">
-                {can(PERMISSIONS.EXCHANGE_RATE_CREATE) && (
+                {mounted && can(PERMISSIONS.EXCHANGE_RATE_CREATE) && (
                   <MaterialButton
                     variant="contained"
                     color="primary"

@@ -3,7 +3,7 @@ import { CreditCard, MapPin, Package2, Plus, Warehouse } from 'lucide-react';
 
 import { getCashRegisters } from '@/app/services/cash-management';
 import NuevoCajaRegistradoraModal from './nuevo-caja-registradora-modal';
-import EditarCajaLink from './editar-caja-link';
+import EditarCajaRegistradoraModal from './editar-caja-registradora-modal';
 
 type SearchParams = {
   Page?: string | string[];
@@ -130,7 +130,7 @@ export default async function CajasRegistradoras({
                       <td className="px-4 py-4 text-muted-foreground">{record.branchName}</td>
                       <td className="px-4 py-4 text-muted-foreground">{record.description || 'Sin descripción'}</td>
                       <td className="px-4 py-4 text-right">
-                        <EditarCajaLink id={record.id} />
+                        <EditarCajaRegistradoraModal cashRegister={record} />
                       </td>
                     </tr>
                   ))

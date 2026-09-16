@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 
@@ -63,6 +63,10 @@ const getStatusClasses = (status: string) => {
 
 export default function GestionesHeaderTable({ records }: Props) {
   const { can } = useUserStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [selectedRecord, setSelectedRecord] =
     useState<CashManagementRecord | null>(null);
   const [closingSummary, setClosingSummary] =
@@ -293,7 +297,7 @@ export default function GestionesHeaderTable({ records }: Props) {
                     ? "Generando arqueo..."
                     : "Imprimir Arqueo"}
                 </button>
-                {can(PERMISSIONS.CASH_MANAGEMENT_CLOSE) &&
+                {mounted && can(PERMISSIONS.CASH_MANAGEMENT_CLOSE) &&
                   (menuRecord.status.toLowerCase() === "open" ? (
                     <button
                       type="button"

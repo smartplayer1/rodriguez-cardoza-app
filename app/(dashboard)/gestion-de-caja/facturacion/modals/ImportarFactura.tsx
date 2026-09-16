@@ -6,10 +6,9 @@ import { Factura, FacturaDetalleExcel } from "../types/factura";
 import { mapExcelToFactura } from "../mappers/excel.mapper";
 import { createInvoices } from "@/app/services/invoice";
 import { getCashManagementRecords } from "@/app/services/cash-management";
-import { getBranches } from "@/app/services/company/branch";
 import { getUnrelatedBankTransfers } from "@/app/services/billing/bank-transfer";
 import { CashManagementRecord } from "@/app/type/cash-management";
-import { BranchResponse, RecordsBranch } from "@/app/type/branch";
+
 import {
   InvoiceBatchPostResponse,
   SALE_TYPE_OPTIONS,
@@ -43,11 +42,6 @@ type CashManagementOption = {
   label: string;
 };
 
-type BranchOption = {
-  code: string;
-  label: string;
-};
-
 const TEMP_RESPONSIBLE_EMPLOYEE_ID = null;
 
 const toIssuedAtIso = (dateValue: string) => {
@@ -76,14 +70,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [uploadErrors, setUploadErrors] = useState<InvoiceUploadError[]>([]);
-  const [cashManagementOptions, setCashManagementOptions] = useState<
-    CashManagementOption[]
-  >([]);
-  const [cashManagementLoading, setCashManagementLoading] = useState(false);
-  const [selectedCashManagementId, setSelectedCashManagementId] = useState("");
-  const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
-  const [branchLoading, setBranchLoading] = useState(false);
-  const [branchCode, setBranchCode] = useState("");
+  const [cashManagementOptions, setCashManagementOptions] = useState<CashManagementRecord[]>([]);
   const [unrelatedTransfers, setUnrelatedTransfers] = useState<BankTransferRecord[]>([]);
   const [unrelatedTransfersLoading, setUnrelatedTransfersLoading] = useState(false);
   const [selectedTransfersByDocument, setSelectedTransfersByDocument] = useState<
@@ -96,49 +83,23 @@ export default function ImportarFactura({ open , onClose } : Props) {
 
   const loadOpenCashManagementRecords = useCallback(async () => {
     try {
-      setCashManagementLoading(true);
+      setLoading(true);
       const response = await getCashManagementRecords({
         status: "OPEN",
         responsibleEmployeeId: TEMP_RESPONSIBLE_EMPLOYEE_ID,
         page: 1,
         perPage: 100,
       });
-
-      const options = (response.records || []).map(
-        (record: CashManagementRecord) => ({
-          id: String(record.id),
-          label: `${record.cashRegisterCode} - ${record.cashRegisterName} - ${record.responsibleEmployeeName}`,
-        }),
-      );
-
-      setCashManagementOptions(options);
-      setSelectedCashManagementId((currentValue) => currentValue || options[0]?.id || "");
+      setCashManagementOptions(response.records || []);
     } catch (error) {
       console.error("Error loading open cash management records:", error);
       setCashManagementOptions([]);
     } finally {
-      setCashManagementLoading(false);
+      setLoading(false);
     }
   }, []);
 
-  const loadBranchOptions = useCallback(async () => {
-    try {
-      setBranchLoading(true);
-      const response = (await getBranches()) as BranchResponse;
-      const options = (response.records || []).map((record: RecordsBranch) => ({
-        code: String(record.code),
-        label: `${record.code} - ${record.name}`,
-      }));
-
-      setBranchOptions(options);
-      setBranchCode((currentValue) => currentValue || options[0]?.code || "");
-    } catch (error) {
-      console.error("Error loading branches:", error);
-      setBranchOptions([]);
-    } finally {
-      setBranchLoading(false);
-    }
-  }, []);
+ 
 
   const loadUnrelatedTransfers = useCallback(async () => {
     try {
@@ -156,9 +117,8 @@ export default function ImportarFactura({ open , onClose } : Props) {
   useEffect(() => {
     if (!open) return;
     void loadOpenCashManagementRecords();
-    void loadBranchOptions();
     void loadUnrelatedTransfers();
-  }, [open, loadOpenCashManagementRecords, loadBranchOptions, loadUnrelatedTransfers]);
+  }, [open, loadOpenCashManagementRecords, loadUnrelatedTransfers]);
 
   const toggleTransferSelection = useCallback((documento: string, transferId: number) => {
     setSelectedTransfersByDocument((previous) => {
@@ -258,17 +218,46 @@ export default function ImportarFactura({ open , onClose } : Props) {
     }).format(value || 0)
   }, [])
 
+  // Antes de armar el payload, validamos que cada factura tenga una (y solo
+  // una) gestión de caja abierta que coincida con el código de caja de su
+  // documento. Si falta o es ambigua, no se debe poder enviar NINGUNA
+  // factura del lote hasta que se corrija.
+  const cashManagementIssues = useMemo(() => {
+    return groupedFacturas.reduce<
+      { documento: string; cajaCode: string; reason: "not_found" | "ambiguous" }[]
+    >((issues, factura) => {
+      const cajaCode = factura.encabezado.documento.split("-")[0];
+      const matches = cashManagementOptions.filter(
+        (option) => option.cashRegisterCode === cajaCode,
+      );
+
+      if (matches.length === 0) {
+        issues.push({ documento: factura.encabezado.documento, cajaCode, reason: "not_found" });
+      } else if (matches.length > 1) {
+        issues.push({ documento: factura.encabezado.documento, cajaCode, reason: "ambiguous" });
+      }
+
+      return issues;
+    }, []);
+  }, [groupedFacturas, cashManagementOptions]);
+
   const serverPayload = useMemo<ServerInvoicePayload[]>(() => {
-    return groupedFacturas.map((factura) => ({
-      header: {
+    if (cashManagementIssues.length > 0) {
+      return [];
+    }
+
+    return groupedFacturas.map((factura) => {
+      const cashManagement = cashManagementOptions.filter((option) => option.cashRegisterCode === factura.encabezado.documento.split("-")[0])
+      const selectedCashManagement = cashManagement[0]
+
+      return {
+        header: {
         document: factura.encabezado.documento,
         chargeStatus: factura.encabezado.estado_cobro,
         clientCode: String(factura.encabezado.cliente),
-        cashManagementId: selectedCashManagementId
-          ? Number(selectedCashManagementId)
-          : 0,
+        cashManagementId: selectedCashManagement.id,
         warehouse: Number(factura.encabezado.bodega) || 0,
-        branchCode: branchCode || factura.encabezado.sucursal || "",
+        branchCode: selectedCashManagement.branchCode || "",
         cashier: factura.encabezado.cajero,
         issuedAt: toIssuedAtIso(factura.encabezado.fecha),
         store: factura.encabezado.tienda,
@@ -290,8 +279,9 @@ export default function ImportarFactura({ open , onClose } : Props) {
       })),
       collectionBankTransferIds:
         selectedTransfersByDocument[factura.encabezado.documento] || [],
-    }))
-  }, [groupedFacturas, branchCode, selectedCashManagementId, selectedTransfersByDocument])
+      }
+    } )
+  }, [groupedFacturas, selectedTransfersByDocument, cashManagementOptions, cashManagementIssues])
 
   const clearFile = useCallback(() => {
     setFileName(null)
@@ -344,11 +334,18 @@ export default function ImportarFactura({ open , onClose } : Props) {
   }, [])
 
   const handleSaveData = useCallback(async () => {
+    if (cashManagementIssues.length > 0) {
+      alert(
+        "No se puede enviar el lote: hay facturas sin una gestión de caja abierta que coincida (o con más de una). Corrija los códigos de caja o abra/cierre las gestiones correspondientes antes de reintentar.",
+      );
+      return;
+    }
+
     if (serverPayload.length === 0) {
       alert("No hay facturas válidas para guardar");
       return;
     }
-console.log("serverPayload", serverPayload);
+
     setSaving(true);
     setUploadProgress({ total: serverPayload.length, sent: 0, success: 0 });
     setUploadErrors([]);
@@ -426,7 +423,7 @@ console.log("serverPayload", serverPayload);
     } finally {
       setSaving(false);
     }
-  }, [serverPayload, clearFile, onClose, extractErrorDetails, extractErrorMessage])
+  }, [serverPayload, cashManagementIssues, clearFile, onClose, extractErrorDetails, extractErrorMessage])
 
   const validateStructure = (headers: string[]) => {
     return REQUIRED_COLUMNS.filter(col => !headers.includes(col));
@@ -601,60 +598,7 @@ const handleFileUpload = useCallback(
 
       {/* CONTENIDO */}
       <div className="p-6 overflow-auto">
-        <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sucursal
-            </label>
-            {branchLoading ? (
-              <ListSkeleton count={1} itemClassName="h-10 rounded" />
-            ) : (
-              <select
-                value={branchCode}
-                onChange={(e) => setBranchCode(e.target.value)}
-                disabled={branchOptions.length === 0 || saving}
-                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              >
-                {branchOptions.length === 0 ? (
-                  <option value="">No hay sucursales disponibles</option>
-                ) : (
-                  branchOptions.map((option) => (
-                    <option key={option.code} value={option.code}>
-                      {option.label}
-                    </option>
-                  ))
-                )}
-              </select>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Caja abierta
-            </label>
-            {cashManagementLoading ? (
-              <ListSkeleton count={1} itemClassName="h-10 rounded" />
-            ) : (
-              <select
-                value={selectedCashManagementId}
-                onChange={(e) => setSelectedCashManagementId(e.target.value)}
-                disabled={cashManagementOptions.length === 0 || saving}
-                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              >
-                {cashManagementOptions.length === 0 ? (
-                  <option value="">No hay cajas abiertas</option>
-                ) : (
-                  cashManagementOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))
-                )}
-              </select>
-            )}
-          </div>
-        </div>
-
+      
         {/* 🔽 SOLO SE MUESTRA SI NO HAY DATA */}
         {!fileName && (
           <div className="max-w-lg mx-auto space-y-6">
@@ -755,6 +699,26 @@ const handleFileUpload = useCallback(
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ERROR GESTIÓN DE CAJA */}
+        {!saving && cashManagementIssues.length > 0 && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <p className="font-semibold mb-2">
+              No se puede enviar el lote: {cashManagementIssues.length} factura(s) sin gestión de
+              caja válida
+            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              {cashManagementIssues.map((issue) => (
+                <li key={issue.documento}>
+                  Factura {issue.documento} (código de caja &quot;{issue.cajaCode}&quot;):{" "}
+                  {issue.reason === "not_found"
+                    ? "no hay ninguna gestión de caja abierta con ese código"
+                    : "hay más de una gestión de caja abierta con ese código"}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -910,7 +874,7 @@ const handleFileUpload = useCallback(
         </button>
 
         <button
-          disabled={data.length === 0 || saving}
+          disabled={data.length === 0 || saving || cashManagementIssues.length > 0}
           onClick={handleSaveData}
           className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
         >
@@ -989,6 +953,14 @@ function TransferRelationSelector({
                   <span>
                     {transfer.bankName} · {transfer.accountNumber} ·{" "}
                     {new Date(transfer.transferDate).toLocaleDateString()}
+                    {transfer.accountingConceptName ? (
+                      <span className="ml-2 text-xs text-gray-500">
+                        {transfer.accountingConceptName}
+                        {transfer.accountingConceptCategoryName
+                          ? ` (${transfer.accountingConceptCategoryName})`
+                          : ""}
+                      </span>
+                    ) : null}
                     {isClaimedElsewhere ? (
                       <span className="ml-2 text-xs text-amber-600">
                         Ya asignada a factura {claimedDocument}
