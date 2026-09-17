@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { isJwtDecoded, mapUserFromToken } from "@/app/utils/mapUser";
+import { buildAuthCookieAttributes } from "@/app/lib/auth/session-cookies";
 
 export async function POST(req: Request) {
   try {
@@ -47,41 +48,29 @@ export async function POST(req: Request) {
     );
 
     // Access Token
-    response.cookies.set("token", data.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
-    });
+    response.cookies.set("token", data.token, buildAuthCookieAttributes(data.tokenExpiresAt));
 
     // Fecha de expiración del token
-    response.cookies.set("tokenExpiresAt", data.tokenExpiresAt, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
-    });
+    response.cookies.set(
+      "tokenExpiresAt",
+      data.tokenExpiresAt,
+      buildAuthCookieAttributes(data.tokenExpiresAt),
+    );
 
     // Solo guardar si existe
     if (data.refreshToken) {
-      response.cookies.set("refreshToken", data.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/",
-      });
+      response.cookies.set(
+        "refreshToken",
+        data.refreshToken,
+        buildAuthCookieAttributes(data.refreshTokenExpiresAt),
+      );
     }
 
     if (data.refreshTokenExpiresAt) {
       response.cookies.set(
         "refreshTokenExpiresAt",
         data.refreshTokenExpiresAt,
-        {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          path: "/",
-        },
+        buildAuthCookieAttributes(data.refreshTokenExpiresAt),
       );
     }
 

@@ -7,7 +7,6 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  Filter,
   Eye,
   CreditCard,
   Edit,
@@ -85,6 +84,30 @@ type Props = {
   initialError?: string | null;
   clientOptions: ClientSearchItem[];
   branchOptions: BranchOption[];
+};
+
+// Ventana de números de página alrededor de la página actual, con el
+// primero/último siempre visibles y "…" para los huecos — mismo criterio
+// usado en la paginación de Sucursales.
+const getPageWindow = (current: number, total: number): (number | "ellipsis")[] => {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const pages = new Set<number>([1, total, current, current - 1, current + 1]);
+  const sorted = Array.from(pages)
+    .filter((page) => page >= 1 && page <= total)
+    .sort((a, b) => a - b);
+
+  const result: (number | "ellipsis")[] = [];
+  sorted.forEach((page, index) => {
+    if (index > 0 && page - sorted[index - 1] > 1) {
+      result.push("ellipsis");
+    }
+    result.push(page);
+  });
+
+  return result;
 };
 
 const mapChargeStatusToTipoPago = (
@@ -320,481 +343,435 @@ export default function FacturacionClient({
     }
   };
 
+  const hasAnyFilter =
+    !!documentFilter || !!clientCodeFilter || !!branchCodeFilter || !!issuedAtFilter || filterTipoPago !== "todos";
+
+  const clearFilters = () => {
+    setDocumentFilter("");
+    setFilterTipoPago("todos");
+    setClientCodeFilter("");
+    setBranchCodeFilter("");
+    setIssuedAtFilter("");
+    setCurrentPage(1);
+  };
+
+  const inputClassName =
+    "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
+
   return (
     <div className="flex-1 overflow-auto">
-      <div className="mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-5 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Receipt size={32} className="text-primary" />
-              <h2 className="text-foreground">Facturación</h2>
-            </div>
-            <p className="text-muted-foreground">
-              Gestione las facturas de venta
-            </p>
+            <h1 className="text-xl font-semibold text-foreground">Facturación</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">Gestiona las facturas de venta.</p>
           </div>
-          <div className="flex flex-row">
-            {mounted && can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
-              <MaterialButton
-                variant="contained"
-                color="secondary"
-                className="gap-2 ml-0.5 mr-0.5"
-                onClick={() => {
-                  setShowImportModal(true);
-                }}
-              >
-                <Upload className="size-4" />
-                Importar Excel
-              </MaterialButton>
-            )}
-          </div>
+          {mounted && can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
+            <MaterialButton
+              variant="contained"
+              color="secondary"
+              startIcon={<Upload size={16} />}
+              onClick={() => setShowImportModal(true)}
+            >
+              Importar Excel
+            </MaterialButton>
+          )}
         </div>
 
-        <details className="group bg-surface rounded elevation-2 p-4 mb-6 space-y-4" open>
-          <summary className="flex cursor-pointer list-none items-center justify-between text-foreground [&::-webkit-details-marker]:hidden">
-            <span>Filtros de búsqueda</span>
-            <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
-          </summary>
+        {/* Barra de filtros */}
+        <div className="rounded-2xl border border-border/60 bg-surface px-5 py-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <label className="flex-1 space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Buscar por documento</span>
+              <div className="relative">
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="N° de documento..."
+                  value={documentFilter}
+                  onChange={(e) => {
+                    setDocumentFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className={`${inputClassName} pl-9`}
+                />
+              </div>
+            </label>
 
-          <ClientSelector
-            clients={clientOptions}
-            loading={false}
-            error={null}
-            selectedClientCode={clientCodeFilter}
-            onSelectClient={(code) => {
-              setClientCodeFilter(code);
-              setCurrentPage(1);
-            }}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search
-                size={20}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="text"
-                placeholder="Filtrar por documento..."
-                value={documentFilter}
-                onChange={(e) => {
-                  setDocumentFilter(e.target.value);
+            <div className="lg:w-72">
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">Cliente</span>
+              <ClientSelector
+                clients={clientOptions}
+                loading={false}
+                error={null}
+                selectedClientCode={clientCodeFilter}
+                onSelectClient={(code) => {
+                  setClientCodeFilter(code);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
               />
             </div>
 
-            <div className="relative">
-              <Filter
-                size={20}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <select
-                value={filterTipoPago}
-                onChange={(e) => {
-                  setFilterTipoPago(
-                    e.target.value as "todos" | "Contado" | "Crédito",
-                  );
-                  setCurrentPage(1);
-                }}
-                className="w-full pl-10 pr-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none appearance-none"
-              >
-                <option value="todos">Todos los tipos</option>
-                <option value="Contado">Contado</option>
-                <option value="Crédito">Crédito</option>
-              </select>
-              <ChevronDown
-                size={20}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
-            </div>
-
-            <div className="relative">
+            <label className="w-full space-y-1 lg:w-36">
+              <span className="text-xs font-medium text-muted-foreground">Por página</span>
               <select
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="w-full px-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none appearance-none"
+                className={inputClassName}
               >
                 <option value={10}>10 por página</option>
                 <option value={25}>25 por página</option>
                 <option value={50}>50 por página</option>
                 <option value={100}>100 por página</option>
               </select>
-              <ChevronDown
-                size={20}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
-            </div>
+            </label>
 
-            <div className="relative">
-              <select
-                value={branchCodeFilter}
-                onChange={(e) => {
-                  setBranchCodeFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full px-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none appearance-none"
+            {hasAnyFilter && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
-                <option value="">Todas las sucursales</option>
-                {branchOptions.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={20}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
+                Limpiar
+              </button>
+            )}
+          </div>
+
+          <details className="group mt-3">
+            <summary className="inline-flex cursor-pointer list-none items-center text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+              Más filtros
+              <ChevronDown size={14} className="ml-1 transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Tipo de pago</span>
+                <select
+                  value={filterTipoPago}
+                  onChange={(e) => {
+                    setFilterTipoPago(e.target.value as "todos" | "Contado" | "Crédito");
+                    setCurrentPage(1);
+                  }}
+                  className={inputClassName}
+                >
+                  <option value="todos">Todos los tipos</option>
+                  <option value="Contado">Contado</option>
+                  <option value="Crédito">Crédito</option>
+                </select>
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Sucursal</span>
+                <select
+                  value={branchCodeFilter}
+                  onChange={(e) => {
+                    setBranchCodeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className={inputClassName}
+                >
+                  <option value="">Todas las sucursales</option>
+                  {branchOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Fecha</span>
+                <input
+                  type="date"
+                  value={issuedAtFilter}
+                  onChange={(e) => {
+                    setIssuedAtFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className={inputClassName}
+                />
+              </label>
             </div>
+          </details>
+        </div>
 
-            <input
-              type="date"
-              value={issuedAtFilter}
-              onChange={(e) => {
-                setIssuedAtFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-4 py-2 bg-input-background border-b-2 border-border focus:border-primary rounded-t transition-colors outline-none"
-            />
-          </div>
-        </details>
-
-        {fetchError && (
-          <div className="mb-6 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {fetchError}
-          </div>
+        {/* Línea de resultados */}
+        {!fetchError && !loadingInvoices && (
+          <p className="text-sm text-muted-foreground">
+            {paging.totalRecords === 0
+              ? "0 facturas encontradas"
+              : `Mostrando ${(paging.currentPage - 1) * paging.perPage + 1}–${Math.min(
+                  paging.currentPage * paging.perPage,
+                  paging.totalRecords,
+                )} de ${paging.totalRecords} facturas`}
+          </p>
         )}
 
-        {loadingInvoices ? (
-          <div className="bg-surface rounded elevation-2 overflow-hidden mb-6">
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-surface">
+          {fetchError ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <Receipt size={32} className="text-destructive" />
+              <div>
+                <p className="text-foreground">No pudimos cargar las facturas.</p>
+                <p className="text-sm text-muted-foreground">{fetchError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void loadFacturas()}
+                className="rounded-xl bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : loadingInvoices ? (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted border-b border-border">
+              <table className="min-w-full text-sm">
+                <thead className="bg-muted/30">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      N° Factura
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Caja
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Fecha
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Asesor
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Tipo de Pago
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Tipo de Venta
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm text-foreground">
-                      Subtotal
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm text-foreground">
-                      IVA
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm text-foreground">
-                      Total
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Usuario
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm text-foreground">
-                      Acciones
-                    </th>
+                    {["N° Factura", "Caja", "Fecha", "Asesor", "Tipo de Pago", "Tipo de Venta", "Subtotal", "IVA", "Total", "Usuario", "Acciones"].map(
+                      (label) => (
+                        <th key={label} className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          {label}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border/40">
                   <TableSkeleton columns={11} />
                 </tbody>
               </table>
             </div>
-          </div>
-        ) : sortedFacturas.length > 0 ? (
-          <>
-            <div className="bg-surface rounded elevation-2 overflow-hidden mb-6">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted border-b border-border">
-                    <tr>
-                      <th
-                        className="px-6 py-4 text-left text-sm text-foreground cursor-pointer hover:bg-muted/80"
-                        onClick={() => handleSort("numeroFactura")}
-                      >
-                        <div className="flex items-center gap-2">
-                          N° Factura
-                          {sortColumn === "numeroFactura" &&
-                            (sortDirection === "asc" ? (
-                              <ChevronUp size={16} />
-                            ) : (
-                              <ChevronDown size={16} />
-                            ))}
-                        </div>
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm text-foreground">
-                        Caja
-                      </th>
-                      <th
-                        className="px-6 py-4 text-left text-sm text-foreground cursor-pointer hover:bg-muted/80"
-                        onClick={() => handleSort("fecha")}
-                      >
-                        <div className="flex items-center gap-2">
-                          Fecha
-                          {sortColumn === "fecha" &&
-                            (sortDirection === "asc" ? (
-                              <ChevronUp size={16} />
-                            ) : (
-                              <ChevronDown size={16} />
-                            ))}
-                        </div>
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm text-foreground">
-                        Asesor
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm text-foreground">
-                        Tipo de Pago
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm text-foreground">
-                        Tipo de Venta
-                      </th>
-                      <th className="px-6 py-4 text-right text-sm text-foreground">
-                        Subtotal
-                      </th>
-                      <th className="px-6 py-4 text-right text-sm text-foreground">
-                        IVA
-                      </th>
-                      <th
-                        className="px-6 py-4 text-right text-sm text-foreground cursor-pointer hover:bg-muted/80"
-                        onClick={() => handleSort("total")}
-                      >
-                        <div className="flex items-center justify-end gap-2">
-                          Total
-                          {sortColumn === "total" &&
-                            (sortDirection === "asc" ? (
-                              <ChevronUp size={16} />
-                            ) : (
-                              <ChevronDown size={16} />
-                            ))}
-                        </div>
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm text-foreground">
-                        Usuario
-                      </th>
-                      <th className="px-6 py-4 text-right text-sm text-foreground">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {sortedFacturas.map((factura) => (
-                      <tr
-                        key={factura.id}
-                        className="hover:bg-muted/30 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <Receipt size={20} className="text-primary" />
-                            </div>
-                            <span className="text-foreground">
-                              {factura.numeroFactura}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-foreground">
-                          {factura.cajaNombre}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-foreground">
-                          {factura.fecha}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="text-foreground">
-                              {factura.asesorNombre}
-                            </div>
-                            <div className="text-xs text-muted-foreground capitalize">
-                              ({factura.asesorTipo})
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded text-xs ${factura.tipoPago === "Contado" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}
-                          >
-                            {factura.tipoPago}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-foreground">
-                          {factura.tipoVenta}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-foreground text-right font-mono">
-                          {factura.subtotal.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-foreground text-right font-mono">
-                          {factura.iva.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-primary text-right font-mono">
-                          <strong>{factura.total.toFixed(2)}</strong>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-foreground">
-                          {factura.usuarioGenero}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2 justify-end">
-                            {mounted && can(PERMISSIONS.INVOICE_EDIT) && (
-                              <MaterialButton
-                                variant="text"
-                                color="secondary"
-                                startIcon={<Edit size={16} />}
-                                onClick={() => handleEdit(factura)}
-                              >
-                                Editar
-                              </MaterialButton>
-                            )}
-                            <MaterialButton
-                              variant="text"
-                              color="primary"
-                              startIcon={<Eye size={16} />}
-                              onClick={() => handleViewDetail(factura)}
+          ) : sortedFacturas.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-muted/30">
+                  <tr>
+                    <SortableHeader label="N° Factura" column="numeroFactura" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Caja</th>
+                    <SortableHeader label="Fecha" column="fecha" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                    <th className="hidden px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground lg:table-cell">Asesor</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Tipo de Pago</th>
+                    <th className="hidden px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground xl:table-cell">Tipo de Venta</th>
+                    <th className="hidden px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground md:table-cell">Subtotal</th>
+                    <th className="hidden px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground md:table-cell">IVA</th>
+                    <SortableHeader label="Total" column="total" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="right" />
+                    <th className="hidden px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground xl:table-cell">Usuario</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {sortedFacturas.map((factura) => (
+                    <tr key={factura.id} className="transition-colors hover:bg-muted/15">
+                      <td className="px-4 py-3 font-medium text-foreground">{factura.numeroFactura}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{factura.cajaNombre}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{factura.fecha}</td>
+                      <td className="hidden px-4 py-3 lg:table-cell">
+                        <div className="text-foreground">{factura.asesorNombre}</div>
+                        <div className="text-xs capitalize text-muted-foreground">({factura.asesorTipo})</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${
+                            factura.tipoPago === "Contado" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                          }`}
+                        >
+                          {factura.tipoPago}
+                        </span>
+                      </td>
+                      <td className="hidden px-4 py-3 text-muted-foreground xl:table-cell">{factura.tipoVenta}</td>
+                      <td className="hidden px-4 py-3 text-right font-mono text-muted-foreground md:table-cell">
+                        {factura.subtotal.toFixed(2)}
+                      </td>
+                      <td className="hidden px-4 py-3 text-right font-mono text-muted-foreground md:table-cell">{factura.iva.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-mono font-medium text-primary">{factura.total.toFixed(2)}</td>
+                      <td className="hidden px-4 py-3 text-muted-foreground xl:table-cell">{factura.usuarioGenero}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-1">
+                          {mounted && can(PERMISSIONS.INVOICE_EDIT) && (
+                            <RowActionButton title="Editar factura" onClick={() => handleEdit(factura)}>
+                              <Edit size={15} />
+                            </RowActionButton>
+                          )}
+                          <RowActionButton title="Ver detalle" onClick={() => handleViewDetail(factura)}>
+                            <Eye size={15} />
+                          </RowActionButton>
+                          {factura.tipoPago === "Crédito" && mounted && can(PERMISSIONS.COLLECTION_CREATE) && (
+                            <RowActionButton title="Generar cobro" onClick={() => handleGenerarCobro(factura.id)}>
+                              <CreditCard size={15} />
+                            </RowActionButton>
+                          )}
+                          {mounted && can(PERMISSIONS.BANK_TRANSFER_CREATE) && (
+                            <RowActionButton
+                              title="Relacionar transferencia"
+                              onClick={() =>
+                                setLinkingInvoice({ id: Number(factura.id), document: factura.numeroFactura })
+                              }
                             >
-                              Ver Detalle
-                            </MaterialButton>
-                            {factura.tipoPago === "Crédito" &&
-                              mounted &&
-                              can(PERMISSIONS.COLLECTION_CREATE) && (
-                                <MaterialButton
-                                  variant="text"
-                                  color="primary"
-                                  startIcon={<CreditCard size={16} />}
-                                  onClick={() => handleGenerarCobro(factura.id)}
-                                >
-                                  Generar Cobro
-                                </MaterialButton>
-                              )}
-                            {mounted && can(PERMISSIONS.BANK_TRANSFER_CREATE) && (
-                              <MaterialButton
-                                variant="text"
-                                color="secondary"
-                                startIcon={<Link2 size={16} />}
-                                onClick={() =>
-                                  setLinkingInvoice({
-                                    id: Number(factura.id),
-                                    document: factura.numeroFactura,
-                                  })
-                                }
-                              >
-                                Relacionar Transferencia
-                              </MaterialButton>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                              <Link2 size={15} />
+                            </RowActionButton>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Mostrando {(paging.currentPage - 1) * paging.perPage + 1} a{" "}
-                {Math.min(
-                  paging.currentPage * paging.perPage,
-                  paging.totalRecords,
-                )}{" "}
-                de {paging.totalRecords} facturas
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <Receipt size={32} className="text-muted-foreground" />
+              <div>
+                <p className="text-foreground">Sin facturas encontradas</p>
+                <p className="text-sm text-muted-foreground">
+                  {hasAnyFilter ? "Prueba modificando los filtros de búsqueda." : "Aún no hay facturas registradas."}
+                </p>
               </div>
-              <div className="flex gap-2">
-                <MaterialButton
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+              {hasAnyFilter ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="rounded-xl border border-border px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
                 >
-                  Anterior
-                </MaterialButton>
-                <div className="flex items-center gap-2 px-4">
-                  <span className="text-sm text-foreground">
-                    Página {currentPage} de {totalPages}
-                  </span>
-                </div>
-                <MaterialButton
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() =>
-                    setCurrentPage(Math.min(totalPages, currentPage + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                >
-                  Siguiente
-                </MaterialButton>
-              </div>
+                  Limpiar filtros
+                </button>
+              ) : (
+                mounted &&
+                can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
+                  <MaterialButton
+                    variant="contained"
+                    color="secondary"
+                    startIcon={<Upload size={16} />}
+                    onClick={() => setShowImportModal(true)}
+                  >
+                    Importar Excel
+                  </MaterialButton>
+                )
+              )}
             </div>
+          )}
+        </div>
 
-            <VerDetalle
-              editingFactura={editingFactura!}
-              isOpen={showDetail}
-              onClose={handleCancel}
-            />
-            <ImportarFactura
-              open={showImportModal}
-              onClose={() => void handleCloseImportModal()}
-            />
-            <EditarFactura
-              isOpen={showEditModal}
-              invoice={editingInvoiceServer}
-              onClose={() => {
-                setShowEditModal(false);
-                setEditingInvoiceServer(null);
-              }}
-              onSave={handleSaveEdit}
-            />
-            <RelacionarTransferenciaModal
-              isOpen={!!linkingInvoice}
-              invoiceId={linkingInvoice?.id ?? 0}
-              invoiceDocument={linkingInvoice?.document ?? ""}
-              onClose={() => setLinkingInvoice(null)}
-              onLinked={() => {
-                alert("Transferencia relacionada correctamente");
-              }}
-            />
-          </>
-        ) : (
-          <div className="bg-surface rounded elevation-2 py-16 text-center">
-            <Receipt size={64} className="text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-foreground mb-2">
-              No hay facturas registradas
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              Comience creando una nueva factura
-            </p>
-            {mounted && can(PERMISSIONS.INVOICE_IMPORT_HISTORICAL) && (
-              <MaterialButton
-                variant="contained"
-                color="secondary"
-                className="gap-2 ml-0.5 mr-0.5"
-                onClick={() => {
-                  setShowImportModal(true);
-                }}
-              >
-                <Upload className="size-4" />
-                Importar Excel
-              </MaterialButton>
+        {!fetchError && !loadingInvoices && sortedFacturas.length > 0 && totalPages > 1 ? (
+          <nav aria-label="Paginación facturas" className="flex items-center justify-center gap-1">
+            <MaterialButton
+              variant="outlined"
+              color="secondary"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              ‹ Anterior
+            </MaterialButton>
+
+            {getPageWindow(currentPage, totalPages).map((entry, index) =>
+              entry === "ellipsis" ? (
+                <span key={`ellipsis-${index}`} className="px-2 text-sm text-muted-foreground">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={entry}
+                  type="button"
+                  onClick={() => setCurrentPage(entry)}
+                  aria-current={entry === currentPage ? "page" : undefined}
+                  className={`inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm transition-colors ${
+                    entry === currentPage
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border text-foreground hover:bg-accent"
+                  }`}
+                >
+                  {entry}
+                </button>
+              ),
             )}
-            <ImportarFactura
-              open={showImportModal}
-              onClose={() => void handleCloseImportModal()}
-            />
-          </div>
-        )}
+
+            <MaterialButton
+              variant="outlined"
+              color="secondary"
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Siguiente ›
+            </MaterialButton>
+          </nav>
+        ) : null}
+
+        <VerDetalle editingFactura={editingFactura!} isOpen={showDetail} onClose={handleCancel} />
+        <ImportarFactura open={showImportModal} onClose={() => void handleCloseImportModal()} />
+        <EditarFactura
+          isOpen={showEditModal}
+          invoice={editingInvoiceServer}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingInvoiceServer(null);
+          }}
+          onSave={handleSaveEdit}
+        />
+        <RelacionarTransferenciaModal
+          isOpen={!!linkingInvoice}
+          invoiceId={linkingInvoice?.id ?? 0}
+          invoiceDocument={linkingInvoice?.document ?? ""}
+          onClose={() => setLinkingInvoice(null)}
+          onLinked={() => {
+            alert("Transferencia relacionada correctamente");
+          }}
+        />
       </div>
     </div>
+  );
+}
+
+function RowActionButton({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    >
+      {children}
+    </button>
+  );
+}
+
+function SortableHeader({
+  label,
+  column,
+  sortColumn,
+  sortDirection,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  column: "numeroFactura" | "fecha" | "total";
+  sortColumn: "numeroFactura" | "fecha" | "total";
+  sortDirection: "asc" | "desc";
+  onSort: (column: "numeroFactura" | "fecha" | "total") => void;
+  align?: "left" | "right";
+}) {
+  return (
+    <th
+      className={`cursor-pointer select-none px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground ${
+        align === "right" ? "text-right" : "text-left"
+      }`}
+      onClick={() => onSort(column)}
+    >
+      <div className={`flex items-center gap-1 ${align === "right" ? "justify-end" : ""}`}>
+        {label}
+        {sortColumn === column &&
+          (sortDirection === "asc" ? <ChevronUp size={13} /> : <ChevronDown size={13} />)}
+      </div>
+    </th>
   );
 }

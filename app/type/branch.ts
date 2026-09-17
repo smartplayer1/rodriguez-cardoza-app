@@ -6,6 +6,25 @@ export interface Branch {
     code: string
 }
 
+export interface UpdateBranchPayload {
+    name?: string | null;
+    address?: string | null;
+    cityId?: number | null;
+    code?: string | null;
+}
+
+export interface GetBranchesFilters {
+    id?: number;
+    code?: string;
+    name?: string;
+    address?: string;
+    page?: number;
+    perPage?: number;
+    skip?: number;
+    baseUrl?: string;
+    cookieHeader?: string;
+}
+
 export interface BranchResponse {
    records: RecordsBranch[]
    paging: PagingBranch
@@ -22,12 +41,6 @@ export interface RecordsBranch {
         state: {
           id: number,
           name: string,
-          cities: [
-            {
-              id: number,
-              name: string
-            }
-          ]
         }
       }
     }

@@ -1,18 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ImageOff, Star, Trash2, Upload, X } from 'lucide-react';
+import { ImageOff, Star, Trash2, Upload, UploadCloud, X } from 'lucide-react';
 
 import { MaterialButton } from '@/components/MaterialButton';
 import { CardsSkeleton } from '@/components/ui/loading-skeleton';
 import { ALLOWED_IMAGE_CONTENT_TYPES, EntityImage, MAX_IMAGE_SIZE_BYTES } from '@/app/type/entity-image';
 
-type UploadTaskStatus = 'uploading' | 'error';
+type PendingFileStatus = 'staged' | 'uploading' | 'error';
 
-type UploadTask = {
+type PendingFile = {
   key: string;
-  fileName: string;
-  status: UploadTaskStatus;
+  file: File;
+  previewUrl: string;
+  status: PendingFileStatus;
   message?: string;
 };
 
@@ -60,7 +61,8 @@ export default function EntityImageGallery({
   const [images, setImages] = useState<EntityImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [primaryUpdatingId, setPrimaryUpdatingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,62 +81,96 @@ export default function EntityImageGallery({
     }
   }, [loadImages]);
 
+  const clearPendingFiles = useCallback(() => {
+    setPendingFiles((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      return [];
+    });
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
-    setUploadTasks([]);
+    clearPendingFiles();
     void refresh();
-  }, [isOpen, refresh]);
+  }, [isOpen, refresh, clearPendingFiles]);
+
+  useEffect(() => {
+    return () => {
+      setPendingFiles((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+        return prev;
+      });
+    };
+  }, []);
 
   if (!isOpen) return null;
 
-  const handleFilesSelected = async (fileList: FileList | null) => {
+  const handleFilesSelected = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
 
     const files = Array.from(fileList);
-    const tasks: UploadTask[] = files.map((file, index) => ({
-      key: `${Date.now()}-${index}-${file.name}`,
-      fileName: file.name,
-      status: 'uploading',
-    }));
+    const newEntries: PendingFile[] = files.map((file, index) => {
+      const validationError = validateFile(file);
+      return {
+        key: `${Date.now()}-${index}-${file.name}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        status: validationError ? 'error' : 'staged',
+        message: validationError ?? undefined,
+      };
+    });
 
-    setUploadTasks((prev) => [...prev, ...tasks]);
+    setPendingFiles((prev) => [...prev, ...newEntries]);
+
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+  };
+
+  const discardPending = (key: string) => {
+    setPendingFiles((prev) => {
+      const target = prev.find((p) => p.key === key);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.key !== key);
+    });
+  };
+
+  const handleUploadPending = async () => {
+    const toUpload = pendingFiles.filter((p) => p.status === 'staged');
+    if (toUpload.length === 0) return;
+
+    setIsUploading(true);
+    setPendingFiles((prev) =>
+      prev.map((p) => (p.status === 'staged' ? { ...p, status: 'uploading' } : p)),
+    );
 
     await Promise.all(
-      files.map(async (file, index) => {
-        const task = tasks[index];
-        const validationError = validateFile(file);
-
-        if (validationError) {
-          setUploadTasks((prev) =>
-            prev.map((t) => (t.key === task.key ? { ...t, status: 'error', message: validationError } : t)),
-          );
-          return;
-        }
-
+      toUpload.map(async (pending) => {
         try {
-          await uploadImage(file);
-          setUploadTasks((prev) => prev.filter((t) => t.key !== task.key));
+          await uploadImage(pending.file);
+          setPendingFiles((prev) => {
+            const target = prev.find((p) => p.key === pending.key);
+            if (target) URL.revokeObjectURL(target.previewUrl);
+            return prev.filter((p) => p.key !== pending.key);
+          });
         } catch (error) {
-          setUploadTasks((prev) =>
-            prev.map((t) =>
-              t.key === task.key
+          setPendingFiles((prev) =>
+            prev.map((p) =>
+              p.key === pending.key
                 ? {
-                    ...t,
+                    ...p,
                     status: 'error',
                     message: error instanceof Error ? error.message : 'No se pudo subir la imagen',
                   }
-                : t,
+                : p,
             ),
           );
         }
       }),
     );
 
+    setIsUploading(false);
     await refresh();
-
-    if (inputRef.current) {
-      inputRef.current.value = '';
-    }
   };
 
   const handleDelete = async (image: EntityImage) => {
@@ -165,9 +201,7 @@ export default function EntityImageGallery({
     }
   };
 
-  const dismissTask = (key: string) => {
-    setUploadTasks((prev) => prev.filter((t) => t.key !== key));
-  };
+  const stagedCount = pendingFiles.filter((p) => p.status === 'staged').length;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
@@ -189,45 +223,73 @@ export default function EntityImageGallery({
             <div className="mb-4">
               <label className="inline-flex items-center gap-2 cursor-pointer rounded-2xl border-2 border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors">
                 <Upload size={18} />
-                Subir imágenes (JPEG, PNG, WEBP o GIF · máx. 5 MB c/u)
+                Seleccionar imágenes (JPEG, PNG, WEBP o GIF · máx. 5 MB c/u)
                 <input
                   ref={inputRef}
                   type="file"
                   accept={ALLOWED_IMAGE_CONTENT_TYPES.join(',')}
                   multiple
                   className="hidden"
-                  onChange={(e) => void handleFilesSelected(e.target.files)}
+                  onChange={(e) => handleFilesSelected(e.target.files)}
                 />
               </label>
             </div>
           )}
 
-          {uploadTasks.length > 0 && (
-            <div className="mb-4 flex flex-col gap-2">
-              {uploadTasks.map((task) => (
-                <div
-                  key={task.key}
-                  className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${
-                    task.status === 'error'
-                      ? 'border-red-300 bg-red-50 text-red-700'
-                      : 'border-border bg-background/60 text-muted-foreground'
-                  }`}
+          {pendingFiles.length > 0 && (
+            <div className="mb-5 rounded-2xl border border-border/60 bg-background/40 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {pendingFiles.length} imagen{pendingFiles.length === 1 ? '' : 'es'} lista
+                  {pendingFiles.length === 1 ? '' : 's'} para subir
+                </span>
+                <MaterialButton
+                  variant="contained"
+                  color="primary"
+                  startIcon={<UploadCloud size={16} />}
+                  onClick={handleUploadPending}
+                  disabled={stagedCount === 0 || isUploading}
                 >
-                  <span className="truncate">
-                    {task.fileName}
-                    {task.status === 'uploading' ? ' — subiendo...' : task.message ? ` — ${task.message}` : ''}
-                  </span>
-                  {task.status === 'error' && (
-                    <button
-                      type="button"
-                      onClick={() => dismissTask(task.key)}
-                      className="ml-2 text-red-600 hover:underline shrink-0"
-                    >
-                      Descartar
-                    </button>
-                  )}
-                </div>
-              ))}
+                  {isUploading ? 'Subiendo...' : `Subir ${stagedCount || ''}`}
+                </MaterialButton>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {pendingFiles.map((pending) => (
+                  <div
+                    key={pending.key}
+                    className="group relative aspect-square overflow-hidden rounded-2xl border border-border/60 bg-background/60"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={pending.previewUrl}
+                      alt={pending.file.name}
+                      className="h-full w-full object-cover"
+                    />
+
+                    {pending.status !== 'staged' && (
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-2 text-center text-xs text-white ${
+                          pending.status === 'error' ? 'bg-red-900/70' : 'bg-black/60'
+                        }`}
+                      >
+                        {pending.status === 'uploading' ? 'Subiendo...' : pending.message}
+                      </div>
+                    )}
+
+                    {pending.status !== 'uploading' && (
+                      <button
+                        type="button"
+                        onClick={() => discardPending(pending.key)}
+                        title="Quitar"
+                        className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
