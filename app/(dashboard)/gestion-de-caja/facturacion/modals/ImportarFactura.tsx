@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Factura, FacturaDetalleExcel } from "../types/factura";
 import { mapExcelToFactura } from "../mappers/excel.mapper";
-import { createInvoices } from "@/app/services/invoice";
+import { createInvoicesBatch } from "@/app/services/invoice";
 import { getCashManagementRecords } from "@/app/services/cash-management";
 import { getUnrelatedBankTransfers } from "@/app/services/billing/bank-transfer";
 import { CashManagementRecord } from "@/app/type/cash-management";
 
 import {
-  InvoiceBatchPostResponse,
   SALE_TYPE_OPTIONS,
   SaleType,
   ServerInvoicePayload,
@@ -23,12 +23,6 @@ const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO", 
 interface Props {
   open: boolean;
   onClose: () => void;
-}
-
-interface UploadProgress {
-  total: number;
-  sent: number;
-  success: number;
 }
 
 interface InvoiceUploadError {
@@ -68,7 +62,6 @@ export default function ImportarFactura({ open , onClose } : Props) {
   const [structureError, setStructureError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [uploadErrors, setUploadErrors] = useState<InvoiceUploadError[]>([]);
   const [cashManagementOptions, setCashManagementOptions] = useState<CashManagementRecord[]>([]);
   const [unrelatedTransfers, setUnrelatedTransfers] = useState<BankTransferRecord[]>([]);
@@ -218,10 +211,6 @@ export default function ImportarFactura({ open , onClose } : Props) {
     }).format(value || 0)
   }, [])
 
-  // Antes de armar el payload, validamos que cada factura tenga una (y solo
-  // una) gestión de caja abierta que coincida con el código de caja de su
-  // documento. Si falta o es ambigua, no se debe poder enviar NINGUNA
-  // factura del lote hasta que se corrija.
   const cashManagementIssues = useMemo(() => {
     return groupedFacturas.reduce<
       { documento: string; cajaCode: string; reason: "not_found" | "ambiguous" }[]
@@ -251,11 +240,11 @@ export default function ImportarFactura({ open , onClose } : Props) {
       const selectedCashManagement = cashManagement[0]
 
       return {
+        cashManagementId: selectedCashManagement.id,
         header: {
         document: factura.encabezado.documento,
         chargeStatus: factura.encabezado.estado_cobro,
         clientCode: String(factura.encabezado.cliente),
-        cashManagementId: selectedCashManagement.id,
         warehouse: Number(factura.encabezado.bodega) || 0,
         branchCode: selectedCashManagement.branchCode || "",
         cashier: factura.encabezado.cajero,
@@ -288,7 +277,6 @@ export default function ImportarFactura({ open , onClose } : Props) {
     setData([])
     setErrors([])
     setStructureError(null)
-    setUploadProgress(null)
     setUploadErrors([])
     setExpandedFacturas({})
     setSelectedTransfersByDocument({})
@@ -333,6 +321,11 @@ export default function ImportarFactura({ open , onClose } : Props) {
     return payload.message || payload.title || payload.detail || fallback;
   }, [])
 
+  // POST /v1/invoice/batch crea todo el lote en una sola llamada (evita que
+  // el backend recalcule premios/cupones factura por factura, que es lo que
+  // hacía lento el loop anterior sobre POST /v1/invoice). Es todo o nada:
+  // si UNA factura falla, no se crea ninguna — no hay resultados parciales
+  // que reconciliar, solo se corrige el dato señalado y se reenvía el lote.
   const handleSaveData = useCallback(async () => {
     if (cashManagementIssues.length > 0) {
       alert(
@@ -347,68 +340,30 @@ export default function ImportarFactura({ open , onClose } : Props) {
     }
 
     setSaving(true);
-    setUploadProgress({ total: serverPayload.length, sent: 0, success: 0 });
     setUploadErrors([]);
 
-    let sent = 0;
-    let success = 0;
-    const createdDocuments: string[] = [];
-    const failedInvoices: InvoiceUploadError[] = [];
-
     try {
-      for (const invoice of serverPayload) {
-        try {
-          const response = await createInvoices([invoice]);
-          const rawResponseData = (await response.json().catch(() => ({}))) as Partial<InvoiceBatchPostResponse> & {
-            error?: unknown;
-            message?: string;
-            title?: string;
-            detail?: string;
-          };
-          const failedCount = Number(rawResponseData.failed || 0);
-          const isSuccess = response.ok && response.status !== 207 && failedCount === 0;
+      const response = await createInvoicesBatch(serverPayload);
+      const rawResponseData = await response.json().catch(() => null);
 
-          if (isSuccess) {
-            success += 1;
-            const currentDocument = (rawResponseData.results || [])[0]?.invoice?.header?.document
-              || (rawResponseData.results || [])[0]?.document
-              || invoice.header.document;
-            createdDocuments.push(currentDocument);
-          } else {
-            const errorPayload = rawResponseData.error ?? rawResponseData;
-            failedInvoices.push({
-              document: invoice.header.document,
-              message: extractErrorMessage(errorPayload, "La factura no se pudo procesar"),
-              details: extractErrorDetails(errorPayload),
-            });
-          }
-        } catch (error) {
-          console.error("Error al guardar factura:", error);
-          failedInvoices.push({
-            document: invoice.header.document,
-            message: "Error inesperado al enviar la factura",
-            details: [error instanceof Error ? error.message : "Error desconocido"],
-          });
-        } finally {
-          sent += 1;
-          setUploadProgress({
-            total: serverPayload.length,
-            sent,
-            success,
-          });
-        }
-      }
-
-      setUploadErrors(failedInvoices);
-
-      const failed = serverPayload.length - success;
-
-      if (failed > 0) {
-        alert(`Carga parcial: ${success} facturas guardadas y ${failed} con error`);
+      if (!response.ok) {
+        const errorPayload = (rawResponseData as { error?: unknown })?.error ?? rawResponseData;
+        setUploadErrors([
+          {
+            document: "Lote completo",
+            message: extractErrorMessage(errorPayload, "El lote no se pudo procesar"),
+            details: extractErrorDetails(errorPayload),
+          },
+        ]);
+        alert("No se pudo guardar el lote. Corrija el dato señalado en el detalle del error y vuelva a intentar.");
         return;
       }
 
-      const documents = createdDocuments.join(", ");
+      const createdInvoices = Array.isArray(rawResponseData) ? (rawResponseData as ServerInvoicePayload[]) : [];
+      const documents = createdInvoices
+        .map((invoice) => invoice?.header?.document)
+        .filter(Boolean)
+        .join(", ");
 
       alert(
         documents
@@ -418,8 +373,8 @@ export default function ImportarFactura({ open , onClose } : Props) {
       clearFile();
       onClose();
     } catch (error) {
-      console.error("Error al guardar facturas:", error);
-      alert("Ocurrió un error al enviar las facturas");
+      console.error("Error al guardar el lote de facturas:", error);
+      alert("Ocurrió un error al enviar el lote de facturas");
     } finally {
       setSaving(false);
     }
@@ -580,7 +535,25 @@ const handleFileUpload = useCallback(
  if (!open) return null;
   return (
   <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-    <div className="bg-white w-[95%] max-w-6xl rounded-2xl shadow-xl flex flex-col max-h-[90vh]">
+    <div className="relative bg-white w-[95%] max-w-6xl rounded-2xl shadow-xl flex flex-col max-h-[90vh]">
+
+      {/* Overlay mientras se crea el lote: cubre todo el modal para que el
+          mensaje de espera se vea sin importar en qué parte del contenido
+          esté el usuario, y bloquea clics accidentales (cerrar, limpiar,
+          etc.) mientras la petición está en curso. */}
+      {saving && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/90 backdrop-blur-sm">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          <div className="text-center px-6">
+            <p className="font-semibold text-gray-800">
+              Creando {serverPayload.length} factura{serverPayload.length === 1 ? "" : "s"}...
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Esperá a que el servidor termine. No cierres esta ventana.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* HEADER */}
       <div className="flex justify-between items-center border-b p-4">
@@ -590,7 +563,8 @@ const handleFileUpload = useCallback(
 
         <button
           onClick={onClose}
-          className="text-gray-500 hover:text-black text-xl"
+          disabled={saving}
+          className="text-gray-500 hover:text-black text-xl disabled:opacity-50 disabled:cursor-not-allowed"
         >
           ✕
         </button>
@@ -664,27 +638,15 @@ const handleFileUpload = useCallback(
           </p>
         )}
 
-        {saving && (
-          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-            <p className="font-semibold">Guardando facturas...</p>
-            <p>Enviadas: {uploadProgress?.sent ?? 0} de {uploadProgress?.total ?? 0}</p>
-            <p>Con éxito: {uploadProgress?.success ?? 0}</p>
-            <p>Restantes: {Math.max((uploadProgress?.total ?? 0) - (uploadProgress?.sent ?? 0), 0)}</p>
-          </div>
-        )}
-
         {!saving && uploadErrors.length > 0 && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             <p className="font-semibold mb-2">
-              Facturas con error ({uploadErrors.length})
+              No se pudo guardar el lote — no se creó ninguna factura
             </p>
 
             <div className="space-y-3 max-h-56 overflow-auto pr-1">
               {uploadErrors.map((error) => (
                 <div key={error.document} className="rounded-md border border-red-200 bg-white p-3">
-                  <p className="font-medium">
-                    Factura: {error.document}
-                  </p>
                   <p className="text-red-700">
                     {error.message}
                   </p>

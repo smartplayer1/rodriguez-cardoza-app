@@ -66,6 +66,22 @@ export const createInvoices = async (payload: ServerInvoicePayload[], context?: 
   });
 };
 
+// POST /v1/invoice/batch: pensado para cargas masivas. A diferencia de
+// createInvoices (que recalcula premios/cupones por cada factura, caro en
+// un loop), este endpoint omite ese cálculo y crea todo el lote en una sola
+// llamada — pero es todo o nada: si una sola factura falla, no se crea
+// ninguna.
+export const createInvoicesBatch = async (
+  invoices: ServerInvoicePayload[],
+  context?: ServiceRequestContext,
+) => {
+  return await fetch(resolveServiceUrl('/api/invoice/batch', context), {
+    method: "POST",
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify({ invoices }),
+  });
+};
+
 export const updateInvoice = async (payload: ServerInvoiceUpdatePayload, context?: ServiceRequestContext) => {
   const response = await fetch(resolveServiceUrl('/api/invoice', context), {
     method: 'PUT',

@@ -195,12 +195,12 @@ export default function ImportarNotaCreditoModal({ open, onClose }: Props) {
 
   const serverPayload = useMemo<ServerInvoicePayload[]>(() => {
     return groupedFacturas.map((factura) => ({
+      cashManagementId: selectedCashManagementId ? Number(selectedCashManagementId) : 0,
       header: {
         document: factura.encabezado.documento,
         chargeStatus: factura.encabezado.estado_cobro,
         clientCode: String(factura.encabezado.cliente),
         warehouse: Number(factura.encabezado.bodega) || 0,
-        cashManagementId: selectedCashManagementId ? Number(selectedCashManagementId) : 0,
         branchCode: "SC002", //factura.encabezado.sucursal,
         cashier: factura.encabezado.cajero,
         issuedAt: toIssuedAtIso(factura.encabezado.fecha),
@@ -222,7 +222,7 @@ export default function ImportarNotaCreditoModal({ open, onClose }: Props) {
         isExempt: detalle.exento,
       })),
     }));
-  }, [groupedFacturas]);
+  }, [groupedFacturas, selectedCashManagementId]);
 
   const clearFile = useCallback(() => {
     setFileName(null);

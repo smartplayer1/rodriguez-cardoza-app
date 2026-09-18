@@ -12,10 +12,14 @@ export const SALE_TYPE_OPTIONS: SaleType[] = [
 ];
 
 export interface ServerInvoicePayload {
+  // A nivel raíz, hermano de header/details — no dentro de header. El
+  // backend de POST /v1/invoice lo espera ahí; mandarlo dentro de header
+  // hace que llegue como si no se hubiera mandado ("cashManagementId es
+  // requerido para facturas normales").
+  cashManagementId: number;
   header: {
     document: string;
     chargeStatus: string;
-    cashManagementId: number
     clientCode: string;
     warehouse: number;
     branchCode: string;
