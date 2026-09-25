@@ -70,6 +70,7 @@ export const PERMISSIONS = {
   ARTICLE_CREATE: 'Article.Article.Create',
   ARTICLE_EDIT: 'Article.Article.Edit',
   ARTICLE_DELETE: 'Article.Article.Delete',
+  ARTICLE_PRICE_CATEGORY_VIEW: 'Article.PriceCategory.View',
 
   // Módulo: Invoice
   INVOICE_VIEW: 'Invoice.Invoice.View',

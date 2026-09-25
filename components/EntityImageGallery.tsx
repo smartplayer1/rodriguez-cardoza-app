@@ -28,6 +28,9 @@ type Props = {
   uploadImage: (file: File) => Promise<EntityImage>;
   deleteImage: (imageId: number) => Promise<void>;
   setPrimaryImage?: (imageId: number) => Promise<void>;
+  // Se llama después de subir, borrar o marcar una principal, para que la
+  // pantalla que abrió la galería refresque su propia copia de los datos.
+  onChanged?: () => void;
 };
 
 const formatSize = (bytes: number) => {
@@ -57,6 +60,7 @@ export default function EntityImageGallery({
   uploadImage,
   deleteImage,
   setPrimaryImage,
+  onChanged,
 }: Props) {
   const [images, setImages] = useState<EntityImage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -171,6 +175,7 @@ export default function EntityImageGallery({
 
     setIsUploading(false);
     await refresh();
+    onChanged?.();
   };
 
   const handleDelete = async (image: EntityImage) => {
@@ -180,6 +185,7 @@ export default function EntityImageGallery({
       setDeletingId(image.id);
       await deleteImage(image.id);
       setImages((prev) => prev.filter((item) => item.id !== image.id));
+      onChanged?.();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'No se pudo eliminar la imagen');
     } finally {
@@ -194,6 +200,7 @@ export default function EntityImageGallery({
       setPrimaryUpdatingId(image.id);
       await setPrimaryImage(image.id);
       await refresh();
+      onChanged?.();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'No se pudo marcar la imagen como principal');
     } finally {

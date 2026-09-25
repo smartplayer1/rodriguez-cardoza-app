@@ -18,7 +18,7 @@ import {
   Promotion,
   RewardProduct,
 } from "@/app/type/incentive";
-import { getArticles } from "@/app/services/article";
+import { getAllArticles } from "@/app/services/article";
 import { ArticleRecord } from "@/app/type/article";
 import { MultiProductPicker } from "@/components/MultiProductPicker";
 
@@ -114,9 +114,11 @@ export default function CreateEditModal({
     const fetchResources = async () => {
       setIsLoadingResources(true);
       try {
-        const articlesRes = await getArticles();
+        // GET /v1/article ahora pagina (10 por defecto): para llenar el
+        // selector de productos hay que recorrer todas las páginas.
+        const allArticles = await getAllArticles();
         if (!mounted) return;
-        setArticles(articlesRes?.records ?? []);
+        setArticles(allArticles);
       } catch (error) {
         if (!mounted) return;
         console.error("Error loading resources", error);

@@ -2,14 +2,19 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { MaterialButton } from "../../../components/MaterialButton";
-import { ChevronDown, Image as ImageIcon, Package, Plus, Edit, Trash2, Sparkles, Import } from "lucide-react";
+import { ChevronDown, Image as ImageIcon, Package, Plus, Edit, Trash2, Import, DollarSign } from "lucide-react";
 import { CrearArticulo } from "./modals/CrearArticulo";
 import { ImportarArticuloModal } from "@/components/excel-upload-article";
+import ImportarPrecios from "./modals/ImportarPrecios";
 import {
   ArticleRecord,
   ArticleExcel,
-  ArticleResponse,
+  ArticlePaging,
 } from "@/app/type/article";
+import Link from "next/link";
+import { getPriceCategories } from "@/app/services/pricing";
+import { PriceCategory } from "@/app/type/pricing";
+import { formatMoney, formatPercent, formatPeriod } from "@/app/utils/money";
 import {
   createArticle,
   deleteArticle,
@@ -33,6 +38,33 @@ interface ErrorResponse {
   message: string;
 }
 
+
+const currentPeriodValue = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+};
+
+// <input type="month"> entrega "YYYY-MM"; vacío = el backend usa el mes actual.
+const parsePeriodValue = (value: string): { year: number; month: number } | null => {
+  const match = value.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  return { year: Number(match[1]), month: Number(match[2]) };
+};
+
+const getPageWindow = (current: number, total: number): (number | "ellipsis")[] => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const sorted = Array.from(new Set([1, total, current, current - 1, current + 1]))
+    .filter((p) => p >= 1 && p <= total)
+    .sort((a, b) => a - b);
+
+  const result: (number | "ellipsis")[] = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - sorted[i - 1] > 1) result.push("ellipsis");
+    result.push(p);
+  });
+  return result;
+};
 
 const getCategoryColor = (value: string) => {
   const colors: Record<string, string> = {
@@ -58,45 +90,91 @@ export default function Articulos() {
   const [modalArticle, setModalArticle] = useState<ModalArticleState>({article: null, open: false});
   const [imagesArticle, setImagesArticle] = useState<ArticleRecord | null>(null);
   const [importModalOpen, setImportModalOpen] = useState<boolean>(false);
+  const [importPricesOpen, setImportPricesOpen] = useState<boolean>(false);
   const [importing, setImporting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
   const [processedRecords, setProcessedRecords] = useState(0);
   const [successCount, setSuccessCount] = useState(0);
   const [errorResponse, setErrorResponse] = useState<ErrorResponse[]>([]);
   const [articulos, setArticulos] = useState<ArticleRecord[]>([]);
+  const [paging, setPaging] = useState<ArticlePaging>({
+    perPage: 10,
+    currentPage: 1,
+    totalRecords: 0,
+    totalPages: 1,
+  });
   const [loadingArticles, setLoadingArticles] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [priceCategories, setPriceCategories] = useState<PriceCategory[]>([]);
 
   const [filterName, setFilterName] = useState("");
   const [filterCode, setFilterCode] = useState("");
   const [filterDescription, setFilterDescription] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [filterHasPrice, setFilterHasPrice] = useState<"all" | "true" | "false">("all");
+  const [filterPeriod, setFilterPeriod] = useState(currentPeriodValue);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    getPriceCategories()
+      .then((response) => setPriceCategories(response.records ?? []))
+      .catch(() => setPriceCategories([]));
+  }, []);
 
   const loadArticles = useCallback(async () => {
     try {
       setLoadingArticles(true);
+      setLoadError(null);
 
-      const result: ArticleResponse = await getArticles({
+      const period = parsePeriodValue(filterPeriod);
+
+      const result = await getArticles({
         name: filterName || undefined,
         code: filterCode || undefined,
         description: filterDescription || undefined,
         category: filterCategory !== "all" ? filterCategory : undefined,
+        year: period?.year,
+        month: period?.month,
+        hasPrice: filterHasPrice === "all" ? undefined : filterHasPrice === "true",
+        page: currentPage,
+        perPage: pageSize,
       });
 
       setArticulos(result.records ?? []);
+      setPaging(
+        result.paging ?? {
+          perPage: pageSize,
+          currentPage,
+          totalRecords: result.records?.length ?? 0,
+          totalPages: 1,
+        },
+      );
     } catch (error) {
       console.error(error);
+      setArticulos([]);
+      setLoadError("No pudimos cargar los artículos.");
     } finally {
       setLoadingArticles(false);
     }
-  }, [filterName, filterCode, filterDescription, filterCategory]);
+  }, [
+    filterName,
+    filterCode,
+    filterDescription,
+    filterCategory,
+    filterHasPrice,
+    filterPeriod,
+    currentPage,
+    pageSize,
+  ]);
 
+  // La paginación es del servidor: cada cambio de filtro/página/tamaño
+  // vuelve a consultar (con debounce por el tipeo). Los handlers de los
+  // filtros ya reinician currentPage a 1.
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadArticles();
-      setCurrentPage(1);
+      void loadArticles();
     }, 350);
 
     return () => clearTimeout(timer);
@@ -113,7 +191,7 @@ export default function Articulos() {
     try{
     if (confirm("¿Está seguro que desea eliminar este artículo?")) {
       await deleteArticle(id)
-      setArticulos(articulos.filter((a) => a.id !== id));
+      await loadArticles();
     }
   }catch{
     alert('Error al eliminar')
@@ -179,12 +257,13 @@ export default function Articulos() {
   };
 
 
-  const totalPages = Math.max(1, Math.ceil(articulos.length / pageSize));
-
-  const paginatedArticles = articulos.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
-  );
+  const totalPages = Math.max(1, paging.totalPages);
+  const rangeFrom = paging.totalRecords === 0 ? 0 : (paging.currentPage - 1) * paging.perPage + 1;
+  const rangeTo = Math.min(paging.currentPage * paging.perPage, paging.totalRecords);
+  const shownPeriod = (() => {
+    const period = parsePeriodValue(filterPeriod);
+    return period ? formatPeriod(period.year, period.month) : "el mes actual";
+  })();
 
 const handleChange = async (article: ArticleRecord) => {
   if(modalArticle.article){
@@ -213,7 +292,7 @@ const handleChange = async (article: ArticleRecord) => {
             <span>Filtros de búsqueda</span>
             <ChevronDown className="size-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
           </summary>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-4">
             <input
               type="text"
               placeholder="Nombre..."
@@ -232,7 +311,7 @@ const handleChange = async (article: ArticleRecord) => {
             />
             <input
               type="text"
-              placeholder="Código..."
+              placeholder="Código exacto..."
               value={filterCode}
               onChange={(e) => {
                 setFilterCode(e.target.value);
@@ -276,11 +355,38 @@ const handleChange = async (article: ArticleRecord) => {
               "
             >
               <option value="all">Todas las categorías</option>
-              <option value="perfume">Perfume</option>
-              <option value="maquillaje">Maquillaje</option>
-              <option value="cuidado-piel">Cuidado piel</option>
-              <option value="accesorios">Accesorios</option>
+              {priceCategories.map((category) => (
+                <option key={category.id} value={category.category}>
+                  {category.category}
+                </option>
+              ))}
             </select>
+
+            <select
+              value={filterHasPrice}
+              onChange={(e) => {
+                setFilterHasPrice(e.target.value as "all" | "true" | "false");
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 border rounded-lg"
+            >
+              <option value="all">Con y sin precio</option>
+              <option value="true">Solo con precio</option>
+              <option value="false">Solo sin precio</option>
+            </select>
+
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Precios de
+              <input
+                type="month"
+                value={filterPeriod}
+                onChange={(e) => {
+                  setFilterPeriod(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="flex-1 px-4 py-2 border rounded-lg text-foreground"
+              />
+            </label>
 
             <select
               value={pageSize}
@@ -295,10 +401,9 @@ const handleChange = async (article: ArticleRecord) => {
                 rounded-lg
               "
             >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
+              <option value={10}>10 por página</option>
+              <option value={25}>25 por página</option>
+              <option value={50}>50 por página</option>
             </select>
 
           </div>
@@ -334,6 +439,16 @@ const handleChange = async (article: ArticleRecord) => {
                 {importing
                   ? `Importando ${processedRecords}/${totalRecords}`
                   : "Importar Artículo"}
+              </MaterialButton>
+            )}
+            {mounted && can(PERMISSIONS.ARTICLE_EDIT) && (
+              <MaterialButton
+                variant="outlined"
+                color="primary"
+                startIcon={<DollarSign size={18} />}
+                onClick={() => setImportPricesOpen(true)}
+              >
+                Importar Precios
               </MaterialButton>
             )}
             {mounted && can(PERMISSIONS.ARTICLE_CREATE) && (
@@ -393,32 +508,31 @@ const handleChange = async (article: ArticleRecord) => {
         </div>
 
         {/* Artículos Table */}
-        {loadingArticles ? (
+        <p className="mb-3 text-sm text-muted-foreground">
+          Precios del período: <strong className="text-foreground">{shownPeriod}</strong>
+          {!loadingArticles && !loadError && (
+            <>
+              {" "}
+              · {paging.totalRecords === 0
+                ? "0 artículos"
+                : `Mostrando ${rangeFrom}–${rangeTo} de ${paging.totalRecords} artículos`}
+            </>
+          )}
+        </p>
+
+        {loadError ? (
+          <div className="bg-surface rounded elevation-2 py-16 text-center">
+            <p className="text-foreground mb-3">{loadError}</p>
+            <MaterialButton variant="contained" color="primary" onClick={loadArticles}>
+              Reintentar
+            </MaterialButton>
+          </div>
+        ) : loadingArticles ? (
           <div className="bg-surface rounded elevation-2 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-muted border-b border-border">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Código
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Nombre
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Categoría
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Descripción
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm text-foreground">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-
                 <tbody className="divide-y divide-border">
-                  <TableSkeleton columns={5} />
+                  <TableSkeleton columns={8} />
                 </tbody>
               </table>
             </div>
@@ -426,146 +540,177 @@ const handleChange = async (article: ArticleRecord) => {
         ) : articulos.length > 0 ? (
           <div className="bg-surface rounded elevation-2 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead className="bg-muted border-b border-border">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Código
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Nombre
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Categoría
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm text-foreground">
-                      Descripción
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm text-foreground">
-                      Acciones
-                    </th>
+                    <th className="px-4 py-3 text-left text-foreground">Foto</th>
+                    <th className="px-4 py-3 text-left text-foreground">Código</th>
+                    <th className="px-4 py-3 text-left text-foreground">Nombre</th>
+                    <th className="px-4 py-3 text-left text-foreground">Categoría</th>
+                    <th className="px-4 py-3 text-right text-foreground">Neto</th>
+                    <th className="px-4 py-3 text-right text-foreground">Catálogo</th>
+                    <th className="px-4 py-3 text-right text-foreground">Asesor</th>
+                    <th className="px-4 py-3 text-right text-foreground">Distribuidor</th>
+                    <th className="px-4 py-3 text-right text-foreground">Público</th>
+                    <th className="px-4 py-3 text-right text-foreground">Acciones</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-border">
-                  {paginatedArticles.map((articulo) => (
-                    <tr
-                      key={articulo.id}
-                      className="hover:bg-muted/30 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <Sparkles size={20} className="text-primary" />
+                  {articulos.map((articulo) => {
+                    const hasPrice = articulo.netPrice !== null && articulo.netPrice !== undefined;
+
+                    return (
+                      <tr key={articulo.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="h-12 w-12 overflow-hidden rounded-lg border border-border bg-muted flex items-center justify-center">
+                            {articulo.primaryImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={articulo.primaryImageUrl}
+                                alt={articulo.name}
+                                loading="lazy"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon size={18} className="text-muted-foreground" />
+                            )}
                           </div>
+                        </td>
 
-                          <span className="font-mono text-sm">
-                            {articulo.code}
+                        <td className="px-4 py-3 font-mono">{articulo.code}</td>
+
+                        <td className="px-4 py-3">{articulo.name}</td>
+
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-xs ${getCategoryColor(
+                              articulo.category,
+                            )}`}
+                          >
+                            {articulo.category}
                           </span>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="px-6 py-4">{articulo.name}</td>
+                        {hasPrice ? (
+                          <>
+                            <td className="px-4 py-3 text-right font-mono">
+                              <div>{formatMoney(articulo.netPrice)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Base {formatMoney(articulo.basePrice)}
+                                {articulo.discountPercent ? ` · -${formatPercent(articulo.discountPercent)}` : ""}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono">{formatMoney(articulo.catalogPrice)}</td>
+                            <td className="px-4 py-3 text-right font-mono">{formatMoney(articulo.advisorPrice)}</td>
+                            <td className="px-4 py-3 text-right font-mono">{formatMoney(articulo.distributorPrice)}</td>
+                            <td className="px-4 py-3 text-right font-mono">{formatMoney(articulo.publicPrice)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-3 text-right text-muted-foreground">Sin precio</td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">—</td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">—</td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">—</td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">—</td>
+                          </>
+                        )}
 
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs ${getCategoryColor(
-                            articulo.category,
-                          )}`}
-                        >
-                          {articulo.category}
-                        </span>
-                      </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 justify-end">
+                            {mounted && can(PERMISSIONS.ARTICLE_VIEW) && (
+                              <Link
+                                href={`/articulos/${encodeURIComponent(articulo.code)}`}
+                                className="inline-flex items-center rounded px-3 py-2 text-primary hover:bg-primary/10"
+                              >
+                                Detalle
+                              </Link>
+                            )}
 
-                      <td className="px-6 py-4">
-                        <span className="text-muted-foreground text-sm">
-                          {articulo.description}
-                        </span>
-                      </td>
+                            {mounted && can(PERMISSIONS.ARTICLE_VIEW) && (
+                              <MaterialButton
+                                variant="text"
+                                color="secondary"
+                                startIcon={<ImageIcon size={16} />}
+                                onClick={() => setImagesArticle(articulo)}
+                              >
+                                Imágenes
+                              </MaterialButton>
+                            )}
 
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2 justify-end">
-                          {mounted && can(PERMISSIONS.ARTICLE_VIEW) && (
-                            <MaterialButton
-                              variant="text"
-                              color="secondary"
-                              startIcon={<ImageIcon size={16} />}
-                              onClick={() => setImagesArticle(articulo)}
-                            >
-                              Imágenes
-                            </MaterialButton>
-                          )}
+                            {mounted && can(PERMISSIONS.ARTICLE_EDIT) && (
+                              <MaterialButton
+                                variant="text"
+                                color="primary"
+                                startIcon={<Edit size={16} />}
+                                onClick={() => handleEdit(articulo)}
+                              >
+                                Editar
+                              </MaterialButton>
+                            )}
 
-                          {mounted && can(PERMISSIONS.ARTICLE_EDIT) && (
-                            <MaterialButton
-                              variant="text"
-                              color="primary"
-                              startIcon={<Edit size={16} />}
-                              onClick={() => handleEdit(articulo)}
-                            >
-                              Editar
-                            </MaterialButton>
-                          )}
-
-                          {mounted && can(PERMISSIONS.ARTICLE_DELETE) && (
-                            <MaterialButton
-                              variant="text"
-                              color="secondary"
-                              startIcon={<Trash2 size={16} />}
-                              onClick={() => handleDelete(articulo.id)}
-                            >
-                              Eliminar
-                            </MaterialButton>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {mounted && can(PERMISSIONS.ARTICLE_DELETE) && (
+                              <MaterialButton
+                                variant="text"
+                                color="secondary"
+                                startIcon={<Trash2 size={16} />}
+                                onClick={() => handleDelete(articulo.id)}
+                              >
+                                Eliminar
+                              </MaterialButton>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
-              {/* PAGINACIÓN */}
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t">
-                <div className="text-sm text-muted-foreground">
-                  {articulos.length} registros encontrados
-                </div>
-
-                <div className="flex items-center gap-2">
+              {/* PAGINACIÓN (del servidor: usa paging.totalRecords/totalPages) */}
+              {totalPages > 1 && (
+                <nav
+                  aria-label="Paginación artículos"
+                  className="flex flex-wrap items-center justify-center gap-1 p-4 border-t"
+                >
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="
-              px-4
-              py-2
-              border
-              rounded-lg
-              disabled:opacity-50
-            "
+                    disabled={paging.currentPage <= 1}
+                    className="px-3 py-2 border rounded-lg text-sm disabled:opacity-40"
                   >
-                    Anterior
+                    ‹ Anterior
                   </button>
 
-                  <span>
-                    Página {currentPage} de {totalPages}
-                  </span>
+                  {getPageWindow(paging.currentPage, totalPages).map((entry, index) =>
+                    entry === "ellipsis" ? (
+                      <span key={`e-${index}`} className="px-2 text-muted-foreground">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={entry}
+                        onClick={() => setCurrentPage(entry)}
+                        aria-current={entry === paging.currentPage ? "page" : undefined}
+                        className={`h-9 min-w-9 rounded-lg px-3 text-sm ${
+                          entry === paging.currentPage
+                            ? "bg-primary text-primary-foreground"
+                            : "border hover:bg-accent"
+                        }`}
+                      >
+                        {entry}
+                      </button>
+                    ),
+                  )}
 
                   <button
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
-                    }
-                    disabled={currentPage >= totalPages}
-                    className="
-              px-4
-              py-2
-              border
-              rounded-lg
-              disabled:opacity-50
-            "
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={paging.currentPage >= totalPages}
+                    className="px-3 py-2 border rounded-lg text-sm disabled:opacity-40"
                   >
-                    Siguiente
+                    Siguiente ›
                   </button>
-                </div>
-              </div>
+                </nav>
+              )}
             </div>
           </div>
         ) : (
@@ -613,6 +758,10 @@ const handleChange = async (article: ArticleRecord) => {
         successCount={successCount}
         errorsImport={errorResponse}
       />
+      <ImportarPrecios
+        isOpen={importPricesOpen}
+        onClose={() => setImportPricesOpen(false)}
+      />
       {imagesArticle && (
         <EntityImageGallery
           isOpen={!!imagesArticle}
@@ -625,6 +774,7 @@ const handleChange = async (article: ArticleRecord) => {
           uploadImage={(file) => uploadArticleImage(imagesArticle.id, file)}
           deleteImage={(imageId) => deleteArticleImage(imageId)}
           setPrimaryImage={(imageId) => setArticleImagePrimary(imageId)}
+          onChanged={() => void loadArticles()}
         />
       )}
     </div>

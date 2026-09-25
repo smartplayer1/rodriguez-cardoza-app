@@ -1,4 +1,10 @@
-import { Article, UpdateArticle } from "@/app/type/article";
+import {
+    Article,
+    ArticlePriceHistoryResponse,
+    ArticleRecord,
+    ArticleResponse,
+    UpdateArticle,
+} from "@/app/type/article";
 import { EntityImage } from "@/app/type/entity-image";
 import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
@@ -12,10 +18,17 @@ const readImageErrorMessage = async (response: Response, fallback: string) => {
 };
 
 export type GetArticleFilters = {
+    id?: number;
     name?: string;
     category?: string;
     code?: string;
     description?: string;
+    year?: number;
+    month?: number;
+    hasPrice?: boolean;
+    includeImages?: boolean;
+    page?: number;
+    perPage?: number;
     baseUrl?: string;
     cookieHeader?: string;
 };
@@ -27,24 +40,115 @@ const buildQueryString = (filters?: GetArticleFilters) => {
 
     const params = new URLSearchParams();
 
+    if (typeof filters.id === 'number') params.set('id', String(filters.id));
     if (filters.name?.trim()) params.set('name', filters.name.trim());
     if (filters.category?.trim()) params.set('category', filters.category.trim());
     if (filters.code?.trim()) params.set('code', filters.code.trim());
     if (filters.description?.trim()) params.set('description', filters.description.trim());
+    if (typeof filters.year === 'number') params.set('year', String(filters.year));
+    if (typeof filters.month === 'number') params.set('month', String(filters.month));
+    if (typeof filters.hasPrice === 'boolean') params.set('hasPrice', String(filters.hasPrice));
+    if (typeof filters.includeImages === 'boolean') params.set('includeImages', String(filters.includeImages));
+    if (typeof filters.page === 'number' && filters.page > 0) params.set('Page', String(filters.page));
+    if (typeof filters.perPage === 'number' && filters.perPage > 0) params.set('PerPage', String(filters.perPage));
 
     const queryString = params.toString();
     return queryString ? `?${queryString}` : '';
 }
 
-export const getArticles = async (filters?: GetArticleFilters) => {
+// GET /v1/article ya pagina de verdad (PerPage=10 por defecto): sin Page/
+// PerPage solo trae la primera página, no todos los artículos.
+export const getArticles = async (filters?: GetArticleFilters): Promise<ArticleResponse> => {
     const res = await fetch(resolveServiceUrl(`/api/article${buildQueryString(filters)}`, {
         baseUrl: filters?.baseUrl,
     }), {
         headers: createJsonHeaders(filters?.cookieHeader),
+        cache: 'no-store',
     });
     if (!res.ok) {
         throw new Error('Failed to fetch articles');
     }
+    return res.json();
+}
+
+// Para selectores que necesitan TODOS los artículos (ej. elegir productos de
+// un incentivo): recorre las páginas. Sin imágenes por defecto, no se usan.
+export const getAllArticles = async (
+    filters?: Omit<GetArticleFilters, 'page' | 'perPage'>,
+): Promise<ArticleRecord[]> => {
+    const perPage = 500;
+    const all: ArticleRecord[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+        const response = await getArticles({ includeImages: false, ...filters, page, perPage });
+        all.push(...(response.records ?? []));
+        totalPages = response.paging?.totalPages ?? 1;
+        page += 1;
+    } while (page <= totalPages);
+
+    return all;
+}
+
+export type GetArticleDetailFilters = {
+    year?: number;
+    month?: number;
+};
+
+export const getArticleByCode = async (
+    code: string,
+    filters?: GetArticleDetailFilters,
+    context?: ServiceRequestContext,
+): Promise<ArticleRecord> => {
+    const params = new URLSearchParams();
+    if (typeof filters?.year === 'number') params.set('year', String(filters.year));
+    if (typeof filters?.month === 'number') params.set('month', String(filters.month));
+    const query = params.toString();
+
+    const res = await fetch(
+        resolveServiceUrl(`/api/article/${encodeURIComponent(code)}${query ? `?${query}` : ''}`, context),
+        { headers: createJsonHeaders(context?.cookieHeader), cache: 'no-store' },
+    );
+
+    if (res.status === 404) {
+        throw new Error('Artículo no encontrado');
+    }
+    if (!res.ok) {
+        throw new Error(await readImageErrorMessage(res, 'No se pudo cargar el artículo'));
+    }
+
+    return res.json();
+}
+
+export type GetArticlePriceHistoryFilters = {
+    year?: number;
+    month?: number;
+    page?: number;
+    perPage?: number;
+};
+
+export const getArticlePriceHistory = async (
+    code: string,
+    filters?: GetArticlePriceHistoryFilters,
+    context?: ServiceRequestContext,
+): Promise<ArticlePriceHistoryResponse> => {
+    const params = new URLSearchParams();
+    if (typeof filters?.year === 'number') params.set('year', String(filters.year));
+    if (typeof filters?.month === 'number') params.set('month', String(filters.month));
+    if (typeof filters?.page === 'number' && filters.page > 0) params.set('Page', String(filters.page));
+    if (typeof filters?.perPage === 'number' && filters.perPage > 0) params.set('PerPage', String(filters.perPage));
+    const query = params.toString();
+
+    const res = await fetch(
+        resolveServiceUrl(`/api/article/${encodeURIComponent(code)}/prices${query ? `?${query}` : ''}`, context),
+        { headers: createJsonHeaders(context?.cookieHeader), cache: 'no-store' },
+    );
+
+    if (!res.ok) {
+        throw new Error(await readImageErrorMessage(res, 'No se pudo cargar el historial de precios'));
+    }
+
     return res.json();
 }
 
