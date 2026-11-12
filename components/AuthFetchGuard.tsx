@@ -86,8 +86,10 @@ export function AuthFetchGuard() {
       }
 
       useUserStore.getState().logout();
-      originalFetch('/api/logout', { method: 'POST' }).catch(() => {});
-      window.location.href = '/login';
+      // Esperar a que se borren las cookies antes de ir a /login; si no, el
+      // proxy vería la sesión vieja y rebotaría al menú principal.
+      await originalFetch('/api/logout', { method: 'POST' }).catch(() => {});
+      window.location.replace('/login');
 
       return response;
     };

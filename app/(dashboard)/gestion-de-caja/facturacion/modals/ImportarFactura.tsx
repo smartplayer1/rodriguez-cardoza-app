@@ -5,7 +5,9 @@ import { Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Factura, FacturaDetalleExcel } from "../types/factura";
 import { mapExcelToFactura } from "../mappers/excel.mapper";
-import { createInvoicesBatch } from "@/app/services/invoice";
+import { createInvoicesBatch, getInvoices } from "@/app/services/invoice";
+import { createCreditNote } from "@/app/services/billing/credit-note";
+import { CreditNoteCreatePayload } from "@/app/type/credit-note";
 import { getCashManagementRecords } from "@/app/services/cash-management";
 import { getUnrelatedBankTransfers } from "@/app/services/billing/bank-transfer";
 import { CashManagementRecord } from "@/app/type/cash-management";
@@ -18,7 +20,8 @@ import {
 import { BankTransferRecord } from "@/app/type/bank-transfer";
 import { ListSkeleton } from "@/components/ui/loading-skeleton";
 
-const REQUIRED_COLUMNS = ["CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO", "TIPO_VENTA"];
+// TIPO_VENTA solo es obligatorio en las filas de factura (se valida por fila).
+const REQUIRED_COLUMNS = ["DOCUMENTO", "CLIENTE", "FECHA", "ARTICULO", "CANTIDAD", "PRECIO"];
 
 interface Props {
   open: boolean;
@@ -31,10 +34,13 @@ interface InvoiceUploadError {
   details: string[];
 }
 
-type CashManagementOption = {
-  id: string;
-  label: string;
-};
+interface CreditNoteProgress {
+  total: number;
+  sent: number;
+  success: number;
+}
+
+const groupKey = (factura: Factura) => `${factura.tipo}:${factura.encabezado.documento}`;
 
 const TEMP_RESPONSIBLE_EMPLOYEE_ID = null;
 
@@ -72,6 +78,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
   const [fileName, setFileName] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [expandedFacturas, setExpandedFacturas] = useState<Record<string, boolean>>({})
+  const [creditNoteProgress, setCreditNoteProgress] = useState<CreditNoteProgress | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const loadOpenCashManagementRecords = useCallback(async () => {
@@ -136,10 +143,15 @@ export default function ImportarFactura({ open , onClose } : Props) {
     const facturasMap = new Map<string, Factura>()
 
     data.forEach((row) => {
-      const documento = row.documento || "SIN_DOCUMENTO"
+      const documento = String(row.documento || "SIN_DOCUMENTO").trim()
+      const tipo = row.es_nota_credito ? "NOTA_CREDITO" : "FACTURA"
+      // La nota de crédito puede traer el mismo DOCUMENTO que su factura,
+      // por eso se agrupa por tipo + documento.
+      const key = `${tipo}:${documento}`
 
-      if (!facturasMap.has(documento)) {
-        facturasMap.set(documento, {
+      if (!facturasMap.has(key)) {
+        facturasMap.set(key, {
+          tipo,
           encabezado: {
             documento,
             estado_cobro: row.estado_cobro,
@@ -165,7 +177,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
         })
       }
 
-      const factura = facturasMap.get(documento)
+      const factura = facturasMap.get(key)
 
       if (!factura) {
         return
@@ -195,10 +207,20 @@ export default function ImportarFactura({ open , onClose } : Props) {
     return Array.from(facturasMap.values())
   }, [data])
 
-  const toggleFactura = useCallback((documento: string) => {
+  const invoicesToCreate = useMemo(
+    () => groupedFacturas.filter((factura) => factura.tipo === "FACTURA"),
+    [groupedFacturas],
+  )
+
+  const creditNotesToCreate = useMemo(
+    () => groupedFacturas.filter((factura) => factura.tipo === "NOTA_CREDITO"),
+    [groupedFacturas],
+  )
+
+  const toggleFactura = useCallback((key: string) => {
     setExpandedFacturas((prev) => ({
       ...prev,
-      [documento]: !prev[documento],
+      [key]: !prev[key],
     }))
   }, [])
 
@@ -211,33 +233,46 @@ export default function ImportarFactura({ open , onClose } : Props) {
     }).format(value || 0)
   }, [])
 
+  const findCashManagement = useCallback(
+    (documento: string) =>
+      cashManagementOptions.filter(
+        (option) => option.cashRegisterCode === documento.split("-")[0],
+      ),
+    [cashManagementOptions],
+  );
+
   const cashManagementIssues = useMemo(() => {
     return groupedFacturas.reduce<
-      { documento: string; cajaCode: string; reason: "not_found" | "ambiguous" }[]
+      {
+        key: string;
+        tipo: Factura["tipo"];
+        documento: string;
+        cajaCode: string;
+        reason: "not_found" | "ambiguous";
+      }[]
     >((issues, factura) => {
-      const cajaCode = factura.encabezado.documento.split("-")[0];
-      const matches = cashManagementOptions.filter(
-        (option) => option.cashRegisterCode === cajaCode,
-      );
+      const documento = factura.encabezado.documento;
+      const cajaCode = documento.split("-")[0];
+      const matches = findCashManagement(documento);
+      const base = { key: groupKey(factura), tipo: factura.tipo, documento, cajaCode };
 
       if (matches.length === 0) {
-        issues.push({ documento: factura.encabezado.documento, cajaCode, reason: "not_found" });
+        issues.push({ ...base, reason: "not_found" });
       } else if (matches.length > 1) {
-        issues.push({ documento: factura.encabezado.documento, cajaCode, reason: "ambiguous" });
+        issues.push({ ...base, reason: "ambiguous" });
       }
 
       return issues;
     }, []);
-  }, [groupedFacturas, cashManagementOptions]);
+  }, [groupedFacturas, findCashManagement]);
 
   const serverPayload = useMemo<ServerInvoicePayload[]>(() => {
     if (cashManagementIssues.length > 0) {
       return [];
     }
 
-    return groupedFacturas.map((factura) => {
-      const cashManagement = cashManagementOptions.filter((option) => option.cashRegisterCode === factura.encabezado.documento.split("-")[0])
-      const selectedCashManagement = cashManagement[0]
+    return invoicesToCreate.map((factura) => {
+      const selectedCashManagement = findCashManagement(factura.encabezado.documento)[0]
 
       return {
         cashManagementId: selectedCashManagement.id,
@@ -270,7 +305,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
         selectedTransfersByDocument[factura.encabezado.documento] || [],
       }
     } )
-  }, [groupedFacturas, selectedTransfersByDocument, cashManagementOptions, cashManagementIssues])
+  }, [invoicesToCreate, selectedTransfersByDocument, findCashManagement, cashManagementIssues])
 
   const clearFile = useCallback(() => {
     setFileName(null)
@@ -278,6 +313,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
     setErrors([])
     setStructureError(null)
     setUploadErrors([])
+    setCreditNoteProgress(null)
     setExpandedFacturas({})
     setSelectedTransfersByDocument({})
     if (inputRef.current) inputRef.current.value = ""
@@ -321,64 +357,175 @@ export default function ImportarFactura({ open , onClose } : Props) {
     return payload.message || payload.title || payload.detail || fallback;
   }, [])
 
-  // POST /v1/invoice/batch crea todo el lote en una sola llamada (evita que
-  // el backend recalcule premios/cupones factura por factura, que es lo que
-  // hacía lento el loop anterior sobre POST /v1/invoice). Es todo o nada:
-  // si UNA factura falla, no se crea ninguna — no hay resultados parciales
-  // que reconciliar, solo se corrige el dato señalado y se reenvía el lote.
+  // Crea una nota de crédito buscando la factura original por número de
+  // documento y relacionando cada línea por artículo + precio.
+  const createCreditNoteFromExcel = useCallback(
+    async (nota: Factura) => {
+      const documento = nota.encabezado.documento;
+      const cashManagement = findCashManagement(documento)[0];
+
+      const invoiceResponse = await getInvoices({
+        document: documento,
+        page: 1,
+        perPage: 10,
+      });
+
+      const sourceInvoice = (invoiceResponse.records || []).find(
+        (record) => record.header.document === documento,
+      );
+
+      if (!sourceInvoice) {
+        throw new Error(`No se encontró la factura ${documento}`);
+      }
+
+      const payload: CreditNoteCreatePayload = {
+        number: documento,
+        invoiceId: sourceInvoice.header.id,
+        cashManagementId: Number(cashManagement?.id) || 0,
+        invoiceDocument: null,
+        startDate: sourceInvoice.header.issuedAt,
+        details: nota.detalle.map((detalle) => {
+          const matchedDetail = sourceInvoice.details.find((invoiceDetail) => {
+            const sameArticle =
+              String(invoiceDetail.article).trim() === String(detalle.articulo).trim();
+            const samePrice =
+              Math.abs(Number(invoiceDetail.price || 0) - Number(detalle.precio || 0)) < 0.01;
+            return sameArticle && samePrice;
+          });
+
+          if (!matchedDetail) {
+            throw new Error(
+              `No se encontró el artículo ${detalle.articulo} con precio ${detalle.precio} en la factura ${documento}`,
+            );
+          }
+
+          return {
+            invoiceLineId: matchedDetail.id,
+            quantity: Math.abs(Number(detalle.cantidad) || 0),
+          };
+        }),
+      };
+
+      const created = await createCreditNote(payload);
+      return created?.header?.number || payload.number;
+    },
+    [findCashManagement],
+  );
+
+  // 1) Facturas: POST /v1/invoice/batch crea todo el lote en una sola llamada
+  //    (todo o nada: si una factura falla no se crea ninguna).
+  // 2) Notas de crédito: se crean después, una por una, porque pueden
+  //    referenciar facturas que se acaban de crear en el paso 1.
+  // Lo que se guarda con éxito se quita de la vista, así un reintento solo
+  // reenvía lo que falló (no duplica facturas).
   const handleSaveData = useCallback(async () => {
     if (cashManagementIssues.length > 0) {
       alert(
-        "No se puede enviar el lote: hay facturas sin una gestión de caja abierta que coincida (o con más de una). Corrija los códigos de caja o abra/cierre las gestiones correspondientes antes de reintentar.",
+        "No se puede enviar el lote: hay documentos sin una gestión de caja abierta que coincida (o con más de una). Corrija los códigos de caja o abra/cierre las gestiones correspondientes antes de reintentar.",
       );
       return;
     }
 
-    if (serverPayload.length === 0) {
-      alert("No hay facturas válidas para guardar");
+    if (invoicesToCreate.length === 0 && creditNotesToCreate.length === 0) {
+      alert("No hay facturas ni notas de crédito válidas para guardar");
       return;
     }
 
     setSaving(true);
     setUploadErrors([]);
+    setCreditNoteProgress(null);
+
+    const savedKeys = new Set<string>();
+    const summary: string[] = [];
 
     try {
-      const response = await createInvoicesBatch(serverPayload);
-      const rawResponseData = await response.json().catch(() => null);
+      if (serverPayload.length > 0) {
+        const response = await createInvoicesBatch(serverPayload);
+        const rawResponseData = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        const errorPayload = (rawResponseData as { error?: unknown })?.error ?? rawResponseData;
-        setUploadErrors([
-          {
-            document: "Lote completo",
-            message: extractErrorMessage(errorPayload, "El lote no se pudo procesar"),
-            details: extractErrorDetails(errorPayload),
-          },
-        ]);
-        alert("No se pudo guardar el lote. Corrija el dato señalado en el detalle del error y vuelva a intentar.");
-        return;
+        if (!response.ok) {
+          const errorPayload = (rawResponseData as { error?: unknown })?.error ?? rawResponseData;
+          setUploadErrors([
+            {
+              document: "Lote de facturas",
+              message: extractErrorMessage(errorPayload, "El lote no se pudo procesar"),
+              details: extractErrorDetails(errorPayload),
+            },
+          ]);
+          alert(
+            "No se pudo guardar el lote de facturas (no se creó ninguna factura ni nota de crédito). Corrija el dato señalado en el detalle del error y vuelva a intentar.",
+          );
+          return;
+        }
+
+        invoicesToCreate.forEach((factura) => savedKeys.add(groupKey(factura)));
+        summary.push(`Facturas guardadas: ${invoicesToCreate.length}`);
       }
 
-      const createdInvoices = Array.isArray(rawResponseData) ? (rawResponseData as ServerInvoicePayload[]) : [];
-      const documents = createdInvoices
-        .map((invoice) => invoice?.header?.document)
-        .filter(Boolean)
-        .join(", ");
+      if (creditNotesToCreate.length > 0) {
+        const failed: InvoiceUploadError[] = [];
+        let sent = 0;
+        let success = 0;
+        setCreditNoteProgress({ total: creditNotesToCreate.length, sent, success });
 
-      alert(
-        documents
-          ? `Facturas guardadas correctamente: ${documents}`
-          : `Facturas guardadas correctamente: ${serverPayload.length}`
-      );
+        for (const nota of creditNotesToCreate) {
+          try {
+            await createCreditNoteFromExcel(nota);
+            savedKeys.add(groupKey(nota));
+            success += 1;
+          } catch (error) {
+            console.error("Error al guardar nota de crédito:", error);
+            failed.push({
+              document: `Nota de crédito ${nota.encabezado.documento}`,
+              message: extractErrorMessage(error, "Error inesperado al enviar la nota de crédito"),
+              details: [error instanceof Error ? error.message : "Error desconocido"],
+            });
+          } finally {
+            sent += 1;
+            setCreditNoteProgress({ total: creditNotesToCreate.length, sent, success });
+          }
+        }
+
+        summary.push(`Notas de crédito guardadas: ${success}`);
+
+        if (failed.length > 0) {
+          setUploadErrors(failed);
+          // Quitar lo ya guardado para que el reintento solo envíe lo pendiente.
+          setData((previous) =>
+            previous.filter((row) => {
+              const tipo = row.es_nota_credito ? "NOTA_CREDITO" : "FACTURA";
+              const documento = String(row.documento || "SIN_DOCUMENTO").trim();
+              return !savedKeys.has(`${tipo}:${documento}`);
+            }),
+          );
+          alert(
+            `Carga parcial. ${summary.join(" | ")} | Notas de crédito con error: ${failed.length}. Revise el detalle y vuelva a intentar.`,
+          );
+          return;
+        }
+      }
+
+      alert(`Importación completada. ${summary.join(" | ")}`);
       clearFile();
       onClose();
     } catch (error) {
-      console.error("Error al guardar el lote de facturas:", error);
-      alert("Ocurrió un error al enviar el lote de facturas");
+      console.error("Error al guardar la importación:", error);
+      alert("Ocurrió un error al enviar la importación");
     } finally {
       setSaving(false);
+      setCreditNoteProgress(null);
     }
-  }, [serverPayload, cashManagementIssues, clearFile, onClose, extractErrorDetails, extractErrorMessage])
+  }, [
+    serverPayload,
+    invoicesToCreate,
+    creditNotesToCreate,
+    cashManagementIssues,
+    createCreditNoteFromExcel,
+    clearFile,
+    onClose,
+    extractErrorDetails,
+    extractErrorMessage,
+  ])
 
   const validateStructure = (headers: string[]) => {
     return REQUIRED_COLUMNS.filter(col => !headers.includes(col));
@@ -408,7 +555,13 @@ export default function ImportarFactura({ open , onClose } : Props) {
       errs.push("Precio inválido");
     }
 
-    if (!row.tipo_venta || !SALE_TYPE_OPTIONS.includes(row.tipo_venta as SaleType)) {
+    if (!row.documento) errs.push("Documento requerido");
+
+    // Las notas de crédito no llevan tipo de venta.
+    if (
+      !row.es_nota_credito &&
+      (!row.tipo_venta || !SALE_TYPE_OPTIONS.includes(row.tipo_venta as SaleType))
+    ) {
       errs.push(
         `Tipo de venta inválido (debe ser una de: ${SALE_TYPE_OPTIONS.join(", ")})`,
       );
@@ -546,7 +699,9 @@ const handleFileUpload = useCallback(
           <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
           <div className="text-center px-6">
             <p className="font-semibold text-gray-800">
-              Creando {serverPayload.length} factura{serverPayload.length === 1 ? "" : "s"}...
+              {creditNoteProgress
+                ? `Creando notas de crédito... ${creditNoteProgress.sent} de ${creditNoteProgress.total}`
+                : `Creando ${serverPayload.length} factura${serverPayload.length === 1 ? "" : "s"}...`}
             </p>
             <p className="mt-1 text-sm text-gray-500">
               Esperá a que el servidor termine. No cierres esta ventana.
@@ -558,7 +713,7 @@ const handleFileUpload = useCallback(
       {/* HEADER */}
       <div className="flex justify-between items-center border-b p-4">
         <h2 className="text-lg font-bold">
-          Importar Excel
+          Importar facturas y notas de crédito
         </h2>
 
         <button
@@ -583,6 +738,9 @@ const handleFileUpload = useCallback(
               </h1>
               <p className="text-sm text-gray-500">
                 Sube tu archivo para validar los datos
+              </p>
+              <p className="text-xs text-gray-500">
+                Las filas con cantidad o precio en negativo se importan como notas de crédito.
               </p>
             </div>
 
@@ -641,7 +799,7 @@ const handleFileUpload = useCallback(
         {!saving && uploadErrors.length > 0 && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             <p className="font-semibold mb-2">
-              No se pudo guardar el lote — no se creó ninguna factura
+              Documentos que no se pudieron guardar
             </p>
 
             <div className="space-y-3 max-h-56 overflow-auto pr-1">
@@ -668,13 +826,13 @@ const handleFileUpload = useCallback(
         {!saving && cashManagementIssues.length > 0 && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             <p className="font-semibold mb-2">
-              No se puede enviar el lote: {cashManagementIssues.length} factura(s) sin gestión de
+              No se puede enviar el lote: {cashManagementIssues.length} documento(s) sin gestión de
               caja válida
             </p>
             <ul className="list-disc pl-5 space-y-1">
               {cashManagementIssues.map((issue) => (
-                <li key={issue.documento}>
-                  Factura {issue.documento} (código de caja &quot;{issue.cajaCode}&quot;):{" "}
+                <li key={issue.key}>
+                  {issue.tipo === "NOTA_CREDITO" ? "Nota de crédito" : "Factura"} {issue.documento} (código de caja &quot;{issue.cajaCode}&quot;):{" "}
                   {issue.reason === "not_found"
                     ? "no hay ninguna gestión de caja abierta con ese código"
                     : "hay más de una gestión de caja abierta con ese código"}
@@ -721,34 +879,48 @@ const handleFileUpload = useCallback(
         {data.length > 0 && (
           <div className="mt-6">
             <h3 className="text-green-600 font-semibold mb-2">
-              Datos válidos ({data.length}) - Facturas ({groupedFacturas.length})
+              Datos válidos ({data.length}) - Facturas ({invoicesToCreate.length}) - Notas de
+              crédito ({creditNotesToCreate.length})
             </h3>
 
             <div className="space-y-3 max-h-[360px] overflow-auto pr-1">
               {groupedFacturas.map((factura) => {
                 const documento = factura.encabezado.documento
-                const isExpanded = !!expandedFacturas[documento]
+                const key = groupKey(factura)
+                const isNota = factura.tipo === "NOTA_CREDITO"
+                const isExpanded = !!expandedFacturas[key]
 
                 return (
-                  <div key={documento} className="border rounded-lg overflow-hidden">
+                  <div
+                    key={key}
+                    className={`border rounded-lg overflow-hidden ${isNota ? "border-amber-300" : ""}`}
+                  >
                     <button
                       type="button"
-                      onClick={() => toggleFactura(documento)}
+                      onClick={() => toggleFactura(key)}
                       className="w-full bg-gray-50 hover:bg-gray-100 transition p-3 text-left"
                     >
                       <div className="flex justify-between items-center gap-2">
                         <div>
-                          <p className="font-semibold text-gray-800">
-                            Factura: {documento}
+                          <p className="font-semibold text-gray-800 flex items-center gap-2">
+                            <span
+                              className={`rounded px-2 py-0.5 text-xs font-medium ${
+                                isNota ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
+                              {isNota ? "Nota de crédito" : "Factura"}
+                            </span>
+                            {documento}
                           </p>
                           <p className="text-xs text-gray-600">
-                            Cliente: {factura.encabezado.cliente} | Fecha: {factura.encabezado.fecha} | Ítems: {factura.encabezado.total_items} | Tipo de venta: {factura.encabezado.tipo_venta}
+                            Cliente: {factura.encabezado.cliente} | Fecha: {factura.encabezado.fecha} | Ítems: {factura.encabezado.total_items}
+                            {!isNota && ` | Tipo de venta: ${factura.encabezado.tipo_venta}`}
                           </p>
                         </div>
 
                         <div className="text-right">
-                          <p className="font-semibold text-green-700">
-                            {formatAmount(factura.encabezado.total_neto)}
+                          <p className={`font-semibold ${isNota ? "text-amber-700" : "text-green-700"}`}>
+                            {formatAmount(isNota ? -factura.encabezado.total_neto : factura.encabezado.total_neto)}
                           </p>
                           <p className="text-xs text-gray-600">
                             {isExpanded ? "Contraer" : "Expandir"}
@@ -757,7 +929,7 @@ const handleFileUpload = useCallback(
                       </div>
                     </button>
 
-                    {isExpanded && (
+                    {isExpanded && !isNota && (
                       <div className="border-t p-3">
                         <p className="text-sm font-medium text-gray-700 mb-1">
                           Transferencias bancarias a relacionar con esta factura (opcional)
@@ -802,7 +974,7 @@ const handleFileUpload = useCallback(
 
                           <tbody>
                             {factura.detalle.map((detalle, index) => (
-                              <tr key={`${documento}-${detalle.articulo}-${index}`}>
+                              <tr key={`${key}-${detalle.articulo}-${index}`}>
                                 <td className="p-2 border">{detalle.articulo}</td>
                                 <td className="p-2 border">{detalle.cantidad}</td>
                                 <td className="p-2 border">{formatAmount(detalle.precio_venta)}</td>
@@ -836,7 +1008,7 @@ const handleFileUpload = useCallback(
         </button>
 
         <button
-          disabled={data.length === 0 || saving || cashManagementIssues.length > 0}
+          disabled={groupedFacturas.length === 0 || saving || cashManagementIssues.length > 0}
           onClick={handleSaveData}
           className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
         >

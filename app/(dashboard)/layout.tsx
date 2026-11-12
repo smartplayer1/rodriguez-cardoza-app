@@ -22,7 +22,7 @@ export default function DashboardLayout({
     } catch {
       // Si falla la llamada, igual cerramos la sesión localmente y navegamos a login.
     }
-    router.push('/login');
+    router.replace('/login');
   };
 
   const toggleSidebar = () => {

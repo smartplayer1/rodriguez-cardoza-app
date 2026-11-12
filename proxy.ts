@@ -13,7 +13,7 @@ const NAMEIDENTIFIER_CLAIM =
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon-light-32x32.png|icon-dark-32x32.png|icon.svg|apple-icon.png|login|api/login|api/logout|api/auth/refresh).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon-light-32x32.png|icon-dark-32x32.png|icon.svg|apple-icon.png|api/login|api/logout|api/auth/refresh).*)',
   ],
 };
 
@@ -44,6 +44,16 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const tokenExpiresAt = request.cookies.get('tokenExpiresAt')?.value;
   const refreshTokenValue = request.cookies.get('refreshToken')?.value;
+
+  // Con una sesión iniciada no se puede volver al login: se manda al menú
+  // principal. Si las cookies resultan inválidas, el flujo normal (refresh
+  // fallido / 401) las limpia y devuelve al usuario a /login sin loop.
+  if (request.nextUrl.pathname === '/login') {
+    if (token && refreshTokenValue) {
+      return NextResponse.redirect(new URL('/main-menu', request.url));
+    }
+    return NextResponse.next();
+  }
 
   if (!token || !refreshTokenValue) {
     // Sin ambas piezas no hay nada que renovar; si tampoco hay token

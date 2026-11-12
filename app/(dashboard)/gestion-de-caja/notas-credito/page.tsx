@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, ChevronDown, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, Trash2, X } from 'lucide-react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
-import  ImportarNotaCreditoModal  from '@/components/excel-upload-credit-note';
+import ImportarFactura from '@/app/(dashboard)/gestion-de-caja/facturacion/modals/ImportarFactura';
 import AplicarNotaCreditoModal from './aplicar-nota-credito-modal';
 import { createCreditNote, getCreditNotes, issueCreditNote } from '@/app/services/billing/credit-note';
 import { getCashManagementRecords } from '@/app/services/cash-management';
@@ -650,8 +650,12 @@ export default function NotasCreditoPage() {
         </div>
       )}
 
-      <ImportarNotaCreditoModal
-        open={isImportOpen} onClose={() => setIsImportOpen(false)}
+      <ImportarFactura
+        open={isImportOpen}
+        onClose={() => {
+          setIsImportOpen(false);
+          void loadRecords();
+        }}
       />
 
       <AplicarNotaCreditoModal

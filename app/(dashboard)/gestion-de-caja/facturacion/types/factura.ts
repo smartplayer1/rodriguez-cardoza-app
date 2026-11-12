@@ -1,5 +1,7 @@
 
 export interface FacturaDetalleExcel {
+  /** true cuando la fila viene con valores negativos (nota de crédito) */
+  es_nota_credito: boolean;
   documento: string;
   estado_cobro: string;
   cliente: string;
@@ -31,6 +33,7 @@ export interface FacturaDetalleExcel {
 }
 
 export interface Factura {
+  tipo: "FACTURA" | "NOTA_CREDITO";
   encabezado: FacturaEncabezado;
   detalle: FacturaDetalle[];
 }

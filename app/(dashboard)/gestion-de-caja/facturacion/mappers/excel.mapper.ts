@@ -55,7 +55,18 @@ const parseExcelDate = (value: any): string => {
   return "";
 };
 
+// Las notas de crédito vienen en el mismo Excel que las facturas, pero con
+// cantidades/precios en negativo. Se detecta antes de aplicar Math.abs.
+const isNegative = (value: any) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num < 0;
+};
+
+export const isCreditNoteRow = (row: any): boolean =>
+  isNegative(row?.CANTIDAD) || isNegative(row?.PRECIO) || isNegative(row?.PRECIO_VENTA);
+
 export const mapExcelToFactura = (row: any): FacturaDetalleExcel => ({
+  es_nota_credito: isCreditNoteRow(row),
   documento: row?.DOCUMENTO,
   estado_cobro: row?.ESTADO_COBRO,
   cliente: row?.CLIENTE,

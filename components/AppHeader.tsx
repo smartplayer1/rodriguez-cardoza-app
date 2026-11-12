@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Menu, LogOut, Settings, User } from "lucide-react";
 import { useUserStore } from "@/app/store/useUserStore";
 
@@ -42,7 +43,9 @@ export default function AppHeader({
           >
             <Menu size={24} />
           </button>
-          <h1 className="text-xl tracking-wide">RODRIGUEZ CARDOZA</h1>
+          <Link href="/main-menu" className="hover:opacity-80 transition-opacity">
+            <h1 className="text-xl tracking-wide">RODRIGUEZ CARDOZA</h1>
+          </Link>
         </div>
 
         <div className="relative">
