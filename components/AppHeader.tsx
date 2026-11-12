@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, LogOut, Settings, User } from "lucide-react";
 import { useUserStore } from "@/app/store/useUserStore";
 
@@ -43,7 +44,18 @@ export default function AppHeader({
           >
             <Menu size={24} />
           </button>
-          <Link href="/main-menu" className="hover:opacity-80 transition-opacity">
+          <Link
+            href="/main-menu"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
+            <Image
+              src="/logo.png"
+              alt="Logo Rodriguez Cardoza"
+              width={51}
+              height={40}
+              className="h-10 w-auto"
+              priority
+            />
             <h1 className="text-xl tracking-wide">RODRIGUEZ CARDOZA</h1>
           </Link>
         </div>

@@ -101,7 +101,10 @@ export default function TransferenciasBancariasPage() {
     try {
       setConceptsLoading(true);
       const response = await getAccountingConcepts();
-      setConceptOptions(response || []);
+      // El endpoint responde { records: [...] }; se acepta también un arreglo
+      // directo por si cambia el formato.
+      const records = Array.isArray(response) ? response : response?.records;
+      setConceptOptions(Array.isArray(records) ? records : []);
     } catch (error) {
       console.error('Error loading accounting concepts:', error);
       setConceptOptions([]);

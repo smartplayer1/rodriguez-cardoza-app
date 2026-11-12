@@ -13,7 +13,10 @@ const NAMEIDENTIFIER_CLAIM =
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon-light-32x32.png|icon-dark-32x32.png|icon.svg|apple-icon.png|api/login|api/logout|api/auth/refresh).*)',
+    // Los archivos estáticos de /public (imágenes) no requieren sesión: el
+    // optimizador de next/image los pide sin cookies y sin esta exclusión
+    // recibiría la redirección a /login en vez de la imagen.
+    '/((?!_next/static|_next/image|favicon.ico|api/login|api/logout|api/auth/refresh|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)',
   ],
 };
 
