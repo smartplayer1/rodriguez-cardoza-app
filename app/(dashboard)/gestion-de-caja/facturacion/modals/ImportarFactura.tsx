@@ -5,9 +5,11 @@ import { Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Factura, FacturaDetalleExcel } from "../types/factura";
 import { mapExcelToFactura } from "../mappers/excel.mapper";
-import { createInvoicesBatch, getInvoices } from "@/app/services/invoice";
-import { createCreditNote } from "@/app/services/billing/credit-note";
-import { CreditNoteCreatePayload } from "@/app/type/credit-note";
+import { createInvoicesBatch } from "@/app/services/invoice";
+import {
+  CreditNoteImportPayload,
+  importCreditNotes,
+} from "@/app/services/billing/credit-note";
 import { getCashManagementRecords } from "@/app/services/cash-management";
 import { getUnrelatedBankTransfers } from "@/app/services/billing/bank-transfer";
 import { CashManagementRecord } from "@/app/type/cash-management";
@@ -366,67 +368,53 @@ export default function ImportarFactura({ open , onClose } : Props) {
     return payload.message || payload.title || payload.detail || fallback;
   }, [])
 
-  // Crea una nota de crédito buscando la factura original por número de
-  // documento y relacionando cada línea por artículo + precio.
-  const createCreditNoteFromExcel = useCallback(
-    async (nota: Factura) => {
-      const documento = nota.encabezado.documento;
-      const cashManagement = findCashManagement(documento)[0];
+  // Payload de POST /v1/billing/credit-note/import. Las notas no se relacionan
+  // a ninguna factura (el documento 45NCR-... no es el número de factura).
+  // En el Excel los valores vienen en negativo; al servidor se envían en
+  // positivo.
+  const creditNotesPayload = useMemo<CreditNoteImportPayload[]>(() => {
+    const positive = (value: unknown) => Math.abs(Number(value) || 0);
 
-      const invoiceResponse = await getInvoices({
-        document: documento,
-        page: 1,
-        perPage: 10,
-      });
+    return creditNotesToCreate.map((nota) => {
+      const cashManagement = findCashManagement(nota.encabezado.documento)[0];
 
-      const sourceInvoice = (invoiceResponse.records || []).find(
-        (record) => record.header.document === documento,
-      );
-
-      if (!sourceInvoice) {
-        throw new Error(`No se encontró la factura ${documento}`);
-      }
-
-      const payload: CreditNoteCreatePayload = {
-        number: documento,
-        invoiceId: sourceInvoice.header.id,
-        cashManagementId: Number(cashManagement?.id) || 0,
-        invoiceDocument: null,
-        startDate: sourceInvoice.header.issuedAt,
-        details: nota.detalle.map((detalle) => {
-          const matchedDetail = sourceInvoice.details.find((invoiceDetail) => {
-            const sameArticle =
-              String(invoiceDetail.article).trim() === String(detalle.articulo).trim();
-            const samePrice =
-              Math.abs(Number(invoiceDetail.price || 0) - Number(detalle.precio || 0)) < 0.01;
-            return sameArticle && samePrice;
-          });
-
-          if (!matchedDetail) {
-            throw new Error(
-              `No se encontró el artículo ${detalle.articulo} con precio ${detalle.precio} en la factura ${documento}`,
-            );
-          }
-
-          return {
-            invoiceLineId: matchedDetail.id,
-            quantity: Math.abs(Number(detalle.cantidad) || 0),
-          };
-        }),
+      return {
+        cashManagementId: Number(cashManagement?.id) || null,
+        header: {
+          document: nota.encabezado.documento,
+          chargeStatus: nota.encabezado.estado_cobro,
+          clientCode: String(nota.encabezado.cliente ?? "").trim(),
+          warehouse: Number(nota.encabezado.bodega) || 0,
+          branchCode: cashManagement?.branchCode || "",
+          cashier: nota.encabezado.cajero,
+          issuedAt: toIssuedAtIso(nota.encabezado.fecha) || new Date().toISOString(),
+          store: nota.encabezado.tienda,
+          promoterCode: String(nota.encabezado.promotora ?? ""),
+          priceLevel: nota.encabezado.nivel_precio,
+          saleType: nota.encabezado.tipo_venta as SaleType,
+          coupon: Number(nota.encabezado.cupon) || 0,
+        },
+        details: nota.detalle.map((detalle) => ({
+          article: String(detalle.articulo),
+          quantity: positive(detalle.cantidad),
+          salePrice: positive(detalle.precio_venta),
+          price: positive(detalle.precio),
+          tax1: positive(detalle.impuesto1),
+          tax2: positive(detalle.impuesto2),
+          lineDiscount: positive(detalle.desc_linea),
+          generalDiscount: positive(detalle.desc_gen),
+          isExempt: detalle.exento ? String(detalle.exento).trim() : "",
+        })),
       };
-
-      const created = await createCreditNote(payload);
-      return created?.header?.number || payload.number;
-    },
-    [findCashManagement],
-  );
+    });
+  }, [creditNotesToCreate, findCashManagement]);
 
   // 1) Facturas: POST /v1/invoice/batch crea todo el lote en una sola llamada
   //    (todo o nada: si una factura falla no se crea ninguna).
-  // 2) Notas de crédito: se crean después, una por una, porque pueden
-  //    referenciar facturas que se acaban de crear en el paso 1.
-  // Lo que se guarda con éxito se quita de la vista, así un reintento solo
-  // reenvía lo que falló (no duplica facturas).
+  // 2) Notas de crédito: POST /v1/billing/credit-note/import, también en una
+  //    sola llamada.
+  // Si las facturas se guardan pero las notas fallan, las facturas se quitan
+  // de la vista para que el reintento no las duplique.
   const handleSaveData = useCallback(async () => {
     if (cashManagementIssues.length > 0) {
       alert(
@@ -471,34 +459,55 @@ export default function ImportarFactura({ open , onClose } : Props) {
         summary.push(`Facturas guardadas: ${invoicesToCreate.length}`);
       }
 
-      if (creditNotesToCreate.length > 0) {
-        const failed: InvoiceUploadError[] = [];
-        let sent = 0;
-        let success = 0;
-        setCreditNoteProgress({ total: creditNotesToCreate.length, sent, success });
+      if (creditNotesPayload.length > 0) {
+        setCreditNoteProgress({ total: creditNotesPayload.length, sent: 0, success: 0 });
 
-        for (const nota of creditNotesToCreate) {
-          try {
-            await createCreditNoteFromExcel(nota);
-            savedKeys.add(groupKey(nota));
-            success += 1;
-          } catch (error) {
-            console.error("Error al guardar nota de crédito:", error);
-            failed.push({
-              document: `Nota de crédito ${nota.encabezado.documento}`,
-              message: extractErrorMessage(error, "Error inesperado al enviar la nota de crédito"),
+        // Si falla la llamada completa, ninguna nota se creó.
+        let results;
+        try {
+          results = await importCreditNotes(creditNotesPayload);
+        } catch (error) {
+          setUploadErrors([
+            {
+              document: "Lote de notas de crédito",
+              message: extractErrorMessage(error, "Las notas de crédito no se pudieron procesar"),
               details: [error instanceof Error ? error.message : "Error desconocido"],
-            });
-          } finally {
-            sent += 1;
-            setCreditNoteProgress({ total: creditNotesToCreate.length, sent, success });
+            },
+          ]);
+          if (savedKeys.size > 0) {
+            // Las facturas ya se guardaron: el reintento solo envía las notas.
+            setData((previous) => previous.filter((row) => row.es_nota_credito));
           }
+          alert(
+            `${summary.length > 0 ? `${summary.join(" | ")}. ` : ""}No se pudieron guardar las notas de crédito. Revise el detalle del error y vuelva a intentar.`,
+          );
+          return;
         }
 
-        summary.push(`Notas de crédito guardadas: ${success}`);
+        // El backend procesa cada nota por separado y devuelve un resultado
+        // por nota (success / skipped / errors).
+        const list = Array.isArray(results) ? results : [];
+        const created = list.filter((r) => r.success && !r.skipped);
+        const skipped = list.filter((r) => r.skipped);
+        const failed = list.filter((r) => !r.success && !r.skipped);
+
+        list
+          .filter((r) => r.success || r.skipped)
+          .forEach((r) => savedKeys.add(`NOTA_CREDITO:${String(r.number).trim()}`));
+
+        summary.push(`Notas de crédito guardadas: ${created.length}`);
+        if (skipped.length > 0) {
+          summary.push(`Notas de crédito omitidas (ya existían): ${skipped.length}`);
+        }
 
         if (failed.length > 0) {
-          setUploadErrors(failed);
+          setUploadErrors(
+            failed.map((r) => ({
+              document: `Nota de crédito ${r.number}`,
+              message: `Nota de crédito ${r.number}`,
+              details: r.errors?.length ? r.errors : ["Error desconocido"],
+            })),
+          );
           // Quitar lo ya guardado para que el reintento solo envíe lo pendiente.
           setData((previous) =>
             previous.filter((row) => {
@@ -528,8 +537,8 @@ export default function ImportarFactura({ open , onClose } : Props) {
     serverPayload,
     invoicesToCreate,
     creditNotesToCreate,
+    creditNotesPayload,
     cashManagementIssues,
-    createCreditNoteFromExcel,
     clearFile,
     onClose,
     extractErrorDetails,
@@ -709,7 +718,7 @@ const handleFileUpload = useCallback(
           <div className="text-center px-6">
             <p className="font-semibold text-gray-800">
               {creditNoteProgress
-                ? `Creando notas de crédito... ${creditNoteProgress.sent} de ${creditNoteProgress.total}`
+                ? `Creando ${creditNoteProgress.total} nota${creditNoteProgress.total === 1 ? "" : "s"} de crédito...`
                 : `Creando ${serverPayload.length} factura${serverPayload.length === 1 ? "" : "s"}...`}
             </p>
             <p className="mt-1 text-sm text-gray-500">

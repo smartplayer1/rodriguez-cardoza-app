@@ -5,6 +5,7 @@ import {
   CreditNoteListResponse,
   CreditNoteRecord,
 } from '@/app/type/credit-note';
+import { ServerInvoicePayload } from '@/app/type/invoice';
 import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
 
 export type CreditNoteFilters = {
@@ -68,6 +69,43 @@ export const createCreditNote = async (
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
     throw new Error(errorData?.message || 'Failed to create credit note');
+  }
+
+  return response.json();
+};
+
+// Nota de crédito con el mismo formato que una factura (header + details).
+// header.document = número de la nota, header.clientCode = cliente,
+// header.issuedAt = fecha. Los valores pueden ir en negativo.
+export type CreditNoteImportPayload = {
+  cashManagementId?: number | null;
+  header: ServerInvoicePayload['header'];
+  details: ServerInvoicePayload['details'];
+};
+
+export type CreditNoteImportResult = {
+  number: string;
+  success: boolean;
+  skipped: boolean;
+  creditNote: CreditNoteRecord | null;
+  errors: string[];
+};
+
+// Crea las notas en borrador y sin factura (se relacionan después a mano).
+// Cada nota se procesa por separado: devuelve un resultado por nota.
+export const importCreditNotes = async (
+  creditNotes: CreditNoteImportPayload[],
+  context?: ServiceRequestContext,
+): Promise<CreditNoteImportResult[]> => {
+  const response = await fetch(resolveServiceUrl('/api/billing/credit-note/import', context), {
+    method: 'POST',
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify({ creditNotes }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.detail || 'Failed to import credit notes');
   }
 
   return response.json();
