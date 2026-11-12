@@ -40,6 +40,13 @@ interface CreditNoteProgress {
   success: number;
 }
 
+// Código de caja = parte del documento antes del guion. Las notas de crédito
+// usan el sufijo NCR (ej. 45NCR) pero pertenecen a la caja de facturas
+// (45FAC), así que solo para buscar la gestión de caja se cambia NCR por FAC.
+// El documento se guarda tal cual, con NCR.
+const getCashRegisterCode = (documento: string) =>
+  String(documento || "").split("-")[0].trim().toUpperCase().replace(/NCR$/, "FAC");
+
 const groupKey = (factura: Factura) => `${factura.tipo}:${factura.encabezado.documento}`;
 
 const TEMP_RESPONSIBLE_EMPLOYEE_ID = null;
@@ -234,10 +241,12 @@ export default function ImportarFactura({ open , onClose } : Props) {
   }, [])
 
   const findCashManagement = useCallback(
-    (documento: string) =>
-      cashManagementOptions.filter(
-        (option) => option.cashRegisterCode === documento.split("-")[0],
-      ),
+    (documento: string) => {
+      const cajaCode = getCashRegisterCode(documento);
+      return cashManagementOptions.filter(
+        (option) => String(option.cashRegisterCode).trim().toUpperCase() === cajaCode,
+      );
+    },
     [cashManagementOptions],
   );
 
@@ -252,7 +261,7 @@ export default function ImportarFactura({ open , onClose } : Props) {
       }[]
     >((issues, factura) => {
       const documento = factura.encabezado.documento;
-      const cajaCode = documento.split("-")[0];
+      const cajaCode = getCashRegisterCode(documento);
       const matches = findCashManagement(documento);
       const base = { key: groupKey(factura), tipo: factura.tipo, documento, cajaCode };
 
