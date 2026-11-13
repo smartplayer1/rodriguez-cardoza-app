@@ -152,6 +152,7 @@ export interface InvoiceGetFilters {
   chargeStatus?: string;
   clientCode?: string;
   clientName?: string;
+  promoterCode?: string;
   branchCode?: string;
   issuedAt?: string;
   page?: number;

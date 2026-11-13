@@ -16,6 +16,8 @@ type ClientSelectorProps = {
   error: string | null;
   selectedClientCode: string;
   onSelectClient: (clientCode: string) => void;
+  title?: string;
+  placeholder?: string;
 };
 
 export default function ClientSelector({
@@ -24,6 +26,8 @@ export default function ClientSelector({
   error,
   selectedClientCode,
   onSelectClient,
+  title = 'Cliente',
+  placeholder = 'Buscar cliente por codigo o nombre...',
 }: ClientSelectorProps) {
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -66,7 +70,7 @@ export default function ClientSelector({
   return (
     <section ref={containerRef} className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-foreground">Cliente</h4>
+        <h4 className="text-foreground">{title}</h4>
         {selectedClient ? (
           <button
             type="button"
@@ -93,7 +97,7 @@ export default function ClientSelector({
               setIsOpen(false);
             }
           }}
-          placeholder="Buscar cliente por codigo o nombre..."
+          placeholder={placeholder}
           className="w-full pl-4 pr-16 py-3 bg-input-background border-b-2 border-border
                      focus:border-primary rounded-t transition-colors outline-none"
         />

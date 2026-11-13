@@ -25,6 +25,7 @@ export async function GET(request: Request) {
     const document = requestUrl.searchParams.get('document');
     const clientCode = requestUrl.searchParams.get('clientCode');
     const clientName = requestUrl.searchParams.get('clientName');
+    const promoterCode = requestUrl.searchParams.get('promoterCode');
     const branchCode = requestUrl.searchParams.get('branchCode');
     const issuedAt = requestUrl.searchParams.get('issuedAt');
     const page = requestUrl.searchParams.get('Page') ?? requestUrl.searchParams.get('page');
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
     if (document?.trim()) params.set('document', document.trim());
     if (clientCode?.trim()) params.set('clientCode', clientCode.trim());
     if (clientName?.trim()) params.set('clientName', clientName.trim());
+    if (promoterCode?.trim()) params.set('promoterCode', promoterCode.trim());
     if (branchCode?.trim()) params.set('branchCode', branchCode.trim());
     if (issuedAt?.trim()) params.set('issuedAt', issuedAt.trim());
     if (page?.trim()) params.set('Page', page.trim());

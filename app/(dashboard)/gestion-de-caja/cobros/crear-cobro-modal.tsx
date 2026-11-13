@@ -167,7 +167,9 @@ export default function CrearCobroModal() {
     try {
       setClientsLoading(true);
       setClientsError(null);
-      const response = await getclients();
+      // Las facturas de crédito se buscan por promotor: solo se listan
+      // clientes tipo PROMOTOR.
+      const response = await getclients({ clientType: "PROMOTOR", page: 1, perPage: 1000 });
       const options = (response.records || []).map(
         (client: ClienteResponse) => ({
           code: client.code,
@@ -198,7 +200,7 @@ export default function CrearCobroModal() {
       setInvoiceError(null);
 
       const response = await getCreditInvoices({
-        clientCode: selectedClientCode,
+        promoterCode: selectedClientCode,
         page: 1,
         perPage: 200,
       });
@@ -289,7 +291,9 @@ export default function CrearCobroModal() {
     [selectedInvoices],
   );
 
-  const selectedClientName = selectedInvoices[0]?.clientName || "";
+  // Nombre del promotor seleccionado (las facturas pueden ser de varios clientes).
+  const selectedClientName =
+    clientOptions.find((option) => option.code === selectedClientCode)?.name || selectedClientCode;
 
   const handleSelectClient = useCallback((clientCode: string) => {
     setSelectedClientCode(clientCode);
@@ -532,6 +536,8 @@ export default function CrearCobroModal() {
                   error={clientsError}
                   selectedClientCode={selectedClientCode}
                   onSelectClient={handleSelectClient}
+                  title="Promotor"
+                  placeholder="Buscar promotor por código o nombre..."
                 />
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -657,6 +663,7 @@ export default function CrearCobroModal() {
                           <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
                             <th className="px-3 py-2">Sel.</th>
                             <th className="px-3 py-2">Documento</th>
+                            <th className="px-3 py-2">Cliente</th>
                             <th className="px-3 py-2">Estado</th>
                             <th className="px-3 py-2 text-right">Monto</th>
                             <th className="px-3 py-2 text-right">
@@ -667,7 +674,7 @@ export default function CrearCobroModal() {
                           </tr>
                         </thead>
                         <tbody>
-                          <TableSkeleton columns={7} />
+                          <TableSkeleton columns={8} />
                         </tbody>
                       </table>
                     ) : invoiceError ? (
@@ -680,6 +687,7 @@ export default function CrearCobroModal() {
                           <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
                             <th className="px-3 py-2">Sel.</th>
                             <th className="px-3 py-2">Documento</th>
+                            <th className="px-3 py-2">Cliente</th>
                             <th className="px-3 py-2">Estado</th>
                             <th className="px-3 py-2 text-right">Monto</th>
                             <th className="px-3 py-2 text-right">
@@ -756,6 +764,12 @@ export default function CrearCobroModal() {
                                 <td className="px-3 py-2 align-top text-foreground">
                                   {invoice.document}
                                 </td>
+                                <td className="px-3 py-2 align-top text-foreground">
+                                  <span className="font-mono text-xs">{invoice.clientCode}</span>
+                                  {invoice.clientName ? (
+                                    <span className="block text-xs text-muted-foreground">{invoice.clientName}</span>
+                                  ) : null}
+                                </td>
                                 <td className="px-3 py-2 align-top text-muted-foreground">
                                   {invoice.chargeStatus}
                                   {invoice.isVoided ? " · Anulada" : ""}
@@ -796,8 +810,8 @@ export default function CrearCobroModal() {
                     ) : (
                       <p className="px-4 py-6 text-sm text-muted-foreground">
                         {selectedClientCode
-                          ? "No hay facturas con saldo para el cliente seleccionado."
-                          : "Seleccione un cliente para visualizar sus facturas con saldo."}
+                          ? "No hay facturas con saldo para el promotor seleccionado."
+                          : "Seleccione un promotor para visualizar sus facturas con saldo."}
                       </p>
                     )}
                   </div>
@@ -805,7 +819,7 @@ export default function CrearCobroModal() {
 
                 {selectedInvoices.length > 0 ? (
                   <div className="rounded-2xl border border-border/60 bg-background/60 px-4 py-3 text-sm text-muted-foreground">
-                    Facturas seleccionadas: {selectedInvoices.length} · Cliente:{" "}
+                    Facturas seleccionadas: {selectedInvoices.length} · Promotor:{" "}
                     {selectedClientName} · Saldo total aplicable:{" "}
                     {selectedRemainingBalance.toFixed(2)}
                   </div>
