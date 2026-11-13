@@ -7,6 +7,7 @@ import {
   Edit,
   Eye,
   Gift,
+  History,
   Lock,
   Plus,
   Ticket,
@@ -43,6 +44,7 @@ import {
 import { deleteEarnedReward } from '@/app/services/reward/earned-reward';
 import EditarPremioModal from './editar-premio-modal';
 import EditarClienteModal from './editar-cliente-modal';
+import HistoricoClienteModal from './historico/HistoricoClienteModal';
 import { ListSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
 import { useUserStore } from '@/app/store/useUserStore';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
@@ -57,6 +59,11 @@ type Props = {
 // en paralelo y satura las conexiones a la base de datos del backend
 // ("too many clients already").
 const IMPORT_CONCURRENCY = 5;
+
+// Los clientes creados automáticamente al importar facturas tienen como
+// nombre su propio código y la cédula vacía.
+const isIncompleteClient = (cliente: ClienteResponse) =>
+  !cliente.idNumber?.trim() || cliente.name?.trim() === cliente.code?.trim();
 
 const chunkArray = <T,>(items: T[], size: number): T[][] => {
   const chunks: T[][] = [];
@@ -97,6 +104,7 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
   const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [editingReward, setEditingReward] = useState<ClientEarnedReward | null>(null);
   const [editingCliente, setEditingCliente] = useState<ClienteResponse | null>(null);
+  const [historyClientCode, setHistoryClientCode] = useState<string | null>(null);
 
   const handleImport = async (data: ClienteExcel[]) => {
     setImporting(true);
@@ -298,6 +306,7 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
                 <th className="px-6 py-4 text-left text-sm">Nombre</th>
                 <th className="px-6 py-4 text-left text-sm">Identificación</th>
                 <th className="px-6 py-4 text-left text-sm">Tipo</th>
+                <th className="px-6 py-4 text-left text-sm">Promotor</th>
                 <th className="px-6 py-4 text-left text-sm">Sucursal</th>
                 <th className="px-6 py-4 text-right text-sm">Acciones</th>
               </tr>
@@ -305,7 +314,7 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
 
             <tbody className="divide-y divide-border">
               {importing ? (
-                <TableSkeleton columns={6} />
+                <TableSkeleton columns={7} />
               ) : clientes.length > 0 ? (
                 clientes.map((cliente) => (
                   <tr key={cliente.id} className="hover:bg-muted/30 transition-colors">
@@ -313,16 +322,41 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
                       <span className="font-mono text-sm">{cliente.code}</span>
                     </td>
 
-                    <td className="px-6 py-4">{cliente.name}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{cliente.name}</span>
+                        {isIncompleteClient(cliente) && (
+                          <span
+                            className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800"
+                            title="Creado automáticamente al importar facturas: complete sus datos"
+                          >
+                            Datos incompletos
+                          </span>
+                        )}
+                      </div>
+                    </td>
 
-                    <td className="px-6 py-4">{cliente.idNumber}</td>
+                    <td className="px-6 py-4">{cliente.idNumber || '-'}</td>
 
                     <td className="px-6 py-4">{cliente.clientType}</td>
 
-                    <td className="px-6 py-4">{cliente.branch.name}</td>
+                    <td className="px-6 py-4">
+                      {cliente.promoter ? `${cliente.promoter.code} — ${cliente.promoter.name}` : '-'}
+                    </td>
+
+                    <td className="px-6 py-4">{cliente.branch?.name ?? '-'}</td>
 
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setHistoryClientCode(cliente.code)}
+                          className="p-2 rounded-lg hover:bg-violet-100 text-violet-600"
+                          title="Ver histórico"
+                        >
+                          <History size={18} />
+                        </button>
+
                         <button
                           className="p-2 rounded-lg hover:bg-amber-100 text-amber-600"
                           onClick={() => handleOpenRewards(cliente)}
@@ -356,7 +390,7 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center py-10">
+                  <td colSpan={7} className="text-center py-10">
                     No hay registros
                   </td>
                 </tr>
@@ -678,6 +712,9 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
         errors={errorCreateClient}
         onClose={() => setErrorCreateClient([])}
       />
+      {historyClientCode && (
+        <HistoricoClienteModal code={historyClientCode} onClose={() => setHistoryClientCode(null)} />
+      )}
     </>
   );
 }

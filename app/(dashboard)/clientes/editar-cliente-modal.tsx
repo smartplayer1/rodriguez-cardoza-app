@@ -91,7 +91,9 @@ export default function EditarClienteModal({ cliente, branches, onClose, onSaved
         branch: updatedBranch
           ? { id: updatedBranch.id, name: updatedBranch.name, code: updatedBranch.code }
           : cliente.branch,
-        promoter: { ...cliente.promoter, code: promotorCode.trim() || cliente.promoter?.code },
+        promoter: cliente.promoter
+          ? { ...cliente.promoter, code: promotorCode.trim() || cliente.promoter.code }
+          : null,
       });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'No se pudo editar el cliente');

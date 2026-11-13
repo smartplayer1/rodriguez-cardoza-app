@@ -17,8 +17,10 @@ export async function GET(req: Request) {
             'Content-Type': 'application/json'
         }
     });
-    const clientsData = await clients.json();
-    return NextResponse.json(clientsData);
+    const clientsData = await clients.json().catch(() => null);
+    // Se reenvía el status real (ej. 403 cuando el usuario no tiene
+    // sucursales asignadas) para que la pantalla muestre el `detail`.
+    return NextResponse.json(clientsData, { status: clients.status });
 }
 
 export async function POST(req: Request) {

@@ -166,7 +166,7 @@ export default function RelacionarTransferenciaModal({
                       />
                       <span className="text-foreground">
                         {transfer.bankName} · {transfer.accountNumber} ·{" "}
-                        {new Date(transfer.transferDate).toLocaleDateString()}
+                        {new Date(transfer.transferDate).toLocaleDateString('es-NI', { timeZone: 'UTC' })}
                       </span>
                     </span>
                     <span className="font-medium text-foreground">

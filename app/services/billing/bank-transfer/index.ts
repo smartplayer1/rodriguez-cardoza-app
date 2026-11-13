@@ -9,6 +9,7 @@ import {
   ImportBankTransferResponse,
   ReconcileBankTransferFilters,
   ReconcileBankTransferResponse,
+  UpdateBankTransferPayload,
 } from '@/app/type/bank-transfer';
 import { EntityImage } from '@/app/type/entity-image';
 import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
@@ -91,6 +92,29 @@ export const createBankTransfer = async (
       (errorBody as { message?: string; detail?: string } | null)?.message ||
       (errorBody as { message?: string; detail?: string } | null)?.detail ||
       'Failed to create bank transfer';
+    throw new Error(message);
+  }
+
+  return response.json();
+};
+
+export const updateBankTransfer = async (
+  transferId: number,
+  payload: UpdateBankTransferPayload,
+  context?: ServiceRequestContext,
+): Promise<BankTransferRecord> => {
+  const response = await fetch(resolveServiceUrl(`/api/billing/bank-transfer/${transferId}`, context), {
+    method: 'PUT',
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const message =
+      (errorBody as { message?: string; detail?: string } | null)?.message ||
+      (errorBody as { message?: string; detail?: string } | null)?.detail ||
+      'No se pudo actualizar la transferencia';
     throw new Error(message);
   }
 

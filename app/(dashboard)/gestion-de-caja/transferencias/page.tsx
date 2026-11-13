@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
-import { ArrowLeftRight, ChevronDown, Image as ImageIcon, Save } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, Edit, Image as ImageIcon, Save } from 'lucide-react';
 import { useUserStore } from '@/app/store/useUserStore';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
 import { getBankAccounts } from '@/app/services/company/account';
@@ -13,12 +13,12 @@ import {
   deleteBankTransferImage,
   getBankTransferImages,
   getUnrelatedBankTransfers,
-  updateBankTransferAccountingConcept,
   uploadBankTransferImage,
 } from '@/app/services/billing/bank-transfer';
 import { AccountingConceptOption, BankTransferRecord } from '@/app/type/bank-transfer';
 import { ListSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
 import EntityImageGallery from '@/components/EntityImageGallery';
+import EditarTransferenciaModal from './editar-transferencia-modal';
 
 type BankAccountOption = {
   id: number;
@@ -48,6 +48,7 @@ export default function TransferenciasBancariasPage() {
     setMounted(true);
   }, []);
   const canCreate = mounted && can(PERMISSIONS.BANK_TRANSFER_CREATE);
+  const canEdit = mounted && can(PERMISSIONS.BANK_TRANSFER_EDIT);
   const canView = mounted && can(PERMISSIONS.BANK_TRANSFER_VIEW);
 
   const [bankAccountOptions, setBankAccountOptions] = useState<BankAccountOption[]>([]);
@@ -74,8 +75,17 @@ export default function TransferenciasBancariasPage() {
   const [transfersError, setTransfersError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [conceptUpdatingId, setConceptUpdatingId] = useState<number | null>(null);
   const [imagesTransfer, setImagesTransfer] = useState<BankTransferRecord | null>(null);
+  const [editingTransfer, setEditingTransfer] = useState<BankTransferRecord | null>(null);
+
+  // Una transferencia solo se puede editar si su gestión de caja está abierta
+  // (cashManagementOptions solo trae gestiones con estado OPEN).
+  const getEditBlockReason = (transfer: BankTransferRecord) => {
+    if (!transfer.cashManagementId) return 'No está asociada a una gestión de caja';
+    if (cashManagementLoading) return 'Cargando gestiones de caja...';
+    const isOpen = cashManagementOptions.some((option) => Number(option.id) === transfer.cashManagementId);
+    return isOpen ? null : 'La gestión de caja de esta transferencia está cerrada';
+  };
 
   const loadBankAccounts = useCallback(async () => {
     try {
@@ -230,24 +240,6 @@ export default function TransferenciasBancariasPage() {
       );
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleConceptChange = async (transferId: number, rawValue: string) => {
-    const accountingConceptId = rawValue ? Number(rawValue) : null;
-
-    try {
-      setConceptUpdatingId(transferId);
-      const updated = await updateBankTransferAccountingConcept(transferId, accountingConceptId);
-      setTransfers((prev) =>
-        prev.map((transfer) => (transfer.id === transferId ? updated : transfer)),
-      );
-    } catch (error) {
-      alert(
-        error instanceof Error ? error.message : 'No se pudo asignar el concepto contable',
-      );
-    } finally {
-      setConceptUpdatingId(null);
     }
   };
 
@@ -452,27 +444,14 @@ export default function TransferenciasBancariasPage() {
                               {transfer.companyBankAccountDescription}
                             </td>
                             <td className="px-4 py-3 text-muted-foreground">
-                              {new Date(transfer.transferDate).toLocaleDateString()}
+                              {new Date(transfer.transferDate).toLocaleDateString('es-NI', { timeZone: 'UTC' })}
                             </td>
                             <td className="px-4 py-3 text-right font-mono text-foreground">
                               {formatAmount(transfer.amount)}
                             </td>
                             <td className="px-4 py-3">
-                              {canCreate ? (
-                                <select
-                                  value={transfer.accountingConceptId ?? ''}
-                                  onChange={(e) => handleConceptChange(transfer.id, e.target.value)}
-                                  disabled={conceptUpdatingId === transfer.id}
-                                  className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary disabled:opacity-50"
-                                >
-                                  <option value="">Sin concepto</option>
-                                  {conceptOptions.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                      {option.name} ({option.category.name})
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : transfer.accountingConceptName ? (
+                              {/* Solo lectura: el concepto se cambia con "Editar". */}
+                              {transfer.accountingConceptName ? (
                                 <span className="text-foreground">
                                   {transfer.accountingConceptName}
                                   {transfer.accountingConceptCategoryName
@@ -484,14 +463,32 @@ export default function TransferenciasBancariasPage() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <MaterialButton
-                                variant="text"
-                                color="secondary"
-                                startIcon={<ImageIcon size={16} />}
-                                onClick={() => setImagesTransfer(transfer)}
-                              >
-                                Imágenes
-                              </MaterialButton>
+                              <div className="flex justify-end gap-1">
+                                {canEdit && (() => {
+                                  const blockReason = getEditBlockReason(transfer);
+                                  return (
+                                    <span title={blockReason ?? 'Editar transferencia'}>
+                                      <MaterialButton
+                                        variant="text"
+                                        color="primary"
+                                        startIcon={<Edit size={16} />}
+                                        onClick={() => setEditingTransfer(transfer)}
+                                        disabled={blockReason !== null}
+                                      >
+                                        Editar
+                                      </MaterialButton>
+                                    </span>
+                                  );
+                                })()}
+                                <MaterialButton
+                                  variant="text"
+                                  color="secondary"
+                                  startIcon={<ImageIcon size={16} />}
+                                  onClick={() => setImagesTransfer(transfer)}
+                                >
+                                  Imágenes
+                                </MaterialButton>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -536,6 +533,22 @@ export default function TransferenciasBancariasPage() {
           </div>
         )}
       </div>
+
+      {editingTransfer && (
+        <EditarTransferenciaModal
+          transfer={editingTransfer}
+          bankAccountOptions={bankAccountOptions}
+          openCashManagementOptions={cashManagementOptions}
+          conceptOptions={conceptOptions}
+          onClose={() => setEditingTransfer(null)}
+          onSaved={(updated) => {
+            setTransfers((prev) => prev.map((item) => (item.id === updated?.id ? updated : item)));
+            setEditingTransfer(null);
+            void loadTransfers();
+            alert('Transferencia actualizada correctamente');
+          }}
+        />
+      )}
 
       {imagesTransfer && (
         <EntityImageGallery

@@ -16,12 +16,36 @@ export interface ClienteResponse {
     id: number;
     code: string;
     name: string;
-  };
+  } | null;
   branch: {
     id: number;
     name: string;
     code: string;
   };
+}
+
+export type ClientTypeFilter = 'ASESOR' | 'PROMOTOR';
+
+// Filtros de GET /v1/client. Todos opcionales, se combinan con AND.
+// Texto: búsqueda parcial sin distinguir mayúsculas. Id/BranchId/PromoterId
+// y DateOfEntry (YYYY-MM-DD, solo el día) son exactos.
+export interface ClientFilters {
+  code?: string;
+  name?: string;
+  idNumber?: string;
+  phoneNumber?: string;
+  clientType?: ClientTypeFilter | '';
+  zoneCode?: string;
+  address?: string;
+  province?: string;
+  district?: string;
+  canton?: string;
+  id?: number;
+  branchId?: number;
+  promoterId?: number;
+  dateOfEntry?: string;
+  page?: number;
+  perPage?: number;
 }
 
 export interface Paging {

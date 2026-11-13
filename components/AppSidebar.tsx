@@ -42,7 +42,7 @@ import {
   Repeat1,
   ShieldAlert,
   CheckCheck,
-
+  History,
 } from 'lucide-react';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
 
@@ -108,7 +108,10 @@ const menuItems: MenuItemType[] = [
     { id: 'reporte-facturas', label: 'Facturas de Venta', href: '/reportes/facturas', icon: FileText, permission: PERMISSIONS.REPORT_VIEW },
     { id: 'reporte-movimientos-de-cupon', label: 'Movimientos de Cupón', href: '/reportes/movimientos-de-cupon', icon: Ticket, permission: PERMISSIONS.REPORT_VIEW },
   ] },
-  {id: 'clientes', label: 'Clientes', icon: UserCircle, href: '/clientes', permission: PERMISSIONS.CLIENT_VIEW, options:null },
+  { id: 'clientes', label: 'Clientes', icon: UserCircle, permission: PERMISSIONS.CLIENT_VIEW, options: [
+    { id: 'lista-clientes', label: 'Lista de Clientes', href: '/clientes', icon: UserCircle, permission: PERMISSIONS.CLIENT_VIEW },
+    { id: 'historico-cliente', label: 'Histórico del Cliente', href: '/clientes/historico', icon: History, permission: PERMISSIONS.CLIENT_VIEW },
+  ] },
   { id: 'empleados', label: 'Empleados', icon: Users, href: '/empleados', permission: PERMISSIONS.EMPLOYEE_VIEW, options:null },
   { id: 'articulos', label: 'Articulos', icon: Package, permission: PERMISSIONS.ARTICLE_VIEW, options: [
     {id: 'articulos', label: 'Lista de Articulos', href: '/articulos', icon: Package , permission: PERMISSIONS.ARTICLE_VIEW}
@@ -118,6 +121,24 @@ const menuItems: MenuItemType[] = [
   ]}
 ];
 
+
+// Todas las rutas del menú, para marcar como activa solo la más específica
+// (en /clientes/historico no debe resaltarse también /clientes).
+const collectHrefs = (items: MenuItemType[]): string[] =>
+  items.flatMap((item) => [
+    ...(item.href ? [item.href] : []),
+    ...(item.options ? collectHrefs(item.options) : []),
+  ]);
+const ALL_MENU_HREFS = collectHrefs(menuItems);
+
+const matchesPath = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(href + '/');
+
+const isActiveHref = (pathname: string, href: string) =>
+  matchesPath(pathname, href) &&
+  !ALL_MENU_HREFS.some(
+    (other) => other.length > href.length && other.startsWith(href) && matchesPath(pathname, other),
+  );
 
 export default function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
@@ -185,9 +206,7 @@ const filteredMenu = menuItems; //filterMenu(menuItems);
   const hasOptions = item.options && item.options.length > 0;
   const isOpen = openMenus[item.id];
 
-  const isActive =
-    item.href &&
-    (pathname === item.href || pathname.startsWith(item.href + '/'));
+  const isActive = item.href && isActiveHref(pathname, item.href);
 
 const paddingLeft = expanded ? `${16 + level * 12}px` : '0px';
 

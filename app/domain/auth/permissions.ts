@@ -110,6 +110,7 @@ export const PERMISSIONS = {
 
   BANK_TRANSFER_VIEW: 'Billing.BankTransfer.View',
   BANK_TRANSFER_CREATE: 'Billing.BankTransfer.Create',
+  BANK_TRANSFER_EDIT: 'Billing.BankTransfer.Edit',
 
   EXCHANGE_RATE_VIEW: 'Billing.ExchangeRate.View',
   EXCHANGE_RATE_CREATE: 'Billing.ExchangeRate.Create',

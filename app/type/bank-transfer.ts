@@ -44,6 +44,9 @@ export interface CreateBankTransferPayload {
   accountingConceptId?: number | null;
 }
 
+// PUT /v1/billing/bank-transfer/{id}: mismos campos que al crear.
+export type UpdateBankTransferPayload = CreateBankTransferPayload;
+
 export interface UpdateBankTransferAccountingConceptPayload {
   accountingConceptId: number | null;
 }

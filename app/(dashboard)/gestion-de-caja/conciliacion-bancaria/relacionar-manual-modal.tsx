@@ -153,7 +153,7 @@ export default function RelacionarManualModal({ isOpen, bankImportRow, onClose, 
                     />
                     <span className="text-foreground">
                       {transfer.bankName} · {transfer.accountNumber} ·{' '}
-                      {new Date(transfer.transferDate).toLocaleDateString('es-NI')}
+                      {new Date(transfer.transferDate).toLocaleDateString('es-NI', { timeZone: 'UTC' })}
                       {transfer.accountingConceptName ? (
                         <span className="ml-2 text-xs text-muted-foreground">
                           {transfer.accountingConceptName}

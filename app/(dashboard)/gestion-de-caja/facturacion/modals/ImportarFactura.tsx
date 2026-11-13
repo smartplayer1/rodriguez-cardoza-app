@@ -1104,7 +1104,7 @@ function TransferRelationSelector({
                   />
                   <span>
                     {transfer.bankName} · {transfer.accountNumber} ·{" "}
-                    {new Date(transfer.transferDate).toLocaleDateString()}
+                    {new Date(transfer.transferDate).toLocaleDateString('es-NI', { timeZone: 'UTC' })}
                     {transfer.accountingConceptName ? (
                       <span className="ml-2 text-xs text-gray-500">
                         {transfer.accountingConceptName}
