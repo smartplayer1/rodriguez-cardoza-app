@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, Package, Search, X } from 'lucide-react';
+import { Check, Package, Search, X } from 'lucide-react';
 
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
+import MultiSelectFilter, { MultiSelectOption } from '@/components/MultiSelectFilter';
 import { ArticleRecord } from '@/app/type/article';
 
 type MultiProductPickerProps = {
@@ -17,6 +18,19 @@ type MultiProductPickerProps = {
   onConfirm: (selected: ArticleRecord[], quantity: number) => void;
 };
 
+const EMPTY_VALUE = '__sin_valor__';
+
+// Valor usado en los filtros; los artículos sin categoría/clase se agrupan
+// en la opción "(Sin asignar)".
+const optionValue = (value: string | null | undefined) => value?.trim() || EMPTY_VALUE;
+
+const toOptions = (values: Array<string | null | undefined>): MultiSelectOption[] => {
+  const unique = Array.from(new Set(values.map(optionValue)));
+  return unique
+    .sort((a, b) => (a === EMPTY_VALUE ? 1 : b === EMPTY_VALUE ? -1 : a.localeCompare(b)))
+    .map((value) => ({ value, label: value === EMPTY_VALUE ? '(Sin asignar)' : value }));
+};
+
 export function MultiProductPicker({
   isOpen,
   onClose,
@@ -27,16 +41,15 @@ export function MultiProductPicker({
   onConfirm,
 }: MultiProductPickerProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [classFilter, setClassFilter] = useState<string[]>([]);
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
   const [quantity, setQuantity] = useState(1);
 
   const excludeSet = useMemo(() => new Set(excludeCodes), [excludeCodes]);
 
-  const categories = useMemo(() => {
-    const unique = new Set(articles.map((a) => a.category).filter(Boolean));
-    return Array.from(unique).sort((a, b) => a.localeCompare(b));
-  }, [articles]);
+  const categoryOptions = useMemo<MultiSelectOption[]>(() => toOptions(articles.map((a) => a.category)), [articles]);
+  const classOptions = useMemo<MultiSelectOption[]>(() => toOptions(articles.map((a) => a.articleClass)), [articles]);
 
   const availableArticles = useMemo(
     () => articles.filter((a) => !excludeSet.has(a.code)),
@@ -45,14 +58,18 @@ export function MultiProductPicker({
 
   const filteredArticles = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
+    const categories = new Set(categoryFilter);
+    const classes = new Set(classFilter);
+    // Dentro de cada filtro: cualquiera de los valores (O). Entre filtros: ambos (Y).
     return availableArticles.filter((a) => {
-      if (categoryFilter && a.category !== categoryFilter) return false;
+      if (categories.size > 0 && !categories.has(optionValue(a.category))) return false;
+      if (classes.size > 0 && !classes.has(optionValue(a.articleClass))) return false;
       if (!term) return true;
       return (
         a.name.toLowerCase().includes(term) || a.code.toLowerCase().includes(term)
       );
     });
-  }, [availableArticles, categoryFilter, searchTerm]);
+  }, [availableArticles, categoryFilter, classFilter, searchTerm]);
 
   if (!isOpen) return null;
 
@@ -85,7 +102,8 @@ export function MultiProductPicker({
 
   const handleClose = () => {
     setSearchTerm('');
-    setCategoryFilter('');
+    setCategoryFilter([]);
+    setClassFilter([]);
     setSelectedCodes(new Set());
     setQuantity(1);
     onClose();
@@ -130,25 +148,21 @@ export function MultiProductPicker({
               />
             </div>
 
-            <div className="relative sm:w-56">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full pl-4 pr-10 py-2 bg-input-background border-b-2 border-border
-                           focus:border-primary rounded-t transition-colors outline-none appearance-none"
-              >
-                <option value="">Todas las categorías</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={18}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
-            </div>
+            <MultiSelectFilter
+              className="sm:w-48"
+              placeholder="Todas las categorías"
+              options={categoryOptions}
+              selected={categoryFilter}
+              onChange={setCategoryFilter}
+            />
+
+            <MultiSelectFilter
+              className="sm:w-44"
+              placeholder="Todas las clases"
+              options={classOptions}
+              selected={classFilter}
+              onChange={setClassFilter}
+            />
           </div>
 
           <div className="flex items-center justify-between text-sm">
@@ -202,6 +216,7 @@ export function MultiProductPicker({
                       <span className="block text-xs text-muted-foreground">
                         {article.code}
                         {article.category ? ` · ${article.category}` : ''}
+                        {article.articleClass ? ` · ${article.articleClass}` : ''}
                       </span>
                     </span>
                   </label>

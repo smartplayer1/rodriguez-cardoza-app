@@ -192,6 +192,27 @@ export default function CreateEditModal({
       return;
     }
 
+    // Por producto: la entrega puede empezar dentro del mismo período (desde
+    // la fecha de inicio). Por monto: la entrega empieza al terminar el período.
+    const withdrawalStart = toDateInputValue(formData.withdrawalStartDate);
+    const withdrawalEnd = toDateInputValue(formData.withdrawalDeadline);
+    const isProductVolume = formData.ruleType === "ProductVolume";
+    const withdrawalMin = toDateInputValue(isProductVolume ? formData.startDate : formData.endDate);
+
+    if (withdrawalStart && withdrawalMin && withdrawalStart < withdrawalMin) {
+      alert(
+        isProductVolume
+          ? "La fecha de inicio de entrega no puede ser anterior a la fecha de inicio del incentivo"
+          : "La fecha de inicio de entrega debe ser igual o posterior a la fecha de fin del incentivo",
+      );
+      return;
+    }
+
+    if (withdrawalStart && withdrawalEnd && withdrawalEnd < withdrawalStart) {
+      alert("La fecha de fin de entrega debe ser mayor o igual a la fecha de inicio de entrega");
+      return;
+    }
+
     if (formData.ruleType === "ProductVolume" && productosCondicion.length === 0) {
       alert("Por favor agregue al menos un producto con condición");
       return;
@@ -414,7 +435,11 @@ export default function CreateEditModal({
                     withdrawalStartDate: e.target.value,
                   })
                 }
-                min={toDateInputValue(formData.endDate)}
+                // Por producto, la entrega puede empezar dentro del mismo
+                // período (desde la fecha de inicio); por monto, al terminar.
+                min={toDateInputValue(
+                  formData.ruleType === "ProductVolume" ? formData.startDate : formData.endDate,
+                )}
               />
               <MaterialInput
                 label="Fecha de Fin de Entrega *"

@@ -55,7 +55,8 @@ export const createRewardIncentiveRule = async (incentiveData: CreatePromotionRe
   });
 
   if (!response.ok) {
-    throw new Error('Failed to create reward incentive rule');
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || 'No se pudo crear la regla de incentivo');
   }
 
   return await response.json();
@@ -69,7 +70,8 @@ export const updateRewardIncentiveRule = async (incentiveData: CreatePromotionRe
   });
 
   if (!response.ok) {
-    throw new Error('Failed to update reward incentive rule');
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || 'No se pudo actualizar la regla de incentivo');
   }
 
   return await response.json();

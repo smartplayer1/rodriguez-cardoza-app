@@ -185,7 +185,8 @@ function ReglasIncentivos() {
       setEditingRegla(null);
       await fetchReglas();
     } catch (error) {
-      console.error("Error saving regla:", error);
+      // Mostrar el motivo real (ej. validación de fechas del backend).
+      alert(error instanceof Error ? error.message : "No se pudo guardar la regla de incentivo");
     }
   };
 

@@ -37,6 +37,7 @@ export interface ArticleRecord {
   name: string;
   description: string;
   category: string;
+  articleClass?: string | null;
   basePrice?: number | null;
   discountPercent?: number | null;
   netPrice?: number | null;

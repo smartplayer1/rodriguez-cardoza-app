@@ -1,6 +1,28 @@
 import { getValidToken } from "@/app/lib/helper";
 import { NextResponse } from "next/server";
 
+// Mensaje legible del backend: detail, title o la lista de errores de
+// validación (ej. reglas de fechas), en vez de un texto genérico.
+const readBackendError = (errorData: unknown, fallback: string) => {
+  if (!errorData || typeof errorData !== "object") return fallback;
+  const data = errorData as {
+    detail?: string;
+    title?: string;
+    message?: string;
+    errors?: Record<string, string[] | string> | Array<{ errorMessage?: string; ErrorMessage?: string }>;
+  };
+  const validation: string[] = [];
+  if (Array.isArray(data.errors)) {
+    data.errors.forEach((e) => {
+      const msg = e?.errorMessage || e?.ErrorMessage;
+      if (msg) validation.push(msg);
+    });
+  } else if (data.errors && typeof data.errors === "object") {
+    Object.values(data.errors).forEach((v) => (Array.isArray(v) ? validation.push(...v) : v && validation.push(String(v))));
+  }
+  return data.detail || (validation.length ? validation.join(" ") : "") || data.message || data.title || fallback;
+};
+
 export async function GET(req: Request) {
   const token = await getValidToken();
   if (!token) {
@@ -52,10 +74,9 @@ export async function POST(req: Request) {
   });
 
   if (!res.ok) {
-    const errorData = await res.json();
- 
+    const errorData = await res.json().catch(() => null);
     return NextResponse.json(
-      { message: errorData.detail || "Error al crear la regla de incentivos" },
+      { message: readBackendError(errorData, "Error al crear la regla de incentivos"), error: errorData },
       { status: res.status },
     );
   }
@@ -88,9 +109,9 @@ export async function PUT(req: Request) {
   });
 
   if (!res.ok) {
-    const errorData = await res.json();
+    const errorData = await res.json().catch(() => null);
     return NextResponse.json(
-      { message: errorData.detail || "Error al actualizar la regla de incentivos" },
+      { message: readBackendError(errorData, "Error al actualizar la regla de incentivos"), error: errorData },
       { status: res.status },
     );
   }
