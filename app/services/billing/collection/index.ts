@@ -105,7 +105,28 @@ export const createCollection = async (
       (errorBody as { message?: string; detail?: string } | null)?.detail ||
       "Failed to create collection";
 
-    throw new Error(errorMessage);
+    // 409 = transferencia duplicada (mismo documento el mismo día).
+    throw Object.assign(new Error(errorMessage), { status: response.status });
+  }
+
+  return await response.json();
+};
+
+// Anula un cobro: revierte su efectivo en la caja y devuelve el saldo a las facturas.
+// Solo mientras su gestión de caja esté abierta; si no, lanza el mensaje del backend.
+export const voidCollection = async (id: number): Promise<CollectionRecord> => {
+  const response = await fetch(resolveServiceUrl(`/api/billing/collection/${id}/void`), {
+    method: "POST",
+    headers: createJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(
+      (errorBody as { message?: string; detail?: string } | null)?.message ||
+        (errorBody as { message?: string; detail?: string } | null)?.detail ||
+        "No se pudo anular el cobro",
+    );
   }
 
   return await response.json();

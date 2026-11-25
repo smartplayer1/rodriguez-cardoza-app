@@ -184,6 +184,14 @@ export default function NuevaSalidaModal() {
       return;
     }
 
+    const selectedConcept = filteredConceptos.find(
+      (conceptoItem) => String(conceptoItem.id) === concept,
+    );
+    if (!selectedConcept) {
+      setErrorMessage("Seleccione un concepto de egreso válido.");
+      return;
+    }
+
     const denominations = rows
       .map((row) => ({
         currency: row.currency,
@@ -203,6 +211,18 @@ export default function NuevaSalidaModal() {
       return;
     }
 
+    // El egreso es en una sola moneda: todas las filas del desglose deben coincidir.
+    const currencies = Array.from(new Set(denominations.map((row) => row.currency)));
+    if (currencies.length > 1) {
+      setErrorMessage("Todas las denominaciones deben ser de la misma moneda (NIO o USD).");
+      return;
+    }
+    const currency = currencies[0];
+    const amount =
+      Math.round(
+        denominations.reduce((sum, row) => sum + row.denomination * row.quantity, 0) * 100,
+      ) / 100;
+
     const parsedCreditNoteId = creditNoteId.trim()
       ? Number.parseInt(creditNoteId, 10)
       : null;
@@ -221,7 +241,10 @@ export default function NuevaSalidaModal() {
       cashManagementId: parsedCashManagementId,
       number: number.trim(),
       occurredAt: new Date(occurredAt).toISOString(),
-      concept: concept.trim(),
+      currency,
+      amount,
+      accountingConceptId: selectedConcept.id,
+      concept: null,
       description: description.trim() ? description.trim() : null,
       creditNoteId: parsedCreditNoteId,
       denominations,
@@ -366,7 +389,7 @@ export default function NuevaSalidaModal() {
                         {filteredConceptos.map((conceptoItem) => (
                           <option
                             key={conceptoItem.id}
-                            value={conceptoItem.name}
+                            value={String(conceptoItem.id)}
                           >
                             {conceptoItem.name}
                           </option>

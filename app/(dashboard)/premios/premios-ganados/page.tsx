@@ -237,7 +237,7 @@ export default function PremiosGanadosPage() {
           {recalculateResult && (
             <div className="mt-4 bg-primary/5 border border-primary/20 rounded p-4">
               <p className="text-sm text-muted-foreground mb-2">
-                Periodo: {formatDate(recalculateResult.period)}
+                Periodo: {formatDate(recalculateResult.periodStart)}
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -1,20 +1,18 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Factura, FacturaDetalleExcel } from "../types/factura";
 import { mapExcelToFactura } from "../mappers/excel.mapper";
-import { createInvoicesBatch } from "@/app/services/invoice";
-import {
-  CreditNoteImportPayload,
-  importCreditNotes,
-} from "@/app/services/billing/credit-note";
+import ImportSavingOverlay from "./ImportSavingOverlay";
+import { createInvoicesWithCreditNotes } from "@/app/services/invoice";
+import type { CreditNoteImportPayload } from "@/app/services/billing/credit-note";
 import { getCashManagementRecords } from "@/app/services/cash-management";
 import { getUnrelatedBankTransfers } from "@/app/services/billing/bank-transfer";
 import { CashManagementRecord } from "@/app/type/cash-management";
 
 import {
+  ImportInvoicesAndCreditNotesResult,
   SALE_TYPE_OPTIONS,
   SaleType,
   ServerInvoicePayload,
@@ -36,11 +34,37 @@ interface InvoiceUploadError {
   details: string[];
 }
 
-interface CreditNoteProgress {
-  total: number;
-  sent: number;
-  success: number;
-}
+// `detail` del 400 de /v1/invoice/batch/with-credit-notes: todos los errores
+// separados por coma, cada uno con prefijo "Factura <doc>:" o
+// "Nota de crédito <número>:". Se corta solo en las comas seguidas de un
+// prefijo, porque un mensaje puede tener comas propias
+// ("saleType debe ser uno de: A,B,C"). Lo que no tenga prefijo va a "Lote".
+const DOCUMENT_ERROR_SPLIT = /,\s*(?=(?:Factura|Nota de crédito)\s+[^:,]+:)/;
+const DOCUMENT_ERROR_PREFIX = /^((?:Factura|Nota de crédito)\s+[^:,]+):\s*([\s\S]*)$/;
+
+const groupBatchErrors = (detail: string): InvoiceUploadError[] => {
+  const grouped = new Map<string, string[]>();
+
+  detail
+    .split(DOCUMENT_ERROR_SPLIT)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .forEach((part) => {
+      const match = part.match(DOCUMENT_ERROR_PREFIX);
+      const document = match ? match[1].trim() : "Lote";
+      const message = match ? match[2].trim() || part : part;
+      grouped.set(document, [...(grouped.get(document) ?? []), message]);
+    });
+
+  return Array.from(grouped, ([document, details]) => ({
+    document,
+    message: document,
+    details,
+  }));
+};
+
+const plural = (count: number, singular: string, pluralForm: string) =>
+  `${count} ${count === 1 ? singular : pluralForm}`;
 
 // Código de caja = parte del documento antes del guion. Las notas de crédito
 // usan el sufijo NCR (ej. 45NCR) pero pertenecen a la caja de facturas
@@ -87,7 +111,6 @@ export default function ImportarFactura({ open , onClose } : Props) {
   const [fileName, setFileName] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [expandedFacturas, setExpandedFacturas] = useState<Record<string, boolean>>({})
-  const [creditNoteProgress, setCreditNoteProgress] = useState<CreditNoteProgress | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const loadOpenCashManagementRecords = useCallback(async () => {
@@ -324,7 +347,6 @@ export default function ImportarFactura({ open , onClose } : Props) {
     setErrors([])
     setStructureError(null)
     setUploadErrors([])
-    setCreditNoteProgress(null)
     setExpandedFacturas({})
     setSelectedTransfersByDocument({})
     if (inputRef.current) inputRef.current.value = ""
@@ -409,12 +431,12 @@ export default function ImportarFactura({ open , onClose } : Props) {
     });
   }, [creditNotesToCreate, findCashManagement]);
 
-  // 1) Facturas: POST /v1/invoice/batch crea todo el lote en una sola llamada
-  //    (todo o nada: si una factura falla no se crea ninguna).
-  // 2) Notas de crédito: POST /v1/billing/credit-note/import, también en una
-  //    sola llamada.
-  // Si las facturas se guardan pero las notas fallan, las facturas se quitan
-  // de la vista para que el reintento no las duplique.
+  // Facturas y notas de crédito se guardan con UNA sola llamada a
+  // POST /v1/invoice/batch/with-credit-notes, en una transacción: si cualquier
+  // factura o nota falla, no se guarda nada. Por eso no hay carga parcial:
+  // - error: se muestran los errores agrupados por documento y se deja `data`
+  //   intacto para que el reintento envíe todo de nuevo;
+  // - OK: resumen (creadas / omitidas por ya existir o repetirse) y se cierra.
   const handleSaveData = useCallback(async () => {
     if (cashManagementIssues.length > 0) {
       alert(
@@ -423,120 +445,69 @@ export default function ImportarFactura({ open , onClose } : Props) {
       return;
     }
 
-    if (invoicesToCreate.length === 0 && creditNotesToCreate.length === 0) {
+    if (serverPayload.length === 0 && creditNotesPayload.length === 0) {
       alert("No hay facturas ni notas de crédito válidas para guardar");
       return;
     }
 
     setSaving(true);
     setUploadErrors([]);
-    setCreditNoteProgress(null);
-
-    const savedKeys = new Set<string>();
-    const summary: string[] = [];
 
     try {
+      const response = await createInvoicesWithCreditNotes(serverPayload, creditNotesPayload);
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const detail =
+          body && typeof body === "object" && typeof (body as { detail?: unknown }).detail === "string"
+            ? (body as { detail: string }).detail
+            : "";
+        const grouped = detail ? groupBatchErrors(detail) : [];
+
+        setUploadErrors(
+          grouped.length > 0
+            ? grouped
+            : [
+                {
+                  document: "Lote",
+                  message: extractErrorMessage(body, "La importación no se pudo procesar"),
+                  details: extractErrorDetails(body),
+                },
+              ],
+        );
+        alert("No se guardó ninguna factura ni nota de crédito. Corrija los errores y vuelva a intentar.");
+        return;
+      }
+
+      // La respuesta trae SOLO lo creado; lo que ya existía o venía repetido en
+      // el archivo se omite sin error. Omitidos = enviados − creados.
+      const result = (body ?? {}) as Partial<ImportInvoicesAndCreditNotesResult>;
+      const createdInvoices = Array.isArray(result.invoices) ? result.invoices.length : 0;
+      const skippedInvoices = Math.max(0, serverPayload.length - createdInvoices);
+      const createdNotes = Array.isArray(result.creditNotes) ? result.creditNotes.length : 0;
+      const skippedNotes = Math.max(0, creditNotesPayload.length - createdNotes);
+
+      const summary: string[] = [];
       if (serverPayload.length > 0) {
-        const response = await createInvoicesBatch(serverPayload);
-        const rawResponseData = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          const errorPayload = (rawResponseData as { error?: unknown })?.error ?? rawResponseData;
-          setUploadErrors([
-            {
-              document: "Lote de facturas",
-              message: extractErrorMessage(errorPayload, "El lote no se pudo procesar"),
-              details: extractErrorDetails(errorPayload),
-            },
-          ]);
-          alert(
-            "No se pudo guardar el lote de facturas (no se creó ninguna factura ni nota de crédito). Corrija el dato señalado en el detalle del error y vuelva a intentar.",
-          );
-          return;
-        }
-
-        invoicesToCreate.forEach((factura) => savedKeys.add(groupKey(factura)));
-        summary.push(`Facturas guardadas: ${invoicesToCreate.length}`);
+        summary.push(`Facturas creadas: ${createdInvoices}`);
+        if (skippedInvoices > 0) summary.push(`Facturas omitidas (ya existían): ${skippedInvoices}`);
       }
-
       if (creditNotesPayload.length > 0) {
-        setCreditNoteProgress({ total: creditNotesPayload.length, sent: 0, success: 0 });
-
-        // Si falla la llamada completa, ninguna nota se creó.
-        let results;
-        try {
-          results = await importCreditNotes(creditNotesPayload);
-        } catch (error) {
-          setUploadErrors([
-            {
-              document: "Lote de notas de crédito",
-              message: extractErrorMessage(error, "Las notas de crédito no se pudieron procesar"),
-              details: [error instanceof Error ? error.message : "Error desconocido"],
-            },
-          ]);
-          if (savedKeys.size > 0) {
-            // Las facturas ya se guardaron: el reintento solo envía las notas.
-            setData((previous) => previous.filter((row) => row.es_nota_credito));
-          }
-          alert(
-            `${summary.length > 0 ? `${summary.join(" | ")}. ` : ""}No se pudieron guardar las notas de crédito. Revise el detalle del error y vuelva a intentar.`,
-          );
-          return;
-        }
-
-        // El backend procesa cada nota por separado y devuelve un resultado
-        // por nota (success / skipped / errors).
-        const list = Array.isArray(results) ? results : [];
-        const created = list.filter((r) => r.success && !r.skipped);
-        const skipped = list.filter((r) => r.skipped);
-        const failed = list.filter((r) => !r.success && !r.skipped);
-
-        list
-          .filter((r) => r.success || r.skipped)
-          .forEach((r) => savedKeys.add(`NOTA_CREDITO:${String(r.number).trim()}`));
-
-        summary.push(`Notas de crédito guardadas: ${created.length}`);
-        if (skipped.length > 0) {
-          summary.push(`Notas de crédito omitidas (ya existían): ${skipped.length}`);
-        }
-
-        if (failed.length > 0) {
-          setUploadErrors(
-            failed.map((r) => ({
-              document: `Nota de crédito ${r.number}`,
-              message: `Nota de crédito ${r.number}`,
-              details: r.errors?.length ? r.errors : ["Error desconocido"],
-            })),
-          );
-          // Quitar lo ya guardado para que el reintento solo envíe lo pendiente.
-          setData((previous) =>
-            previous.filter((row) => {
-              const tipo = row.es_nota_credito ? "NOTA_CREDITO" : "FACTURA";
-              const documento = String(row.documento || "SIN_DOCUMENTO").trim();
-              return !savedKeys.has(`${tipo}:${documento}`);
-            }),
-          );
-          alert(
-            `Carga parcial. ${summary.join(" | ")} | Notas de crédito con error: ${failed.length}. Revise el detalle y vuelva a intentar.`,
-          );
-          return;
-        }
+        summary.push(`Notas de crédito creadas: ${createdNotes}`);
+        if (skippedNotes > 0) summary.push(`Notas de crédito omitidas (ya existían): ${skippedNotes}`);
       }
 
-      alert(`Importación completada. ${summary.join(" | ")}`);
+      alert(["Importación completada.", "", ...summary].join("\n"));
       clearFile();
       onClose();
     } catch (error) {
       console.error("Error al guardar la importación:", error);
-      alert("Ocurrió un error al enviar la importación");
+      alert("Ocurrió un error al enviar la importación. No se confirmó el guardado; revise antes de reintentar.");
     } finally {
       setSaving(false);
-      setCreditNoteProgress(null);
     }
   }, [
     serverPayload,
-    invoicesToCreate,
-    creditNotesToCreate,
     creditNotesPayload,
     cashManagementIssues,
     clearFile,
@@ -713,19 +684,17 @@ const handleFileUpload = useCallback(
           esté el usuario, y bloquea clics accidentales (cerrar, limpiar,
           etc.) mientras la petición está en curso. */}
       {saving && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/90 backdrop-blur-sm">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-          <div className="text-center px-6">
-            <p className="font-semibold text-gray-800">
-              {creditNoteProgress
-                ? `Creando ${creditNoteProgress.total} nota${creditNoteProgress.total === 1 ? "" : "s"} de crédito...`
-                : `Creando ${serverPayload.length} factura${serverPayload.length === 1 ? "" : "s"}...`}
-            </p>
-            <p className="mt-1 text-sm text-gray-500">
-              Esperá a que el servidor termine. No cierres esta ventana.
-            </p>
-          </div>
-        </div>
+        <ImportSavingOverlay
+          documentCount={serverPayload.length + creditNotesPayload.length}
+          label={[
+            serverPayload.length > 0 ? plural(serverPayload.length, "factura", "facturas") : "",
+            creditNotesPayload.length > 0
+              ? plural(creditNotesPayload.length, "nota de crédito", "notas de crédito")
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" y ")}
+        />
       )}
 
       {/* HEADER */}

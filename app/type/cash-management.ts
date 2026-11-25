@@ -1,4 +1,5 @@
 import type { CollectionRecord } from "@/app/type/collection";
+import type { BankTransferApplication } from "@/app/type/bank-transfer";
 
 export type CashManagementDenomination = {
   currency: string;
@@ -13,10 +14,10 @@ export type CashManagementCreateDenomination = {
   quantity: number;
 };
 
+// El backend no recibe tasa: usa el tipo de cambio vigente registrado en Configuración de Moneda.
 export type CashManagementCreatePayload = {
   cashRegisterId: number;
   responsibleEmployeeId: number;
-  exchangeRateNioPerUsd: number;
   observation: string | null;
   denominations: CashManagementCreateDenomination[];
 };
@@ -122,34 +123,131 @@ export type CashManagementConversionCreatePayload = {
   targetDenominations: CashManagementCreateDenomination[];
 };
 
-export type CashManagementOutflowCreatePayload = {
-  cashManagementId: number;
-  number: string;
-  occurredAt: string;
-  concept: string;
-  description: string | null;
-  creditNoteId: number | null;
-  denominations: CashManagementCreateDenomination[];
+export type CashCurrency = "NIO" | "USD";
+
+// Fila del desglose al crear un ingreso/egreso: todas con la misma moneda
+// que el registro, cantidad > 0 y sin repetir denominación.
+export type CashMovementDenominationInput = {
+  currency: CashCurrency;
+  denomination: number;
+  quantity: number;
 };
 
-export type CashManagementOutflowRecord = {
+// Campos comunes de POST .../inflow y POST .../outflow.
+type CashMovementCreatePayloadBase = {
+  cashManagementId: number;
+  number: string;
+  occurredAt: string; // ISO UTC (con Z), entre la apertura de la gestión y ahora
+  currency: CashCurrency;
+  amount: number; // en la moneda de `currency`
+  accountingConceptId?: number | null;
+  concept: string | null; // null cuando se manda accountingConceptId
+  description: string | null;
+  denominations?: CashMovementDenominationInput[]; // opcional; debe sumar `amount`
+};
+
+export type CashManagementInflowCreatePayload = CashMovementCreatePayloadBase;
+
+export type CashManagementOutflowCreatePayload = CashMovementCreatePayloadBase & {
+  creditNoteId: number | null; // si se envía, el egreso debe ser en NIO
+};
+
+// PUT .../inflow/{id} y PUT .../outflow/{id}: REEMPLAZA todo el registro.
+// Siempre enviar el formulario completo; sin `denominations` (o vacío) el
+// desglose anterior se borra. No cambia número, gestión ni nota de crédito.
+export type UpdateCashEntryPayload = {
+  occurredAt: string; // ISO UTC, dentro del período de la gestión abierta
+  accountingConceptId: number | null;
+  concept: string | null; // texto libre solo si no hay concepto del catálogo
+  description: string | null;
+  currency: CashCurrency;
+  amount: number;
+  denominations: CashMovementDenominationInput[];
+};
+
+// Respuesta de ingreso/egreso (201 al crear, 200 en GET).
+type CashMovementRecordBase = {
   id: number;
   cashManagementId: number;
   number: string;
   occurredAt: string;
+  currency: CashCurrency | string;
+  total: number; // en la moneda de `currency`
   concept: string;
+  accountingConceptId: number | null;
+  accountingConceptName: string | null;
   description: string | null;
-  total: number;
   status: string;
-  creditNoteId: number | null;
   voidedAt: string | null;
   voidedBy: string | null;
+  exchangeRateNioPerUsd?: number;
+  amountNio?: number;
   denominations: CashManagementDenomination[];
+};
+
+export type CashManagementInflowRecord = CashMovementRecordBase;
+
+export type CashManagementOutflowRecord = CashMovementRecordBase & {
+  creditNoteId: number | null;
+};
+
+export type CashManagementInflowResponse = {
+  records: CashManagementInflowRecord[];
+  paging: CashManagementPaging;
 };
 
 export type CashManagementOutflowResponse = {
   records: CashManagementOutflowRecord[];
   paging: CashManagementPaging;
+};
+
+// GET /v1/billing/cash-management/ledger: ingresos y egresos juntos.
+// En los egresos `amount` viene en negativo. No sumar montos de monedas distintas.
+export type CashLedgerType = "Ingreso" | "Egreso";
+
+export type CashLedgerEntry = {
+  id: number;
+  sourceType: "CashInflow" | "CashOutflow" | string;
+  occurredAt: string;
+  type: CashLedgerType | string;
+  concept: string;
+  description: string | null;
+  /** Número del ingreso/egreso, si el ledger lo trae. */
+  number?: string;
+  cashManagementId: number;
+  cashRegisterName: string;
+  branchName: string;
+  amount: number;
+  status: string;
+  createdBy: string;
+  currency: CashCurrency | string;
+  exchangeRateNioPerUsd?: number;
+  amountNio?: number;
+};
+
+export type CashLedgerResponse = {
+  records: CashLedgerEntry[];
+  paging: CashManagementPaging;
+};
+
+// GET /v1/billing/cash-management/{id}/denominations/current
+export type CashCurrentDenominationLine = {
+  denomination: number;
+  quantity: number;
+  total: number;
+};
+
+export type CashCurrentDenominationCurrency = {
+  currency: CashCurrency | string;
+  denominatedTotal: number;
+  expectedTotal: number; // saldo de esa moneda según los movimientos
+  undenominatedAmount: number; // parte registrada sin desglose
+  denominations: CashCurrentDenominationLine[];
+};
+
+export type CashCurrentDenominations = {
+  cashManagementId: number;
+  currencies: CashCurrentDenominationCurrency[];
 };
 
 export type CashRegisterRecord = {
@@ -314,4 +412,8 @@ export type CashManagementClosingSummary = {
   closingPreview: CashManagementClosingPreview;
   bankTransfers: CashManagementBankTransferSummary[];
   bankTransferIncomeTotalNio: number;
+  /** Transferencias aplicadas a facturas en esta gestión (activas y anuladas). Informativo. */
+  bankTransferApplications?: BankTransferApplication[];
+  /** Suma de las aplicaciones activas. */
+  bankTransferAppliedTotalNio?: number;
 };

@@ -29,6 +29,12 @@ export async function getValidToken() {
         return tokenFromHeader;
       }
 
+      // El access token venció y el navegador ya borró su cookie, pero el refresh token
+      // sigue vigente: se renueva la sesión en vez de responder "no autorizado".
+      if (cookieStore.get('refreshToken')?.value) {
+        return (await refreshToken()) ?? null;
+      }
+
       return null;
     }
 

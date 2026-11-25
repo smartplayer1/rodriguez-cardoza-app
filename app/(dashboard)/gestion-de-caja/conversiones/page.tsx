@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { ArrowRightLeft, CircleDollarSign, RefreshCcw, Scale, Wallet } from 'lucide-react';
 
 import NuevaConversionModal from './nueva-conversion-modal';
+import AnularConversionButton from './anular-conversion-button';
 import { getCashManagementConversions } from '@/app/services/cash-management';
 
 type SearchParams = {
@@ -59,6 +60,10 @@ const formatAmount = (value: number) => {
   }).format(value);
 };
 
+// El teórico y la diferencia cambiaria se calculan con 4 decimales.
+const formatAmount4 = (value: number) =>
+  new Intl.NumberFormat('es-NI', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(value);
+
 const getStatusClasses = (status: string) => {
   const normalizedStatus = status.toLowerCase();
 
@@ -66,7 +71,8 @@ const getStatusClasses = (status: string) => {
     return 'bg-rose-100 text-rose-700';
   }
 
-  if (normalizedStatus.includes('activa') || normalizedStatus.includes('completed') || normalizedStatus.includes('aplicada')) {
+  // El backend envía ACTIVE / VOIDED.
+  if (normalizedStatus.includes('activ') || normalizedStatus.includes('completed') || normalizedStatus.includes('aplicada')) {
     return 'bg-emerald-100 text-emerald-700';
   }
 
@@ -133,7 +139,7 @@ export default async function ConversionesCaja({
               <StatCard label="Registros" value={response.paging.totalRecords} icon={<Wallet className="size-4" />} />
               <StatCard label="Origen total" value={formatAmount(totalSource)} icon={<ArrowRightLeft className="size-4" />} />
               <StatCard label="Destino total" value={formatAmount(totalTarget)} icon={<CircleDollarSign className="size-4" />} />
-              <StatCard label="Diferencia" value={formatAmount(totalDifference)} icon={<Scale className="size-4" />} />
+              <StatCard label="Diferencia" value={formatAmount4(totalDifference)} icon={<Scale className="size-4" />} />
             </div>
           </div>
         </header>
@@ -159,6 +165,7 @@ export default async function ConversionesCaja({
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Destino</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Teórico</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Diferencia</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
                 </tr>
               </thead>
 
@@ -176,15 +183,18 @@ export default async function ConversionesCaja({
                       </td>
                       <td className="px-4 py-4 text-right text-foreground">{formatAmount(record.sourceTotal)}</td>
                       <td className="px-4 py-4 text-right text-foreground">{formatAmount(record.targetTotal)}</td>
-                      <td className="px-4 py-4 text-right text-foreground">{formatAmount(record.theoreticalTargetTotal)}</td>
+                      <td className="px-4 py-4 text-right text-foreground">{formatAmount4(record.theoreticalTargetTotal)}</td>
                       <td className={`px-4 py-4 text-right ${record.exchangeDifference > 0 ? 'text-emerald-600' : record.exchangeDifference < 0 ? 'text-rose-600' : 'text-muted-foreground'}`}>
-                        {formatAmount(record.exchangeDifference)}
+                        {formatAmount4(record.exchangeDifference)}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <AnularConversionButton id={record.id} status={record.status} />
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                       No hay conversiones para mostrar.
                     </td>
                   </tr>

@@ -15,7 +15,8 @@ type Props = {
 export default function EmployeesAccessManagementClient({ initialData }: Props) {
   const router = useRouter();
   const { can } = useUserStore();
-  const canEdit = true; //can(PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_EDIT);
+  // El backend exige Identity.User.Edit para cambiar las sucursales de un usuario.
+  const canEdit = can(PERMISSIONS.BRANCH_EMPLOYEE_ACCESS_EDIT);
 
   const [data, setData] = useState<BranchEmployeesAccess[]>(initialData);
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(initialData[0]?.branchId ?? null);

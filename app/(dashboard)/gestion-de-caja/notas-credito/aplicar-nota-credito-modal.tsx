@@ -29,6 +29,8 @@ export default function AplicarNotaCreditoModal({
   onApplied,
 }: AplicarNotaCreditoModalProps) {
   const isOpen = !!creditNote;
+  // Saldo que queda por aplicar (el total menos lo ya aplicado a otras facturas).
+  const noteAvailable = Number(creditNote?.header.availableAmountNio ?? creditNote?.header.total ?? 0);
 
   const [selectedClientCode, setSelectedClientCode] = useState("");
   const [selectedClientName, setSelectedClientName] = useState("");
@@ -195,7 +197,9 @@ export default function AplicarNotaCreditoModal({
       (invoice) =>
         invoice.document.toLowerCase().includes(term) ||
         invoice.clientCode.toLowerCase().includes(term) ||
-        invoice.clientName.toLowerCase().includes(term),
+        invoice.clientName.toLowerCase().includes(term) ||
+        (invoice.promoterCode ?? "").toLowerCase().includes(term) ||
+        (invoice.promoterName ?? "").toLowerCase().includes(term),
     );
   }, [invoices, searchTerm]);
 
@@ -241,8 +245,8 @@ export default function AplicarNotaCreditoModal({
         setErrorMessage("El monto a aplicar no puede superar el saldo de la factura.");
         return;
       }
-      if (parsedAmount > creditNote.header.total) {
-        setErrorMessage("El monto a aplicar no puede superar el saldo de la nota de credito.");
+      if (parsedAmount > noteAvailable) {
+        setErrorMessage("El monto a aplicar no puede superar el saldo disponible de la nota de credito.");
         return;
       }
       amountNio = parsedAmount;
@@ -281,7 +285,7 @@ export default function AplicarNotaCreditoModal({
           <div>
             <h3 className="text-foreground">Aplicar nota de credito {creditNote.header.number}</h3>
             <p className="text-sm text-muted-foreground">
-              Total de la nota: C${Number(creditNote.header.total).toFixed(2)}
+              Total de la nota: C${Number(creditNote.header.total).toFixed(2)} · Disponible: C${noteAvailable.toFixed(2)}
             </p>
           </div>
           <button
@@ -425,13 +429,13 @@ export default function AplicarNotaCreditoModal({
               <span className="text-sm text-muted-foreground">
                 Monto a aplicar
                 {selectedInvoice
-                  ? ` (saldo factura: ${selectedInvoice.remainingBalanceNio.toFixed(2)}, saldo nota: ${creditNote.header.total.toFixed(2)})`
+                  ? ` (saldo factura: ${selectedInvoice.remainingBalanceNio.toFixed(2)}, saldo nota: ${noteAvailable.toFixed(2)})`
                   : ""}
               </span>
               <input
                 type="number"
                 min={0}
-                max={selectedInvoice ? Math.min(selectedInvoice.remainingBalanceNio, creditNote.header.total) : undefined}
+                max={selectedInvoice ? Math.min(selectedInvoice.remainingBalanceNio, noteAvailable) : undefined}
                 step="0.01"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}

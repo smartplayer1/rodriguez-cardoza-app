@@ -2,7 +2,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
-import { ArrowLeftRight, ChevronDown, Edit, Image as ImageIcon, Save } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeftRight, ChevronDown, Edit, Image as ImageIcon, ListChecks, Save } from 'lucide-react';
+import { toast } from 'sonner';
 import { useUserStore } from '@/app/store/useUserStore';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
 import { getBankAccounts } from '@/app/services/company/account';
@@ -11,6 +12,8 @@ import { getAccountingConcepts } from '@/app/services/company/accounting-concept
 import {
   createBankTransfer,
   deleteBankTransferImage,
+  DuplicateBankTransferError,
+  getAvailableBankTransfers,
   getBankTransferImages,
   getUnrelatedBankTransfers,
   uploadBankTransferImage,
@@ -19,6 +22,8 @@ import { AccountingConceptOption, BankTransferRecord } from '@/app/type/bank-tra
 import { ListSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
 import EntityImageGallery from '@/components/EntityImageGallery';
 import EditarTransferenciaModal from './editar-transferencia-modal';
+import AplicarTransferenciaModal from './aplicar-transferencia-modal';
+import VerAplicacionesModal from './ver-aplicaciones-modal';
 
 type BankAccountOption = {
   id: number;
@@ -50,6 +55,8 @@ export default function TransferenciasBancariasPage() {
   const canCreate = mounted && can(PERMISSIONS.BANK_TRANSFER_CREATE);
   const canEdit = mounted && can(PERMISSIONS.BANK_TRANSFER_EDIT);
   const canView = mounted && can(PERMISSIONS.BANK_TRANSFER_VIEW);
+  const canApply = mounted && can(PERMISSIONS.BANK_TRANSFER_APPLY);
+  const canVoidApplication = mounted && can(PERMISSIONS.BANK_TRANSFER_VOID_APPLICATION);
 
   const [bankAccountOptions, setBankAccountOptions] = useState<BankAccountOption[]>([]);
   const [bankAccountsLoading, setBankAccountsLoading] = useState(false);
@@ -77,6 +84,15 @@ export default function TransferenciasBancariasPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [imagesTransfer, setImagesTransfer] = useState<BankTransferRecord | null>(null);
   const [editingTransfer, setEditingTransfer] = useState<BankTransferRecord | null>(null);
+  const [applyingTransfer, setApplyingTransfer] = useState<BankTransferRecord | null>(null);
+  const [applicationsTransfer, setApplicationsTransfer] = useState<BankTransferRecord | null>(null);
+  // "Con saldo disponible": lista desde bank-transfer/available.
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  // 409 de duplicado (mismo documento el mismo día): se muestra bajo el campo.
+  const [documentError, setDocumentError] = useState<string | null>(null);
+
+  const replaceTransfer = (updated: BankTransferRecord) =>
+    setTransfers((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
 
   // Una transferencia solo se puede editar si su gestión de caja está abierta
   // (cashManagementOptions solo trae gestiones con estado OPEN).
@@ -149,10 +165,10 @@ export default function TransferenciasBancariasPage() {
     try {
       setTransfersLoading(true);
       setTransfersError(null);
-      const response = await getUnrelatedBankTransfers({
-        page: currentPage,
-        perPage: DEFAULT_PER_PAGE,
-      });
+      const filters = { page: currentPage, perPage: DEFAULT_PER_PAGE };
+      const response = onlyAvailable
+        ? await getAvailableBankTransfers(filters)
+        : await getUnrelatedBankTransfers(filters);
       setTransfers(response.records || []);
       setTotalPages(Math.max(1, response.paging?.totalPages || 1));
     } catch (error) {
@@ -166,7 +182,7 @@ export default function TransferenciasBancariasPage() {
     } finally {
       setTransfersLoading(false);
     }
-  }, [currentPage]);
+  }, [currentPage, onlyAvailable]);
 
   useEffect(() => {
     void loadBankAccounts();
@@ -210,6 +226,7 @@ export default function TransferenciasBancariasPage() {
 
     try {
       setSaving(true);
+      setDocumentError(null);
       await createBankTransfer({
         accountNumber: formData.accountNumber.trim(),
         companyBankAccountId,
@@ -232,8 +249,12 @@ export default function TransferenciasBancariasPage() {
       });
       setCurrentPage(1);
       await loadTransfers();
-      alert('Transferencia registrada correctamente');
+      toast.success('Transferencia registrada correctamente');
     } catch (error) {
+      if (error instanceof DuplicateBankTransferError) {
+        setDocumentError(error.message);
+        return;
+      }
       console.error('Error creating bank transfer:', error);
       alert(
         error instanceof Error ? error.message : 'No se pudo registrar la transferencia',
@@ -297,19 +318,24 @@ export default function TransferenciasBancariasPage() {
                   label="Número de referencia / documento*"
                   fullWidth
                   value={formData.accountNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, accountNumber: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, accountNumber: e.target.value });
+                    setDocumentError(null);
+                  }}
                 />
+                {documentError && (
+                  <p className="-mt-2 text-sm text-red-600">{documentError}</p>
+                )}
 
                 <MaterialInput
                   label="Fecha *"
                   type="date"
                   fullWidth
                   value={formData.transferDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, transferDate: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, transferDate: e.target.value });
+                    setDocumentError(null);
+                  }}
                 />
 
                 <MaterialInput
@@ -406,9 +432,22 @@ export default function TransferenciasBancariasPage() {
         {canView && (
           <div className={canCreate ? 'lg:col-span-2' : 'lg:col-span-3'}>
             <div className="bg-surface rounded elevation-2 p-6">
-              <h3 className="text-foreground mb-4">
-                Transferencias Pendientes de Relacionar
-              </h3>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-foreground">
+                  {onlyAvailable ? 'Transferencias con Saldo Disponible' : 'Transferencias Pendientes de Relacionar'}
+                </h3>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={onlyAvailable}
+                    onChange={(e) => {
+                      setOnlyAvailable(e.target.checked);
+                      setCurrentPage(1);
+                    }}
+                  />
+                  Con saldo disponible
+                </label>
+              </div>
 
               {transfersError ? (
                 <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -424,13 +463,15 @@ export default function TransferenciasBancariasPage() {
                         <th className="px-4 py-3 text-left">Cuenta empresa</th>
                         <th className="px-4 py-3 text-left">Fecha</th>
                         <th className="px-4 py-3 text-right">Monto</th>
+                        <th className="px-4 py-3 text-right">Aplicado</th>
+                        <th className="px-4 py-3 text-right">Disponible</th>
                         <th className="px-4 py-3 text-left">Concepto contable</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {transfersLoading ? (
-                        <TableSkeleton columns={7} />
+                        <TableSkeleton columns={9} />
                       ) : transfers.length > 0 ? (
                         transfers.map((transfer) => (
                           <tr key={transfer.id} className="hover:bg-muted/20">
@@ -448,6 +489,16 @@ export default function TransferenciasBancariasPage() {
                             </td>
                             <td className="px-4 py-3 text-right font-mono text-foreground">
                               {formatAmount(transfer.amount)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                              {formatAmount(transfer.appliedAmountNio ?? 0)}
+                            </td>
+                            <td
+                              className={`px-4 py-3 text-right font-mono ${
+                                (transfer.availableAmountNio ?? 0) > 0 ? 'text-green-700' : 'text-muted-foreground'
+                              }`}
+                            >
+                              {formatAmount(transfer.availableAmountNio ?? 0)}
                             </td>
                             <td className="px-4 py-3">
                               {/* Solo lectura: el concepto se cambia con "Editar". */}
@@ -480,6 +531,26 @@ export default function TransferenciasBancariasPage() {
                                     </span>
                                   );
                                 })()}
+                                {canApply &&
+                                  (transfer.availableAmountNio ?? 0) > 0 &&
+                                  cashManagementOptions.length > 0 && (
+                                    <MaterialButton
+                                      variant="text"
+                                      color="primary"
+                                      startIcon={<ArrowDownToLine size={16} />}
+                                      onClick={() => setApplyingTransfer(transfer)}
+                                    >
+                                      Aplicar a facturas
+                                    </MaterialButton>
+                                  )}
+                                <MaterialButton
+                                  variant="text"
+                                  color="secondary"
+                                  startIcon={<ListChecks size={16} />}
+                                  onClick={() => setApplicationsTransfer(transfer)}
+                                >
+                                  Ver aplicaciones
+                                </MaterialButton>
                                 <MaterialButton
                                   variant="text"
                                   color="secondary"
@@ -494,8 +565,10 @@ export default function TransferenciasBancariasPage() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={7} className="text-center py-8 text-muted-foreground">
-                            No hay transferencias pendientes de relacionar
+                          <td colSpan={9} className="text-center py-8 text-muted-foreground">
+                            {onlyAvailable
+                              ? 'No hay transferencias con saldo disponible'
+                              : 'No hay transferencias pendientes de relacionar'}
                           </td>
                         </tr>
                       )}
@@ -547,6 +620,32 @@ export default function TransferenciasBancariasPage() {
             void loadTransfers();
             alert('Transferencia actualizada correctamente');
           }}
+        />
+      )}
+
+      {applyingTransfer && (
+        <AplicarTransferenciaModal
+          transfer={applyingTransfer}
+          openCashManagementOptions={cashManagementOptions}
+          onClose={() => setApplyingTransfer(null)}
+          onApplied={(updated) => {
+            replaceTransfer(updated);
+            setApplyingTransfer(null);
+            // En "con saldo disponible" una transferencia en 0 deja de aparecer.
+            void loadTransfers();
+          }}
+        />
+      )}
+
+      {applicationsTransfer && (
+        <VerAplicacionesModal
+          transfer={applicationsTransfer}
+          canVoid={canVoidApplication}
+          onClose={() => {
+            setApplicationsTransfer(null);
+            void loadTransfers();
+          }}
+          onUpdated={replaceTransfer}
         />
       )}
 

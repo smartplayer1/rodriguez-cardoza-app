@@ -1,3 +1,5 @@
+import type { BankTransferApplication } from "./bank-transfer";
+
 export type SaleType =
   | "ENTREGA INMEDIATA"
   | "DELIVERY INMEDIATO"
@@ -71,6 +73,8 @@ export interface ServerInvoiceResponse {
     totalItems: number;
     currentDetailVersion: number;
     isVoided: boolean;
+    // Gestión de caja donde se registró; null = factura histórica (no se puede anular).
+    cashManagementId?: number | null;
   };
   details: Array<{
     id: number;
@@ -132,6 +136,9 @@ export interface CreditInvoiceRecord {
   document: string;
   clientCode: string;
   clientName: string;
+  /** Promotor de la factura. `promoterName` llega "" si no está en el catálogo de clientes. */
+  promoterCode: string;
+  promoterName: string;
   chargeStatus: string;
   isVoided: boolean;
   invoiceAmountNio: number;
@@ -140,6 +147,23 @@ export interface CreditInvoiceRecord {
   isCredit: boolean;
   collectionCount: number;
   collections: CreditCollectionSummary[];
+  /** Parte de `paidAmountNio` pagada con transferencias (ya incluida; no sumar de nuevo). */
+  bankTransferAmountNio?: number;
+  bankTransferApplications?: BankTransferApplication[];
+}
+
+// Respuesta 201 de POST /v1/invoice/batch/with-credit-notes.
+// `invoices` y `creditNotes` traen SOLO lo creado; lo que ya existía o venía
+// repetido se omite sin error. Omitidos = enviados − length de cada lista.
+export interface ImportInvoicesAndCreditNotesResult {
+  invoices: ServerInvoiceResponse[];
+  creditNotes: {
+    number: string;
+    success: boolean;
+    skipped: boolean;
+    creditNote: unknown | null;
+    errors: string[];
+  }[];
 }
 
 export interface CreditInvoiceListResponse {

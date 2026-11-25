@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { MaterialButton } from "../../../components/MaterialButton";
 import { ChevronDown, Image as ImageIcon, Package, Plus, Edit, Trash2, Import, DollarSign } from "lucide-react";
 import { CrearArticulo } from "./modals/CrearArticulo";
-import { ImportarArticuloModal } from "@/components/excel-upload-article";
+import { ImportarArticuloModal, ErrorResponse } from "@/components/excel-upload-article";
+import { buildArticlePayload } from "@/app/domain/article/import";
 import ImportarPrecios from "./modals/ImportarPrecios";
 import {
   ArticleRecord,
@@ -29,14 +30,6 @@ import { TableSkeleton } from "@/components/ui/loading-skeleton";
 import { useUserStore } from "@/app/store/useUserStore";
 import { PERMISSIONS } from "@/app/domain/auth/permissions";
 import EntityImageGallery from "@/components/EntityImageGallery";
-
-interface ErrorResponse {
-  name: string;
-  category: string;
-  code: string;
-  description: string;
-  message: string;
-}
 
 
 const currentPeriodValue = () => {
@@ -94,7 +87,8 @@ export default function Articulos() {
   const [importing, setImporting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
   const [processedRecords, setProcessedRecords] = useState(0);
-  const [successCount, setSuccessCount] = useState(0);
+  const [createdCount, setCreatedCount] = useState(0);
+  const [updatedCount, setUpdatedCount] = useState(0);
   const [errorResponse, setErrorResponse] = useState<ErrorResponse[]>([]);
   const [articulos, setArticulos] = useState<ArticleRecord[]>([]);
   const [paging, setPaging] = useState<ArticlePaging>({
@@ -112,6 +106,8 @@ export default function Articulos() {
   const [filterDescription, setFilterDescription] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterHasPrice, setFilterHasPrice] = useState<"all" | "true" | "false">("all");
+  const [filterActive, setFilterActive] = useState<"all" | "true" | "false">("all");
+  const [filterClass, setFilterClass] = useState("");
   const [filterPeriod, setFilterPeriod] = useState(currentPeriodValue);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -138,6 +134,8 @@ export default function Articulos() {
         year: period?.year,
         month: period?.month,
         hasPrice: filterHasPrice === "all" ? undefined : filterHasPrice === "true",
+        isActive: filterActive === "all" ? undefined : filterActive === "true",
+        articleClass: filterClass || undefined,
         page: currentPage,
         perPage: pageSize,
       });
@@ -164,6 +162,8 @@ export default function Articulos() {
     filterDescription,
     filterCategory,
     filterHasPrice,
+    filterActive,
+    filterClass,
     filterPeriod,
     currentPage,
     pageSize,
@@ -197,48 +197,51 @@ export default function Articulos() {
     alert('Error al eliminar')
   }
   };
-  const importarArticulos = async (data: ArticleExcel[]): Promise<void> => {
+  // POST /v1/article crea (201) o, si el código existe, actualiza (200; también
+  // 200 si no había cambios). `rejected` son filas inválidas del Excel que no
+  // se envían y van directo a la lista de errores.
+  const importarArticulos = async (data: ArticleExcel[], rejected: ErrorResponse[] = []): Promise<void> => {
     setImporting(true);
     setTotalRecords(data.length);
     setProcessedRecords(0);
-    
-    setSuccessCount(0);
-    setErrorResponse([]);
+    setCreatedCount(0);
+    setUpdatedCount(0);
+    setErrorResponse([...rejected]);
 
-    const errors: ErrorResponse[] = [];
-    let success = 0;
+    const errors: ErrorResponse[] = [...rejected];
+    let created = 0;
+    let updated = 0;
 
     try {
       for (let i = 0; i < data.length; i++) {
         const item = data[i];
-
-        const articulo = {
-          name: item.Nombre,
-          category: item.Categoria,
-          code: item.Codigo,
-          description: "PRODUCTOS ZERMAT",
-        };
+        const articulo = buildArticlePayload(item);
 
         try {
           const response = await createArticle(articulo);
 
-          if (!response.ok) {
-            const result = await response.json();
-
-            errors.push({
-              ...articulo,
-              message: result.message ?? "Error desconocido",
-            });
+          if (response.status === 201) {
+            created++;
+            setCreatedCount(created);
+          } else if (response.ok) {
+            updated++;
+            setUpdatedCount(updated);
           } else {
-            success++;
-            setSuccessCount(success);
+            const result = await response.json().catch(() => null);
+            errors.push({
+              fila: item.fila,
+              ...articulo,
+              message: result?.detail ?? result?.title ?? "Error desconocido",
+            });
+            setErrorResponse([...errors]);
           }
         } catch (error) {
           errors.push({
+            fila: item.fila,
             ...articulo,
-            message:
-              error instanceof Error ? error.message : "Error desconocido",
+            message: error instanceof Error ? error.message : "Error desconocido",
           });
+          setErrorResponse([...errors]);
         }
 
         setProcessedRecords(i + 1);
@@ -248,7 +251,8 @@ export default function Articulos() {
       await loadArticles();
       alert(
         `Importación finalizada\n\n` +
-          `Exitosos: ${success}\n` +
+          `Creados: ${created}\n` +
+          `Actualizados / sin cambios: ${updated}\n` +
           `Errores: ${errors.length}`,
       );
     } finally {
@@ -265,22 +269,37 @@ export default function Articulos() {
     return period ? formatPeriod(period.year, period.month) : "el mes actual";
   })();
 
+// Al editar se envía solo lo que cambió (null = sin cambio), igual que el
+// resto de campos. Errores: el `detail` del backend.
 const handleChange = async (article: ArticleRecord) => {
-  if(modalArticle.article){
-      await updateArticle({id: article.id, 
-        code: modalArticle.article.code == article.code ? null: article.code,
-        description: modalArticle.article.description == article.description ? null: article.description,
-        category: modalArticle.article.category == article.category ? null: article.category,
-        name: modalArticle.article.name == article.name ? null: article.name })
-  } else{
-    await createArticle({
-      name: article.name, 
-      description: article.description, 
-      category: article.category, 
-      code: article.code
-    })
+  const original = modalArticle.article;
+  if (original) {
+    const newClass = article.articleClass?.trim() || null;
+    const oldClass = original.articleClass?.trim() || null;
+    await updateArticle({
+      id: article.id,
+      code: original.code == article.code ? null : article.code,
+      description: original.description == article.description ? null : article.description,
+      category: original.category == article.category ? null : article.category,
+      name: original.name == article.name ? null : article.name,
+      articleClass: newClass === oldClass ? null : newClass ?? "",
+      isActive: original.isActive === article.isActive ? null : article.isActive,
+    });
+  } else {
+    const response = await createArticle({
+      name: article.name,
+      description: article.description,
+      category: article.category,
+      code: article.code,
+      ...(article.articleClass?.trim() ? { articleClass: article.articleClass.trim() } : {}),
+      isActive: article.isActive,
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
+      throw new Error(result?.detail ?? result?.title ?? "No se pudo crear el artículo");
+    }
   }
-   await loadArticles();
+  await loadArticles();
 }
 
   return (
@@ -374,6 +393,31 @@ const handleChange = async (article: ArticleRecord) => {
               <option value="true">Solo con precio</option>
               <option value="false">Solo sin precio</option>
             </select>
+
+            <select
+              value={filterActive}
+              onChange={(e) => {
+                setFilterActive(e.target.value as "all" | "true" | "false");
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 border rounded-lg"
+              aria-label="Estado"
+            >
+              <option value="all">Estado: Todos</option>
+              <option value="true">Activos</option>
+              <option value="false">Inactivos</option>
+            </select>
+
+            <input
+              type="text"
+              placeholder="Clase..."
+              value={filterClass}
+              onChange={(e) => {
+                setFilterClass(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="flex-1 px-4 py-2 border rounded-lg"
+            />
 
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               Precios de
@@ -486,15 +530,20 @@ const handleChange = async (article: ArticleRecord) => {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
                   <div>
                     <strong>Procesados</strong>
                     <div>{processedRecords}</div>
                   </div>
 
                   <div>
-                    <strong>Exitosos</strong>
-                    <div>{successCount}</div>
+                    <strong>Creados</strong>
+                    <div>{createdCount}</div>
+                  </div>
+
+                  <div>
+                    <strong>Actualizados / sin cambios</strong>
+                    <div>{updatedCount}</div>
                   </div>
 
                   <div>
@@ -532,7 +581,7 @@ const handleChange = async (article: ArticleRecord) => {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <tbody className="divide-y divide-border">
-                  <TableSkeleton columns={8} />
+                  <TableSkeleton columns={12} />
                 </tbody>
               </table>
             </div>
@@ -547,6 +596,8 @@ const handleChange = async (article: ArticleRecord) => {
                     <th className="px-4 py-3 text-left text-foreground">Código</th>
                     <th className="px-4 py-3 text-left text-foreground">Nombre</th>
                     <th className="px-4 py-3 text-left text-foreground">Categoría</th>
+                    <th className="px-4 py-3 text-left text-foreground">Clase</th>
+                    <th className="px-4 py-3 text-left text-foreground">Estado</th>
                     <th className="px-4 py-3 text-right text-foreground">Neto</th>
                     <th className="px-4 py-3 text-right text-foreground">Catálogo</th>
                     <th className="px-4 py-3 text-right text-foreground">Asesor</th>
@@ -589,6 +640,20 @@ const handleChange = async (article: ArticleRecord) => {
                             )}`}
                           >
                             {articulo.category}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3">{articulo.articleClass || <span className="text-muted-foreground">—</span>}</td>
+
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded-full text-xs ${
+                              articulo.isActive === false
+                                ? "bg-gray-200 text-gray-700"
+                                : "bg-green-100 text-green-700"
+                            }`}
+                          >
+                            {articulo.isActive === false ? "Inactivo" : "Activo"}
                           </span>
                         </td>
 
@@ -755,7 +820,8 @@ const handleChange = async (article: ArticleRecord) => {
         loadingImport={importing}
         processed={processedRecords}
         total={totalRecords}
-        successCount={successCount}
+        createdCount={createdCount}
+        updatedCount={updatedCount}
         errorsImport={errorResponse}
       />
       <ImportarPrecios

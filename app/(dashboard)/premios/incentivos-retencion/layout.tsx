@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Gift, Award } from "lucide-react";
 import { ReactNode } from "react";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
 
 type IncentivosRetencionLayoutProps = {
   children: ReactNode;
@@ -13,6 +15,10 @@ export default function IncentivosRetencionLayout({
   children,
 }: IncentivosRetencionLayoutProps) {
   const pathname = usePathname();
+  const { can } = useUserStore();
+  // Los incentivos generados (GET /reward/progress) exigen Reward.Ledger.View. can() devuelve
+  // false hasta que el store se hidrata, así que el primer render coincide con el del servidor.
+  const canViewGenerated = can(PERMISSIONS.LEDGER_VIEW);
 
   const isCreatedTabActive =
     pathname === "/premios/incentivos-retencion" ||
@@ -48,6 +54,7 @@ export default function IncentivosRetencionLayout({
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </Link>
+            {canViewGenerated && (
             <Link
               href="/premios/incentivos-retencion/incentivos-generados"
               className={`flex items-center gap-2 px-6 py-4 transition-colors relative ${
@@ -62,6 +69,7 @@ export default function IncentivosRetencionLayout({
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </Link>
+            )}
           </div>
         </div>
 

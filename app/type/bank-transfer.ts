@@ -12,6 +12,67 @@ export interface BankTransferRecord {
   accountingConceptName: string | null;
   accountingConceptCategoryName: string | null;
   isRelated: boolean;
+  /** Número de documento (= accountNumber). */
+  document?: string;
+  /** Suma de aplicaciones activas a facturas (NIO). */
+  appliedAmountNio?: number;
+  /** Saldo por aplicar (NIO). 0 si la transferencia se usó en un cobro. */
+  availableAmountNio?: number;
+  applications?: BankTransferApplication[];
+}
+
+export type BankTransferApplicationStatus = 'ACTIVE' | 'VOIDED';
+
+// Aplicación (parcial o total) de una transferencia a una factura.
+export interface BankTransferApplication {
+  id: number;
+  collectionBankTransferId: number;
+  transferDocument: string;
+  transferDate: string | null;
+  transferAmount: number | null;
+  bankName: string;
+  invoiceId: number;
+  invoiceDocument: string;
+  clientCode: string;
+  cashManagementId: number;
+  appliedAmountNio: number;
+  observation: string | null;
+  status: BankTransferApplicationStatus | string;
+  createdAt: string;
+  createdBy: string;
+  voidedAt: string | null;
+  voidedBy: string | null;
+}
+
+// POST /v1/billing/bank-transfer/{id}/apply (todo o nada). Sin amountNio el
+// backend aplica min(saldo de la transferencia, pendiente de la factura).
+export interface ApplyBankTransferPayload {
+  cashManagementId: number;
+  observation?: string | null;
+  invoices: { invoiceId: number; amountNio?: number }[];
+}
+
+export interface AvailableBankTransferFilters {
+  search?: string;
+  companyBankAccountId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export interface BankTransferApplicationFilters {
+  cashManagementId?: number;
+  invoiceId?: number;
+  collectionBankTransferId?: number;
+  status?: BankTransferApplicationStatus;
+  page?: number;
+  perPage?: number;
+}
+
+export interface BankTransferApplicationListResponse {
+  records: BankTransferApplication[];
+  paging: BankTransferPaging;
 }
 
 export interface AccountingConceptOption {

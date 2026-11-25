@@ -9,7 +9,29 @@ export const AUTH_COOKIE_NAMES = [
   'tokenExpiresAt',
   'refreshToken',
   'refreshTokenExpiresAt',
+  'sessionUserId',
 ] as const;
+
+// El refresh del backend exige el userId del dueño del refresh token. Se guarda en su propia
+// cookie (con la vida del refresh token) porque la cookie `token` vence junto con el access
+// token: sin esto, al pasar las horas del access token el navegador la borra, no hay de dónde
+// sacar el userId y la sesión se perdía aunque el refresh token siguiera vigente.
+export const SESSION_USER_ID_COOKIE = 'sessionUserId';
+
+const NAMEIDENTIFIER_CLAIM =
+  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier';
+
+// userId para el refresh: del access token si todavía existe, si no de la cookie dedicada.
+export function resolveSessionUserId(
+  token: string | undefined | null,
+  sessionUserId: string | undefined | null,
+): string | null {
+  if (token) {
+    const fromToken = decodeJwtPayloadUnsafe(token)?.[NAMEIDENTIFIER_CLAIM];
+    if (typeof fromToken === 'string' && fromToken) return fromToken;
+  }
+  return sessionUserId || null;
+}
 
 export interface RefreshSessionResult {
   token: string;

@@ -31,7 +31,8 @@ export interface RecalculateRewardsPayload {
 }
 
 export interface RecalculateRewardsResult {
-  period: string;
+  // Inicio del mes recalculado (el backend lo envía como periodStart).
+  periodStart: string;
   clientsProcessed: number;
   clientsFailed: number;
   failedClientCodes: string[];

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { isJwtDecoded, mapUserFromToken } from "@/app/utils/mapUser";
-import { buildAuthCookieAttributes } from "@/app/lib/auth/session-cookies";
+import { SESSION_USER_ID_COOKIE, buildAuthCookieAttributes } from "@/app/lib/auth/session-cookies";
 
 export async function POST(req: Request) {
   try {
@@ -62,6 +62,15 @@ export async function POST(req: Request) {
       response.cookies.set(
         "refreshToken",
         data.refreshToken,
+        buildAuthCookieAttributes(data.refreshTokenExpiresAt),
+      );
+    }
+
+    // userId para poder renovar la sesión aunque la cookie del access token ya haya vencido.
+    if (claims?.id) {
+      response.cookies.set(
+        SESSION_USER_ID_COOKIE,
+        claims.id,
         buildAuthCookieAttributes(data.refreshTokenExpiresAt),
       );
     }

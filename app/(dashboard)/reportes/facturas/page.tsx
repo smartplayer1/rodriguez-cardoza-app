@@ -360,7 +360,7 @@ export default async function FacturasReportePage({
                       <td className="px-4 py-4 text-center">
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-1 text-xs ${
-                            record.chargeStatus === 'Contado'
+                            String(record.chargeStatus).toUpperCase() === 'CONTADO'
                               ? 'bg-emerald-100 text-emerald-700'
                               : 'bg-amber-100 text-amber-700'
                           }`}

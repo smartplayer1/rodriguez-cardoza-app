@@ -363,7 +363,7 @@ export default function BonificacionMensualPage() {
             {recalculateResult && (
               <div className="bg-primary/5 border border-primary/20 rounded p-4">
                 <p className="text-sm text-muted-foreground mb-2">
-                  Periodo: {new Date(recalculateResult.period).toLocaleDateString()}
+                  Periodo: {new Date(recalculateResult.periodStart).toLocaleDateString()}
                 </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

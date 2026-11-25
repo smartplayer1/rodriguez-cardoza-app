@@ -386,6 +386,20 @@ export default function ClosingSummaryModal({
                 </div>
               ) : null}
 
+              {(summary.bankTransferApplications?.length ?? 0) > 0 ? (
+                <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">
+                      Transferencias aplicadas a facturas (informativo, no afecta el
+                      cuadre de efectivo)
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {formatAmount(summary.bankTransferAppliedTotalNio ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => setShowDetail(true)}
@@ -946,6 +960,90 @@ function ClosingSummaryDetailModal({
             )}
           </DetailSection>
 
+          <DetailSection title="Transferencias aplicadas a facturas (informativo)">
+            {(summary.bankTransferApplications?.length ?? 0) > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-muted/30">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Transferencia
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Banco
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Factura
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Usuario
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Fecha
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                        Estado
+                      </th>
+                      <th className="px-4 py-2 text-right font-medium text-muted-foreground">
+                        Monto
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(summary.bankTransferApplications ?? []).map((application) => {
+                      const active = String(application.status).toUpperCase() === "ACTIVE";
+                      return (
+                        <tr key={application.id} className="border-t border-border/40">
+                          <td className="px-4 py-2 text-foreground">
+                            {application.transferDocument}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {application.bankName || "—"}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {application.invoiceDocument}
+                            {application.clientCode ? ` · ${application.clientCode}` : ""}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {application.createdBy || "—"}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {formatDateTime(application.createdAt)}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {active ? "Activa" : "Anulada"}
+                          </td>
+                          <td
+                            className={`px-4 py-2 text-right ${
+                              active ? "text-foreground" : "text-muted-foreground line-through"
+                            }`}
+                          >
+                            {formatAmount(application.appliedAmountNio)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-border/60 bg-muted/20">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-2 text-right font-medium text-muted-foreground"
+                      >
+                        Total aplicado (activas)
+                      </td>
+                      <td className="px-4 py-2 text-right font-medium text-foreground">
+                        {formatAmount(summary.bankTransferAppliedTotalNio ?? 0)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ) : (
+              <EmptyDetail text="No se aplicaron transferencias a facturas en esta gestión." />
+            )}
+          </DetailSection>
+
           <DetailSection title="Conversiones">
             {summary.conversions.length > 0 ? (
               <div className="overflow-x-auto">
@@ -988,7 +1086,7 @@ function ClosingSummaryDetailModal({
                           {formatAmount(conversion.targetTotal)}
                         </td>
                         <td className="px-4 py-2 text-right text-foreground">
-                          {formatAmount(conversion.exchangeDifference)}
+                          {new Intl.NumberFormat('es-NI', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(conversion.exchangeDifference)}
                         </td>
                       </tr>
                     ))}

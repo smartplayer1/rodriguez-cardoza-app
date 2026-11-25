@@ -1,288 +1,493 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, CalendarDays, DollarSign, Pencil, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
-import { DollarSign, ArrowRight, Save, RefreshCw } from 'lucide-react';
 import { useUserStore } from '@/app/store/useUserStore';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
+import {
+  createExchangeRate,
+  deleteExchangeRate,
+  getExchangeRates,
+  getLatestExchangeRate,
+  updateExchangeRate,
+} from '@/app/services/billing/exchange-rate';
+import type { ExchangeRate, ExchangeRatePaging } from '@/app/type/exchange-rate';
 
-interface ExchangeRate {
-  id: string;
-  fromCurrency: string;
-  toCurrency: string;
-  rate: number;
-  inverseRate: number;
-  lastUpdated: string;
-}
+const PER_PAGE = 10;
+
+// Fecha local de hoy en formato YYYY-MM-DD (para el input date y para comparar).
+const todayLocal = () => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+};
+
+// effectiveDate llega como medianoche UTC: se toma la parte de fecha tal cual para no correrla
+// un día por la zona horaria del navegador.
+const dateKey = (iso: string) => (iso || '').slice(0, 10);
+const formatDate = (iso: string) => {
+  const [year, month, day] = dateKey(iso).split('-');
+  return year && month && day ? `${day}/${month}/${year}` : iso;
+};
+const formatDateTime = (iso: string) => {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? iso
+    : new Intl.DateTimeFormat('es-NI', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+};
+const formatRate = (value: number) =>
+  new Intl.NumberFormat('es-NI', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(value);
 
 export default function CurrencySettings() {
   const { can } = useUserStore();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    // Marca que ya montó en el cliente: can() depende del store de permisos
-    // (hidratado desde localStorage), que difiere entre SSR y el primer
-    // render del cliente. Sin este flag se produce un hydration mismatch.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // can() depende del store hidratado desde localStorage, que difiere entre SSR y el
+    // primer render del cliente; sin este flag se produce un hydration mismatch.
     setMounted(true);
   }, []);
-  const [rates, setRates] = useState<ExchangeRate[]>([
-    {
-      id: '1',
-      fromCurrency: 'USD',
-      toCurrency: 'NIO',
-      rate: 36.75,
-      inverseRate: 0.0272,
-      lastUpdated: '2025-11-23'
-    }
-  ]);
+  const canCreate = mounted && can(PERMISSIONS.EXCHANGE_RATE_CREATE);
+  const canEdit = mounted && can(PERMISSIONS.EXCHANGE_RATE_EDIT);
+  const canDelete = mounted && can(PERMISSIONS.EXCHANGE_RATE_DELETE);
 
-  const [editingRate, setEditingRate] = useState<ExchangeRate | null>(null);
-  const [fromCurrency, setFromCurrency] = useState('USD');
-  const [toCurrency, setToCurrency] = useState('NIO');
+  // Corrección en línea de una fila del historial (solo tasa y observación).
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editRate, setEditRate] = useState('');
+  const [editObservation, setEditObservation] = useState('');
+  const [rowBusyId, setRowBusyId] = useState<number | null>(null);
+
+  const [latest, setLatest] = useState<ExchangeRate | null>(null);
+  const [latestLoaded, setLatestLoaded] = useState(false);
+  const [rates, setRates] = useState<ExchangeRate[]>([]);
+  const [paging, setPaging] = useState<ExchangeRatePaging>({ perPage: PER_PAGE, currentPage: 1, totalRecords: 0, totalPages: 1 });
+  const [page, setPage] = useState(1);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [effectiveDate, setEffectiveDate] = useState(todayLocal);
   const [rateValue, setRateValue] = useState('');
+  const [observation, setObservation] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const currencies = ['USD', 'NIO', 'EUR', 'MXN', 'GTQ'];
+  const loadLatest = useCallback(async () => {
+    try {
+      setLatest(await getLatestExchangeRate());
+    } catch {
+      setLatest(null);
+    } finally {
+      setLatestLoaded(true);
+    }
+  }, []);
 
-  const handleEditRate = (rate: ExchangeRate) => {
-    setEditingRate(rate);
-    setFromCurrency(rate.fromCurrency);
-    setToCurrency(rate.toCurrency);
-    setRateValue(rate.rate.toString());
-  };
+  const loadRates = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadError(null);
+      const response = await getExchangeRates({
+        effectiveDateFrom: dateFrom || undefined,
+        effectiveDateTo: dateTo || undefined,
+        page,
+        perPage: PER_PAGE,
+      });
+      setRates(response.records ?? []);
+      setPaging(response.paging ?? { perPage: PER_PAGE, currentPage: page, totalRecords: 0, totalPages: 1 });
+    } catch (error) {
+      setRates([]);
+      setLoadError(error instanceof Error ? error.message : 'No se pudieron cargar los tipos de cambio');
+    } finally {
+      setLoading(false);
+    }
+  }, [dateFrom, dateTo, page]);
 
-  const handleSaveRate = () => {
-    const newRate = parseFloat(rateValue);
-    if (isNaN(newRate) || newRate <= 0) {
-      alert('Por favor ingrese un valor de tasa válido');
+  useEffect(() => {
+    void loadLatest();
+  }, [loadLatest]);
+
+  useEffect(() => {
+    void loadRates();
+  }, [loadRates]);
+
+  const today = todayLocal();
+  const hasTodayRate = latest ? dateKey(latest.effectiveDate) === today : false;
+  const parsedRate = Number(rateValue);
+  const rateIsValid = rateValue.trim() !== '' && Number.isFinite(parsedRate) && parsedRate > 0;
+
+  const handleSave = async () => {
+    setFormError(null);
+    if (!effectiveDate) {
+      setFormError('Seleccione la fecha.');
+      return;
+    }
+    if (!rateIsValid) {
+      setFormError('La tasa debe ser un número mayor que cero.');
       return;
     }
 
-    const inverseRate = 1 / newRate;
-    const today = new Date().toISOString().split('T')[0];
-
-    if (editingRate) {
-      setRates(rates.map(r => 
-        r.id === editingRate.id
-          ? {
-              ...r,
-              fromCurrency,
-              toCurrency,
-              rate: newRate,
-              inverseRate,
-              lastUpdated: today
-            }
-          : r
-      ));
-    } else {
-      const newExchangeRate: ExchangeRate = {
-        id: Date.now().toString(),
-        fromCurrency,
-        toCurrency,
-        rate: newRate,
-        inverseRate,
-        lastUpdated: today
-      };
-      setRates([...rates, newExchangeRate]);
+    try {
+      setSaving(true);
+      const created = await createExchangeRate({
+        effectiveDate,
+        nioPerUsd: Math.round(parsedRate * 10000) / 10000,
+        observation: observation.trim() || null,
+      });
+      toast.success(`Tipo de cambio del ${formatDate(created.effectiveDate)} registrado: C$ ${formatRate(created.nioPerUsd)}`);
+      setRateValue('');
+      setObservation('');
+      setEffectiveDate(todayLocal());
+      await loadLatest();
+      // En la página 1 se recarga directo; en otra, volver a la 1 dispara la recarga.
+      if (page === 1) await loadRates();
+      else setPage(1);
+    } catch (error) {
+      // 409: ya existe uno para esa fecha (el backend no permite editarlo).
+      setFormError(error instanceof Error ? error.message : 'No se pudo registrar el tipo de cambio');
+    } finally {
+      setSaving(false);
     }
-
-    setEditingRate(null);
-    setFromCurrency('USD');
-    setToCurrency('NIO');
-    setRateValue('');
   };
 
-  const handleCancel = () => {
-    setEditingRate(null);
-    setFromCurrency('USD');
-    setToCurrency('NIO');
-    setRateValue('');
+  const startEdit = (rate: ExchangeRate) => {
+    setEditingId(rate.id);
+    setEditRate(String(rate.nioPerUsd));
+    setEditObservation(rate.observation ?? '');
   };
+
+  // El backend solo deja corregir o eliminar un tipo de cambio que ninguna gestión, ingreso o
+  // egreso haya usado; si ya se usó responde 400 con el detalle y se muestra tal cual.
+  const handleSaveEdit = async (rate: ExchangeRate) => {
+    const value = Number(editRate);
+    if (!Number.isFinite(value) || value <= 0) {
+      toast.error('La tasa debe ser un número mayor que cero.');
+      return;
+    }
+    try {
+      setRowBusyId(rate.id);
+      await updateExchangeRate(rate.id, {
+        nioPerUsd: Math.round(value * 10000) / 10000,
+        observation: editObservation.trim() || null,
+      });
+      toast.success(`Tipo de cambio del ${formatDate(rate.effectiveDate)} corregido`);
+      setEditingId(null);
+      await Promise.all([loadLatest(), loadRates()]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo corregir el tipo de cambio');
+    } finally {
+      setRowBusyId(null);
+    }
+  };
+
+  const handleDelete = async (rate: ExchangeRate) => {
+    if (
+      !window.confirm(
+        `¿Eliminar el tipo de cambio del ${formatDate(rate.effectiveDate)} (C$ ${formatRate(rate.nioPerUsd)})? ` +
+          'Desde esa fecha regirá el tipo de cambio anterior.',
+      )
+    )
+      return;
+    try {
+      setRowBusyId(rate.id);
+      await deleteExchangeRate(rate.id);
+      toast.success(`Tipo de cambio del ${formatDate(rate.effectiveDate)} eliminado`);
+      await Promise.all([loadLatest(), loadRates()]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo eliminar el tipo de cambio');
+    } finally {
+      setRowBusyId(null);
+    }
+  };
+
+  const totalPages = Math.max(1, paging.totalPages || 1);
 
   return (
     <div className="p-6">
-      {/* Page header */}
       <div className="mb-6">
         <h2 className="text-foreground mb-2">Configuración de Moneda</h2>
         <p className="text-muted-foreground">
-          Configure las tasas de cambio entre diferentes monedas
+          Tipo de cambio diario del dólar (USD) a córdobas (NIO). Se usa para abrir caja, cobros,
+          conversiones e ingresos y egresos en dólares.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Exchange Rate Form */}
-        <div className="lg:col-span-1">
-          <div className="bg-surface rounded elevation-2 p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <DollarSign size={24} className="text-primary" />
-              <h3 className="text-foreground">
-                {editingRate ? 'Editar Tasa' : 'Nueva Tasa de Cambio'}
-              </h3>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              {/* From Currency */}
-              <div>
-                <label className="text-sm text-foreground mb-2 block">
-                  Desde Moneda
-                </label>
-                <select
-                  value={fromCurrency}
-                  onChange={(e) => setFromCurrency(e.target.value)}
-                  className="w-full px-4 py-3 bg-input-background border-b-2 border-border 
-                           focus:border-primary rounded-t transition-colors outline-none"
-                >
-                  {currencies.map(curr => (
-                    <option key={curr} value={curr}>{curr}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Arrow indicator */}
-              <div className="flex justify-center">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <ArrowRight size={20} className="text-primary" />
-                </div>
-              </div>
-
-              {/* To Currency */}
-              <div>
-                <label className="text-sm text-foreground mb-2 block">
-                  Hacia Moneda
-                </label>
-                <select
-                  value={toCurrency}
-                  onChange={(e) => setToCurrency(e.target.value)}
-                  className="w-full px-4 py-3 bg-input-background border-b-2 border-border 
-                           focus:border-primary rounded-t transition-colors outline-none"
-                >
-                  {currencies.map(curr => (
-                    <option key={curr} value={curr}>{curr}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Exchange Rate */}
-              <MaterialInput
-                label="Tasa de Cambio"
-                type="number"
-                step="0.0001"
-                placeholder="0.00"
-                fullWidth
-                value={rateValue}
-                onChange={(e) => setRateValue(e.target.value)}
-                helperText={`1 ${fromCurrency} = ${rateValue || '0'} ${toCurrency}`}
-              />
-
-              {/* Inverse Rate Display */}
-              {rateValue && parseFloat(rateValue) > 0 && (
-                <div className="bg-muted rounded p-3">
-                  <p className="text-sm text-muted-foreground">Tasa Inversa</p>
-                  <p className="text-foreground">
-                    1 {toCurrency} = {(1 / parseFloat(rateValue)).toFixed(4)} {fromCurrency}
-                  </p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-2 mt-4">
-                {mounted && can(PERMISSIONS.EXCHANGE_RATE_CREATE) && (
-                  <MaterialButton
-                    variant="contained"
-                    color="primary"
-                    fullWidth
-                    startIcon={<Save size={18} />}
-                    onClick={handleSaveRate}
-                  >
-                    {editingRate ? 'Actualizar' : 'Guardar'}
-                  </MaterialButton>
-                )}
-                {editingRate && (
-                  <MaterialButton
-                    variant="outlined"
-                    color="secondary"
-                    onClick={handleCancel}
-                  >
-                    Cancelar
-                  </MaterialButton>
-                )}
-              </div>
-            </div>
+      {latestLoaded && !hasTodayRate && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+          <AlertTriangle size={20} className="mt-0.5 shrink-0" />
+          <div>
+            {latest ? (
+              <>
+                No hay tipo de cambio registrado para hoy. Las operaciones de hoy usarán el del{' '}
+                <strong>{formatDate(latest.effectiveDate)}</strong> (C$ {formatRate(latest.nioPerUsd)}).
+              </>
+            ) : (
+              <>
+                No hay ningún tipo de cambio registrado. <strong>No se puede abrir caja</strong> hasta
+                registrar uno.
+              </>
+            )}
           </div>
         </div>
+      )}
 
-        {/* Existing Rates List */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 flex flex-col gap-6">
+          <div className="bg-surface rounded elevation-2 p-6">
+            <p className="text-sm text-muted-foreground">Tipo de cambio vigente</p>
+            {latest ? (
+              <>
+                <p className="mt-1 text-3xl text-foreground">C$ {formatRate(latest.nioPerUsd)}</p>
+                <p className="text-sm text-muted-foreground">
+                  por 1 USD · desde el {formatDate(latest.effectiveDate)}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  1 NIO = {formatRate(1 / latest.nioPerUsd)} USD
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-foreground">{latestLoaded ? 'Sin registrar' : 'Cargando...'}</p>
+            )}
+          </div>
+
+          {canCreate && (
+            <div className="bg-surface rounded elevation-2 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <DollarSign size={24} className="text-primary" />
+                <h3 className="text-foreground">Registrar tipo de cambio</h3>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <MaterialInput
+                  label="Fecha de vigencia"
+                  type="date"
+                  fullWidth
+                  value={effectiveDate}
+                  onChange={(e) => setEffectiveDate(e.target.value)}
+                />
+                <MaterialInput
+                  label="Córdobas por 1 dólar"
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  placeholder="36.6243"
+                  fullWidth
+                  value={rateValue}
+                  onChange={(e) => setRateValue(e.target.value)}
+                  helperText={rateIsValid ? `1 USD = C$ ${formatRate(parsedRate)} · 1 NIO = ${formatRate(1 / parsedRate)} USD` : undefined}
+                />
+                <MaterialInput
+                  label="Observación (opcional)"
+                  fullWidth
+                  value={observation}
+                  onChange={(e) => setObservation(e.target.value)}
+                />
+
+                <p className="text-xs text-muted-foreground">
+                  Solo se registra un tipo de cambio por fecha. Se puede corregir o eliminar
+                  mientras ninguna gestión, ingreso o egreso lo haya usado.
+                </p>
+
+                {formError && <p className="text-sm text-rose-600">{formError}</p>}
+
+                <MaterialButton
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  startIcon={<Save size={18} />}
+                  onClick={() => void handleSave()}
+                  disabled={saving || !rateIsValid || !effectiveDate}
+                >
+                  {saving ? 'Guardando...' : 'Guardar'}
+                </MaterialButton>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="lg:col-span-2">
           <div className="bg-surface rounded elevation-2 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-foreground">Tasas de Cambio Configuradas</h3>
-              <MaterialButton
-                variant="text"
-                color="primary"
-                startIcon={<RefreshCw size={18} />}
-                onClick={() => console.log('Actualizar tasas')}
-              >
-                Actualizar Todas
-              </MaterialButton>
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+              <h3 className="text-foreground">Historial</h3>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="text-sm text-muted-foreground">
+                  Desde
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      setPage(1);
+                    }}
+                    className="mt-1 block rounded border border-border bg-input-background px-3 py-2 text-foreground"
+                  />
+                </label>
+                <label className="text-sm text-muted-foreground">
+                  Hasta
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      setPage(1);
+                    }}
+                    className="mt-1 block rounded border border-border bg-input-background px-3 py-2 text-foreground"
+                  />
+                </label>
+                <MaterialButton
+                  variant="text"
+                  color="primary"
+                  startIcon={<RefreshCw size={18} />}
+                  onClick={() => {
+                    void loadLatest();
+                    void loadRates();
+                  }}
+                >
+                  Actualizar
+                </MaterialButton>
+              </div>
             </div>
 
-            {rates.length === 0 ? (
+            {loadError ? (
+              <p className="py-8 text-center text-sm text-rose-600">{loadError}</p>
+            ) : loading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Cargando...</p>
+            ) : rates.length === 0 ? (
               <div className="text-center py-12">
-                <DollarSign size={48} className="mx-auto mb-4 text-muted-foreground" />
+                <CalendarDays size={48} className="mx-auto mb-4 text-muted-foreground" />
                 <p className="text-muted-foreground">
-                  No hay tasas de cambio configuradas
+                  {dateFrom || dateTo ? 'No hay tipos de cambio en ese rango.' : 'No hay tipos de cambio registrados.'}
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {rates.map((rate) => (
-                  <div
-                    key={rate.id}
-                    className="border border-border rounded p-4 hover:border-primary 
-                             transition-colors cursor-pointer"
-                    onClick={() => handleEditRate(rate)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        {/* From Currency */}
-                        <div className="flex items-center gap-2">
-                          <div className="w-12 h-12 rounded-full bg-primary/10 
-                                        flex items-center justify-center">
-                            <span className="text-primary">{rate.fromCurrency}</span>
-                          </div>
-                        </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">Fecha</th>
+                      <th className="px-4 py-2 text-right font-medium text-muted-foreground">C$ por USD</th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">Observación</th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">Registrado por</th>
+                      {(canEdit || canDelete) && (
+                        <th className="px-4 py-2 text-right font-medium text-muted-foreground">Acciones</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {rates.map((rate) => {
+                      const isEditing = editingId === rate.id;
+                      const busy = rowBusyId === rate.id;
+                      return (
+                        <tr key={rate.id}>
+                          <td className="px-4 py-2 text-foreground">
+                            {formatDate(rate.effectiveDate)}
+                            {latest?.id === rate.id && (
+                              <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                                Vigente
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono text-foreground">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                step="0.0001"
+                                min="0"
+                                value={editRate}
+                                onChange={(e) => setEditRate(e.target.value)}
+                                className="w-28 rounded border border-border bg-input-background px-2 py-1 text-right"
+                              />
+                            ) : (
+                              formatRate(rate.nioPerUsd)
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {isEditing ? (
+                              <input
+                                value={editObservation}
+                                onChange={(e) => setEditObservation(e.target.value)}
+                                className="w-full rounded border border-border bg-input-background px-2 py-1"
+                              />
+                            ) : (
+                              rate.observation || '—'
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {rate.createdBy} · {formatDateTime(rate.createdAt)}
+                          </td>
+                          {(canEdit || canDelete) && (
+                            <td className="px-4 py-2 text-right whitespace-nowrap">
+                              {isEditing ? (
+                                <span className="inline-flex gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => void handleSaveEdit(rate)}
+                                    className="rounded border border-primary px-2 py-1 text-xs text-primary hover:bg-primary/10 disabled:opacity-50"
+                                  >
+                                    {busy ? 'Guardando...' : 'Guardar'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => setEditingId(null)}
+                                    className="rounded border border-border px-2 py-1 text-xs hover:bg-muted"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </span>
+                              ) : (
+                                <span className="inline-flex gap-1">
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      title="Corregir"
+                                      aria-label="Corregir"
+                                      disabled={busy}
+                                      onClick={() => startEdit(rate)}
+                                      className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                                    >
+                                      <Pencil size={15} />
+                                    </button>
+                                  )}
+                                  {canDelete && (
+                                    <button
+                                      type="button"
+                                      title="Eliminar"
+                                      aria-label="Eliminar"
+                                      disabled={busy}
+                                      onClick={() => void handleDelete(rate)}
+                                      className="rounded p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  )}
+                                </span>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-                        {/* Arrow */}
-                        <ArrowRight size={20} className="text-muted-foreground" />
-
-                        {/* To Currency */}
-                        <div className="flex items-center gap-2">
-                          <div className="w-12 h-12 rounded-full bg-accent/10 
-                                        flex items-center justify-center">
-                            <span className="text-accent">{rate.toCurrency}</span>
-                          </div>
-                        </div>
-
-                        {/* Rate Info */}
-                        <div className="flex-1">
-                          <p className="text-foreground">
-                            1 {rate.fromCurrency} = {rate.rate.toFixed(4)} {rate.toCurrency}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            1 {rate.toCurrency} = {rate.inverseRate.toFixed(4)} {rate.fromCurrency}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Last Updated */}
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">
-                          Última actualización
-                        </p>
-                        <p className="text-sm text-foreground">{rate.lastUpdated}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            {!loadError && totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Página {page} de {totalPages} · {paging.totalRecords} registros
+                </span>
+                <div className="flex gap-2">
+                  <MaterialButton variant="outlined" color="secondary" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                    Anterior
+                  </MaterialButton>
+                  <MaterialButton variant="outlined" color="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                    Siguiente
+                  </MaterialButton>
+                </div>
               </div>
             )}
           </div>

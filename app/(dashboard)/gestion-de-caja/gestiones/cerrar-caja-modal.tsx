@@ -9,6 +9,7 @@ import {
   CashManagementClosePayload,
   CashManagementRecord,
 } from "@/app/type/cash-management";
+import CurrentDenominationsPanel from "../shared/current-denominations";
 
 type DenominationRow = {
   id: string;
@@ -219,6 +220,9 @@ export default function CerrarCajaModal({
                 </span>
               </div>
             </div>
+
+            {/* Lo que debería haber en caja por denominación, para guiar el conteo. */}
+            <CurrentDenominationsPanel cashManagementId={record.id} />
 
             <label className="block space-y-2">
               <span className="text-sm text-muted-foreground">Observacion</span>

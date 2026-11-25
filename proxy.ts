@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   AUTH_COOKIE_NAMES,
   RefreshTokenInvalidError,
+  SESSION_USER_ID_COOKIE,
   buildAuthCookieAttributes,
-  decodeJwtPayloadUnsafe,
   isExpiringSoon,
   performRefresh,
+  resolveSessionUserId,
 } from '@/app/lib/auth/session-cookies';
-
-const NAMEIDENTIFIER_CLAIM =
-  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier';
 
 export const config = {
   matcher: [
@@ -47,36 +45,37 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const tokenExpiresAt = request.cookies.get('tokenExpiresAt')?.value;
   const refreshTokenValue = request.cookies.get('refreshToken')?.value;
+  const sessionUserId = request.cookies.get(SESSION_USER_ID_COOKIE)?.value;
 
   // Con una sesión iniciada no se puede volver al login: se manda al menú
-  // principal. Si las cookies resultan inválidas, el flujo normal (refresh
-  // fallido / 401) las limpia y devuelve al usuario a /login sin loop.
+  // principal. Basta el refresh token: si el access token ya venció, la
+  // siguiente petición lo renueva. Si las cookies resultan inválidas, el flujo
+  // normal (refresh fallido / 401) las limpia y devuelve a /login sin loop.
   if (request.nextUrl.pathname === '/login') {
-    if (token && refreshTokenValue) {
+    if (refreshTokenValue) {
       return NextResponse.redirect(new URL('/main-menu', request.url));
     }
     return NextResponse.next();
   }
 
-  if (!token || !refreshTokenValue) {
-    // Sin ambas piezas no hay nada que renovar; si tampoco hay token
-    // simplemente no hay sesión.
-    if (!token && !refreshTokenValue) {
-      if (isApiRequest(request.nextUrl.pathname)) return NextResponse.next();
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+  // Sin refresh token no hay nada que renovar.
+  if (!refreshTokenValue) {
+    if (token || isApiRequest(request.nextUrl.pathname)) return NextResponse.next();
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Access token presente y lejos de vencer: nada que hacer. Si falta (el
+  // navegador borró su cookie al vencer) o está por vencer, se renueva.
+  if (token && !isExpiringSoon(tokenExpiresAt)) {
     return NextResponse.next();
   }
 
-  if (!isExpiringSoon(tokenExpiresAt)) {
-    return NextResponse.next();
-  }
+  const userId = resolveSessionUserId(token, sessionUserId);
 
-  const decoded = decodeJwtPayloadUnsafe(token);
-  const userId = decoded?.[NAMEIDENTIFIER_CLAIM];
-
-  if (typeof userId !== 'string') {
-    return NextResponse.next();
+  if (!userId) {
+    // Sesión de antes de existir la cookie sessionUserId y con el access token
+    // ya vencido: no hay forma de renovar, hay que volver a iniciar sesión.
+    return endSession(request);
   }
 
   try {
@@ -97,6 +96,7 @@ export async function proxy(request: NextRequest) {
       `token=${refreshed.token}`,
       `tokenExpiresAt=${refreshed.tokenExpiresAt}`,
       `refreshToken=${refreshed.refreshToken}`,
+      `${SESSION_USER_ID_COOKIE}=${userId}`,
       ...(refreshed.refreshTokenExpiresAt
         ? [`refreshTokenExpiresAt=${refreshed.refreshTokenExpiresAt}`]
         : []),
@@ -115,6 +115,11 @@ export async function proxy(request: NextRequest) {
     response.cookies.set(
       'refreshToken',
       refreshed.refreshToken,
+      buildAuthCookieAttributes(refreshed.refreshTokenExpiresAt),
+    );
+    response.cookies.set(
+      SESSION_USER_ID_COOKIE,
+      userId,
       buildAuthCookieAttributes(refreshed.refreshTokenExpiresAt),
     );
     if (refreshed.refreshTokenExpiresAt) {

@@ -4,6 +4,7 @@ import { ArrowUpFromLine, FileText, ReceiptText, Wallet } from 'lucide-react';
 import NuevaSalidaModal from './nueva-salida-modal';
 import SalidasTableModal from './salidas-table-modal';
 import { getCashManagementOutflows } from '@/app/services/cash-management';
+import { formatCashAmount, toCashCurrency } from '@/app/domain/cash/currency';
 
 type SearchParams = {
   Page?: string | string[];
@@ -34,13 +35,6 @@ const buildPageHref = (pageNumber: number, perPage: number) => {
 
   const query = params.toString();
   return query ? `?${query}` : '?';
-};
-
-const formatAmount = (value: number) => {
-  return new Intl.NumberFormat('es-NI', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 };
 
 export default async function SalidasCaja({
@@ -81,7 +75,19 @@ export default async function SalidasCaja({
     };
   }
 
-  const totalOutflow = response.records.reduce((sum, record) => sum + record.total, 0);
+  // Totales por moneda: no se suman córdobas con dólares.
+  const totalsByCurrency = new Map<string, number>();
+  response.records.forEach((record) => {
+    const currency = toCashCurrency(record.currency);
+    totalsByCurrency.set(currency, (totalsByCurrency.get(currency) ?? 0) + (Number(record.total) || 0));
+  });
+  const totalOutflowLabel =
+    totalsByCurrency.size === 0
+      ? formatCashAmount(0, 'NIO')
+      : Array.from(totalsByCurrency.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([currency, total]) => formatCashAmount(total, currency))
+          .join(' · ');
   const creditNoteLinked = response.records.filter((record) => record.creditNoteId !== null).length;
 
   return (
@@ -103,7 +109,7 @@ export default async function SalidasCaja({
 
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
               <StatCard label="Registros" value={response.paging.totalRecords} icon={<Wallet className="size-4" />} />
-              <StatCard label="Total salidas" value={formatAmount(totalOutflow)} icon={<ReceiptText className="size-4" />} />
+              <StatCard label="Total salidas" value={totalOutflowLabel} icon={<ReceiptText className="size-4" />} />
               <StatCard label="Con nota crédito" value={creditNoteLinked} icon={<FileText className="size-4" />} />
               <StatCard label="Página" value={response.paging.currentPage} icon={<ArrowUpFromLine className="size-4" />} />
             </div>

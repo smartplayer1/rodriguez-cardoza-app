@@ -357,13 +357,16 @@ export default function ClientesClient({ initialClientes, branches }: Props) {
                           <History size={18} />
                         </button>
 
-                        <button
-                          className="p-2 rounded-lg hover:bg-amber-100 text-amber-600"
-                          onClick={() => handleOpenRewards(cliente)}
-                          title="Ver premios"
-                        >
-                          <Award size={18} />
-                        </button>
+                        {/* Los premios del cliente (progreso, premios, cupones) exigen Reward.Ledger.View. */}
+                        {mounted && can(PERMISSIONS.LEDGER_VIEW) && (
+                          <button
+                            className="p-2 rounded-lg hover:bg-amber-100 text-amber-600"
+                            onClick={() => handleOpenRewards(cliente)}
+                            title="Ver premios"
+                          >
+                            <Award size={18} />
+                          </button>
+                        )}
 
                         {mounted && can(PERMISSIONS.CLIENT_EDIT) && (
                           <button

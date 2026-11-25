@@ -13,7 +13,13 @@ const buildQueryString = (filters: InvoiceGetFilters) => {
   const params = new URLSearchParams();
 
   if (filters.document?.trim()) params.set("document", filters.document.trim());
-  if (filters.chargeStatus?.trim()) params.set("chargeStatus", filters.chargeStatus.trim());
+  // La pantalla filtra por tipo de pago "Crédito" / "Contado". En el backend una factura de
+  // crédito puede estar CREDITO, Pendiente, Parcial o Pagada (cambia al cobrarse), así que se
+  // traduce a isCredit en vez de buscar el texto (que además lleva tilde y no coincidía).
+  const paymentType = filters.chargeStatus?.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (paymentType === "credito") params.set("isCredit", "true");
+  else if (paymentType === "contado") params.set("isCredit", "false");
+  else if (filters.chargeStatus?.trim()) params.set("chargeStatus", filters.chargeStatus.trim());
   if (filters.clientCode?.trim()) params.set("clientCode", filters.clientCode.trim());
   if (filters.branchCode?.trim()) params.set("branchCode", filters.branchCode.trim());
   if (filters.issuedAt?.trim()) params.set("issuedAt", filters.issuedAt.trim());

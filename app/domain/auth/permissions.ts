@@ -49,9 +49,11 @@ export const PERMISSIONS = {
   ACCOUNT_BANK_EDIT: 'Company.AccountBank.Edit',
   ACCOUNT_BANK_DELETE: 'Company.AccountBank.Delete',
 
-  // NOTA: string provisional, no confirmado contra GET /v1/identity/modules todavia.
-  BRANCH_EMPLOYEE_ACCESS_VIEW: 'Company.BranchEmployeeAccess.View',
-  BRANCH_EMPLOYEE_ACCESS_EDIT: 'Company.BranchEmployeeAccess.Edit',
+  // El backend no tiene un permiso propio para el acceso de empleados a sucursales:
+  // GET /identity/branches/employees-access y /identity/user/{id}/branches exigen
+  // Identity.User.View, y PUT /identity/user/{id}/branches exige Identity.User.Edit.
+  BRANCH_EMPLOYEE_ACCESS_VIEW: 'Identity.User.View',
+  BRANCH_EMPLOYEE_ACCESS_EDIT: 'Identity.User.Edit',
 
   // Módulo: Employee
   EMPLOYEE_VIEW: 'Employee.Employee.View',
@@ -71,6 +73,8 @@ export const PERMISSIONS = {
   ARTICLE_EDIT: 'Article.Article.Edit',
   ARTICLE_DELETE: 'Article.Article.Delete',
   ARTICLE_PRICE_CATEGORY_VIEW: 'Article.PriceCategory.View',
+  ARTICLE_PRICE_CATEGORY_CREATE: 'Article.PriceCategory.Create',
+  ARTICLE_PRICE_CATEGORY_EDIT: 'Article.PriceCategory.Edit',
 
   // Módulo: Invoice
   INVOICE_VIEW: 'Invoice.Invoice.View',
@@ -103,6 +107,16 @@ export const PERMISSIONS = {
   CASH_OUTFLOW_VIEW: 'Billing.CashOutflow.View',
   CASH_OUTFLOW_CREATE: 'Billing.CashOutflow.Create',
   CASH_OUTFLOW_VOID: 'Billing.CashOutflow.Void',
+  CASH_OUTFLOW_EDIT: 'Billing.CashOutflow.Edit',
+  CASH_OUTFLOW_DELETE: 'Billing.CashOutflow.Delete',
+
+  CASH_INFLOW_VIEW: 'Billing.CashInflow.View',
+  CASH_INFLOW_CREATE: 'Billing.CashInflow.Create',
+  CASH_INFLOW_VOID: 'Billing.CashInflow.Void',
+  CASH_INFLOW_EDIT: 'Billing.CashInflow.Edit',
+  CASH_INFLOW_DELETE: 'Billing.CashInflow.Delete',
+
+  CASH_LEDGER_VIEW: 'Billing.CashLedger.View',
 
   COLLECTION_VIEW: 'Billing.Collection.View',
   COLLECTION_CREATE: 'Billing.Collection.Create',
@@ -111,9 +125,13 @@ export const PERMISSIONS = {
   BANK_TRANSFER_VIEW: 'Billing.BankTransfer.View',
   BANK_TRANSFER_CREATE: 'Billing.BankTransfer.Create',
   BANK_TRANSFER_EDIT: 'Billing.BankTransfer.Edit',
+  BANK_TRANSFER_APPLY: 'Billing.BankTransfer.Apply',
+  BANK_TRANSFER_VOID_APPLICATION: 'Billing.BankTransfer.VoidApplication',
 
   EXCHANGE_RATE_VIEW: 'Billing.ExchangeRate.View',
   EXCHANGE_RATE_CREATE: 'Billing.ExchangeRate.Create',
+  EXCHANGE_RATE_EDIT: 'Billing.ExchangeRate.Edit',
+  EXCHANGE_RATE_DELETE: 'Billing.ExchangeRate.Delete',
 
   CREDIT_NOTE_VIEW: 'Billing.CreditNote.View',
   CREDIT_NOTE_CREATE: 'Billing.CreditNote.Create',

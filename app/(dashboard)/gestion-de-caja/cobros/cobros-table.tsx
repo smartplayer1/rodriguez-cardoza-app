@@ -1,8 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Ban, Eye, X } from "lucide-react";
+import { toast } from "sonner";
 import type { CollectionRecord } from "@/app/type/collection";
+import { voidCollection } from "@/app/services/billing/collection";
+import { useUserStore } from "@/app/store/useUserStore";
+import { PERMISSIONS } from "@/app/domain/auth/permissions";
+
+const isActiveCollection = (record: CollectionRecord) =>
+  record.header.status.toLowerCase().startsWith("activ");
 
 type Props = {
   records: CollectionRecord[];
@@ -58,6 +66,46 @@ export default function CobrosTable({ records }: Props) {
   const [selectedRecord, setSelectedRecord] = useState<CollectionRecord | null>(
     null,
   );
+  const [voidingId, setVoidingId] = useState<number | null>(null);
+  const router = useRouter();
+  const { can } = useUserStore();
+  const canVoid = can(PERMISSIONS.COLLECTION_VOID);
+
+  // Anular revierte el efectivo del cobro en la caja y devuelve el saldo a las facturas.
+  // El backend lo rechaza si la gestión de caja del cobro ya está cerrada.
+  const handleVoid = async (record: CollectionRecord) => {
+    if (voidingId) return;
+    const confirmed = window.confirm(
+      `¿Anular el cobro ${record.header.number}? Se revierte su efectivo en la caja y ` +
+        "las facturas vuelven a quedar con saldo pendiente. Esta acción no se puede deshacer.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setVoidingId(record.header.id);
+      const updated = await voidCollection(record.header.id);
+      toast.success(`Cobro ${record.header.number} anulado`);
+      if (selectedRecord?.header.id === record.header.id) setSelectedRecord(updated);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo anular el cobro");
+    } finally {
+      setVoidingId(null);
+    }
+  };
+
+  const voidButton = (record: CollectionRecord) =>
+    canVoid && isActiveCollection(record) ? (
+      <button
+        type="button"
+        onClick={() => void handleVoid(record)}
+        disabled={voidingId === record.header.id}
+        className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-2 text-xs text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-50"
+      >
+        <Ban className="size-4" />
+        {voidingId === record.header.id ? "Anulando..." : "Anular"}
+      </button>
+    ) : null;
 
   return (
     <>
@@ -130,14 +178,17 @@ export default function CobrosTable({ records }: Props) {
                       {formatAmount(record.summary.total)}
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRecord(record)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs text-foreground transition-colors hover:bg-accent"
-                      >
-                        <Eye className="size-4" />
-                        Ver detalle
-                      </button>
+                      <div className="inline-flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRecord(record)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs text-foreground transition-colors hover:bg-accent"
+                        >
+                          <Eye className="size-4" />
+                          Ver detalle
+                        </button>
+                        {voidButton(record)}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -170,14 +221,17 @@ export default function CobrosTable({ records }: Props) {
                   {selectedRecord.header.cashRegisterName}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedRecord(null)}
-                className="rounded-xl border border-border p-2 text-muted-foreground transition-colors hover:bg-accent"
-                aria-label="Cerrar modal"
-              >
-                <X className="size-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {voidButton(selectedRecord)}
+                <button
+                  type="button"
+                  onClick={() => setSelectedRecord(null)}
+                  className="rounded-xl border border-border p-2 text-muted-foreground transition-colors hover:bg-accent"
+                  aria-label="Cerrar modal"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
             </div>
 
             <div className="max-h-[calc(92vh-80px)] space-y-5 overflow-y-auto p-5">

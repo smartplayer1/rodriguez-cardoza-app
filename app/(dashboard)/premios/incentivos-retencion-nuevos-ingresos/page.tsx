@@ -29,11 +29,16 @@ import {
 import { CardsSkeleton } from "@/components/ui/loading-skeleton";
 import { useUserStore } from "@/app/store/useUserStore";
 import { PERMISSIONS } from "@/app/domain/auth/permissions";
+import IncentivosGeneradosView from "../incentivos-retencion/incentivos-generados/incentivos-generados-view";
 
 export default function IncentivosRetencion() {
   const [activeView, setActiveView] = useState<
     "reglas" | "incentivos-generados"
   >("reglas");
+  const { can } = useUserStore();
+  // Los incentivos generados (GET /reward/progress) exigen Reward.Ledger.View. can() devuelve
+  // false hasta que el store se hidrata, así que el primer render coincide con el del servidor.
+  const canViewGenerated = can(PERMISSIONS.LEDGER_VIEW);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -69,6 +74,7 @@ export default function IncentivosRetencion() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
+            {canViewGenerated && (
             <button
               onClick={() => setActiveView("incentivos-generados")}
               className={`flex items-center gap-2 px-6 py-4 transition-colors relative ${
@@ -83,11 +89,16 @@ export default function IncentivosRetencion() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
+            )}
           </div>
         </div>
 
         {/* Content */}
-        {activeView === "reglas" ? <ReglasIncentivos /> : <ReglasIncentivos />}
+        {activeView === "reglas" ? (
+          <ReglasIncentivos />
+        ) : (
+          <IncentivosGeneradosView defaultRuleType="ProductVolume" />
+        )}
       </div>
     </div>
   );
@@ -202,7 +213,8 @@ function ReglasIncentivos() {
         setReglas(reglas.filter((r) => r.id !== id));
         await fetchReglas();
       } catch (error) {
-        console.error("Error deleting regla:", error);
+        // Ej. la regla ya generó premios: el backend pide desactivarla en vez de eliminarla.
+        alert(error instanceof Error ? error.message : "No se pudo eliminar la regla de incentivo");
       }
     }
   };
@@ -346,7 +358,7 @@ function ReglasIncentivos() {
                           Monto Mínimo Requerido:
                         </span>
                         <span className="text-foreground font-semibold">
-                          {viewingRegla.currency || "$"}{" "}
+                          {viewingRegla.currency || "C$"}{" "}
                           {viewingRegla.amountCondition.toFixed(2)}
                         </span>
                       </div>

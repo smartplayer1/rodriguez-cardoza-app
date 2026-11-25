@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, Save, X, ChevronDown } from 'lucide-react';
-import { Article, ArticleRecord } from '@/app/type/article';
+import { ArticleRecord } from '@/app/type/article';
 
 interface Props {
   isOpen: boolean;
@@ -23,20 +23,28 @@ export function CrearArticulo({ isOpen, onClose, article, onSave }: Props) {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<ArticleRecord>({
     id: 0,
     name: '',
     description: '',
     category: '',
-    code: ''
+    code: '',
+    articleClass: '',
+    // Un artículo nuevo se crea activo.
+    isActive: true,
   });
 
   // Cargar datos cuando se abre el modal o cuando cambia el artículo
   useEffect(() => {
     if (isOpen) {
       if (article) {
-        setFormData(article);
+        setFormData({
+          ...article,
+          articleClass: article.articleClass ?? '',
+          isActive: article.isActive ?? true,
+        });
       } else {
         resetForm();
       }
@@ -53,9 +61,12 @@ export function CrearArticulo({ isOpen, onClose, article, onSave }: Props) {
       name: '',
       description: '',
       category: '',
-      code: ''
+      code: '',
+      articleClass: '',
+      isActive: true,
     });
     setErrors({});
+    setSaveError(null);
     setShowCategoryDropdown(false);
   };
 
@@ -83,13 +94,15 @@ export function CrearArticulo({ isOpen, onClose, article, onSave }: Props) {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+    setSaveError(null);
     try {
       // El padre maneja la lógica de guardado/actualización
-      onSave(formData);
+      await onSave(formData);
       resetForm();
       onClose();
     } catch (error) {
-      console.error('Error al guardar:', error);
+      // Mensaje del backend (`detail`): se queda abierto para corregir.
+      setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el artículo');
     } finally {
       setIsSubmitting(false);
     }
@@ -227,6 +240,48 @@ export function CrearArticulo({ isOpen, onClose, article, onSave }: Props) {
                 </div>
               </div>
 
+              {/* Clase + Estado */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Clase (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.articleClass ?? ''}
+                    onChange={(e) => setFormData({ ...formData, articleClass: e.target.value })}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg transition-all focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    placeholder="Ej: A"
+                  />
+                </div>
+
+                <div>
+                  <span className="block text-sm font-semibold text-gray-700 mb-2">Estado</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.isActive}
+                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                    className="flex items-center gap-3 py-2"
+                  >
+                    <span
+                      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${
+                        formData.isActive ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                          formData.isActive ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </span>
+                    <span className={`text-sm font-medium ${formData.isActive ? 'text-green-700' : 'text-gray-600'}`}>
+                      {formData.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
               {/* Descripción */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -245,6 +300,12 @@ export function CrearArticulo({ isOpen, onClose, article, onSave }: Props) {
                 />
                 {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
               </div>
+
+              {saveError && (
+                <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {saveError}
+                </div>
+              )}
             </div>
           </div>
 

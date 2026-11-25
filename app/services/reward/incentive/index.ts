@@ -85,6 +85,7 @@ export const deleteRewardIncentiveRule = async (incentiveId: number, context?: S
   });
 
   if (!response.ok) {
-    throw new Error('Failed to delete reward incentive rule');
+    const errorBody = (await response.json().catch(() => null)) as { message?: string; detail?: string } | null;
+    throw new Error(errorBody?.message || errorBody?.detail || 'No se pudo eliminar la regla de incentivo');
   }
 };

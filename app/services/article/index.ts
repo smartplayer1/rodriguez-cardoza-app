@@ -26,6 +26,10 @@ export type GetArticleFilters = {
     year?: number;
     month?: number;
     hasPrice?: boolean;
+    /** true = activos, false = inactivos, sin enviar = todos. */
+    isActive?: boolean;
+    /** Coincidencia parcial. */
+    articleClass?: string;
     includeImages?: boolean;
     page?: number;
     perPage?: number;
@@ -48,6 +52,8 @@ const buildQueryString = (filters?: GetArticleFilters) => {
     if (typeof filters.year === 'number') params.set('year', String(filters.year));
     if (typeof filters.month === 'number') params.set('month', String(filters.month));
     if (typeof filters.hasPrice === 'boolean') params.set('hasPrice', String(filters.hasPrice));
+    if (typeof filters.isActive === 'boolean') params.set('isActive', String(filters.isActive));
+    if (filters.articleClass?.trim()) params.set('articleClass', filters.articleClass.trim());
     if (typeof filters.includeImages === 'boolean') params.set('includeImages', String(filters.includeImages));
     if (typeof filters.page === 'number' && filters.page > 0) params.set('Page', String(filters.page));
     if (typeof filters.perPage === 'number' && filters.perPage > 0) params.set('PerPage', String(filters.perPage));
@@ -168,7 +174,8 @@ export const updateArticle = async (articleData: UpdateArticle, context?: Servic
     });
 
     if (!res.ok) {
-        throw new Error('Failed to update article');
+        const errorBody = await res.json().catch(() => null);
+        throw new Error(errorBody?.detail || errorBody?.title || errorBody?.message || 'No se pudo actualizar el artículo');
     }
 
     return res.json();

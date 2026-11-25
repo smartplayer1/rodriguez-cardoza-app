@@ -42,12 +42,20 @@ export async function POST(req: Request) {
             },
             body: JSON.stringify(body)
         });
-        const response = await res.json()
+        const response = await res.json().catch(() => null)
         if (!res.ok) {
-            return NextResponse.json({message: 'Error al crear el articulo, ' + response.detail},{status: res.status})
+            // Se reenvía el ProblemDetails (detail/title) para que la pantalla lo muestre.
+            return NextResponse.json(
+                {
+                    ...(response && typeof response === 'object' ? response : {}),
+                    message: response?.detail || response?.title || 'Error al crear el artículo',
+                },
+                { status: res.status },
+            )
         }
-      
-        return NextResponse.json(response);
+
+        // 201 = creado; 200 = el código ya existía (actualizado o sin cambios).
+        return NextResponse.json(response, { status: res.status });
     } catch (error) {
         console.error('Error creating article:', error);
         return NextResponse.json({error: 'Failed to create article'}, {status: 500});
@@ -60,7 +68,6 @@ export async function PUT(req: Request) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
     const body = await req.json();
-    console.log(body)
     try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/article/${body.id}`, {
             method: 'PUT',
@@ -72,9 +79,16 @@ export async function PUT(req: Request) {
         });
 
         if (!res.ok) {
-            throw new Error('Failed to update article');
+            const errorBody = await res.json().catch(() => null);
+            return NextResponse.json(
+                {
+                    ...(errorBody && typeof errorBody === 'object' ? errorBody : {}),
+                    message: errorBody?.detail || errorBody?.title || 'Error al actualizar el artículo',
+                },
+                { status: res.status },
+            );
         }
-        const article = await res.json();
+        const article = await res.json().catch(() => null);
         return NextResponse.json(article);
     } catch (error) {
         console.error('Error updating article:', error);

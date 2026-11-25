@@ -141,7 +141,8 @@ function ReglasIncentivos() {
         setReglas(reglas.filter((r) => r.id !== id));
         await fetchReglas();
       } catch (error) {
-        console.error("Error deleting regla:", error);
+        // Ej. la regla ya generó premios: el backend pide desactivarla en vez de eliminarla.
+        alert(error instanceof Error ? error.message : "No se pudo eliminar la regla de incentivo");
       }
     }
   };
@@ -285,7 +286,7 @@ function ReglasIncentivos() {
                           Monto Mínimo Requerido:
                         </span>
                         <span className="text-foreground font-semibold">
-                          {viewingRegla.currency || "$"}{" "}
+                          {viewingRegla.currency || "C$"}{" "}
                           {viewingRegla.amountCondition.toFixed(2)}
                         </span>
                       </div>

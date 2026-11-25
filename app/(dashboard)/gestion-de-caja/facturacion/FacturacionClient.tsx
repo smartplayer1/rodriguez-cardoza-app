@@ -12,12 +12,14 @@ import {
   Edit,
   Upload,
   Link2,
+  Ban,
 } from "lucide-react";
+import { toast } from "sonner";
 import VerDetalle from "./modals/VerDetalle";
 import ImportarFactura from "./modals/ImportarFactura";
 import EditarFactura from "./modals/EditarFactura";
 import RelacionarTransferenciaModal from "./modals/RelacionarTransferencia";
-import { getInvoices, updateInvoice } from "@/app/services/invoice";
+import { getInvoices, updateInvoice, voidInvoice } from "@/app/services/invoice";
 import { TableSkeleton } from "@/components/ui/loading-skeleton";
 import {
   InvoicePaging,
@@ -47,6 +49,7 @@ interface Factura {
   cajaNombre: string;
   asesorId: string;
   asesorNombre: string;
+  clientCode: string;
   clientName: string;
   asesorTipo: "promotor" | "empleado";
   fecha: string;
@@ -60,6 +63,9 @@ interface Factura {
   total: number;
   createdAt: string;
   bonificacionesAplicadas?: string[];
+  isVoided: boolean;
+  // null = factura histórica: no se anula por el flujo normal.
+  cashManagementId: number | null;
 }
 
 type InitialFilters = {
@@ -110,14 +116,12 @@ const getPageWindow = (current: number, total: number): (number | "ellipsis")[] 
   return result;
 };
 
+// En el backend solo las ventas de contado tienen "CONTADO"; una de crédito empieza en
+// "CREDITO" y pasa a Pendiente / Parcial / Pagada al recibir cobros, transferencias o notas.
 const mapChargeStatusToTipoPago = (
   chargeStatus: string,
-): "Contado" | "Crédito" => {
-  const normalized = (chargeStatus || "").toLowerCase();
-  return normalized.includes("credit") || normalized.includes("cr")
-    ? "Crédito"
-    : "Contado";
-};
+): "Contado" | "Crédito" =>
+  (chargeStatus || "").trim().toUpperCase() === "CONTADO" ? "Contado" : "Crédito";
 
 const formatDate = (isoDate: string) => {
   if (!isoDate) return "";
@@ -126,7 +130,7 @@ const formatDate = (isoDate: string) => {
   return date.toISOString().slice(0, 10);
 };
 
-const mapInvoiceToFactura = (invoice: ServerInvoiceResponse): Factura => {
+const mapInvoiceToFactura =(invoice: ServerInvoiceResponse): Factura => {
   const subtotal = Number(invoice.header.grossTotal || 0);
   const iva = Number(
     (invoice.header.tax1Total || 0) + (invoice.header.tax2Total || 0),
@@ -138,10 +142,12 @@ const mapInvoiceToFactura = (invoice: ServerInvoiceResponse): Factura => {
     numeroFactura: invoice.header.document,
     cajaId: String(invoice.header.warehouse),
     cajaNombre: invoice.header.branchCode || "Sin sucursal",
-    asesorId: invoice.header.promoterCode || "N/A",
-    asesorNombre: invoice.header.promoterName || "Sin asesor",
+    // header.client* = cliente/asesor que compra; header.promoter* = su promotor.
+    asesorId: invoice.header.promoterCode || "",
+    asesorNombre: invoice.header.promoterName || "",
     asesorTipo: "promotor",
-    clientName: invoice.header.clientName || "Sin cliente",
+    clientCode: invoice.header.clientCode || "",
+    clientName: invoice.header.clientName || "",
     fecha: formatDate(invoice.header.issuedAt),
     usuarioGenero: invoice.header.cashier || "N/A",
     moneda: "NIO (Córdoba)",
@@ -159,6 +165,8 @@ const mapInvoiceToFactura = (invoice: ServerInvoiceResponse): Factura => {
     iva,
     total,
     createdAt: invoice.header.issuedAt,
+    isVoided: Boolean(invoice.header.isVoided),
+    cashManagementId: invoice.header.cashManagementId ?? null,
   };
 };
 
@@ -280,6 +288,31 @@ export default function FacturacionClient({
 
     return () => clearTimeout(timer);
   }, [loadFacturas]);
+
+  const [voidingId, setVoidingId] = useState<string | null>(null);
+
+  // El backend rechaza si la factura tiene cobros activos (se anulan primero en Cobros) o si
+  // su gestión de caja está cerrada; las transferencias y notas de crédito aplicadas se liberan.
+  const handleVoid = async (factura: Factura) => {
+    if (voidingId) return;
+    const confirmed = window.confirm(
+      `¿Anular la factura ${factura.numeroFactura}? Si tiene transferencias o notas de crédito ` +
+        "aplicadas, su saldo se libera. Si tiene cobros activos, primero debe anularlos. " +
+        "Esta acción no se puede deshacer.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setVoidingId(factura.id);
+      await voidInvoice(Number(factura.id));
+      toast.success(`Factura ${factura.numeroFactura} anulada`);
+      await loadFacturas();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo anular la factura");
+    } finally {
+      setVoidingId(null);
+    }
+  };
 
   const handleViewDetail = (factura: Factura) => {
     setEditingFactura(factura);
@@ -530,7 +563,7 @@ export default function FacturacionClient({
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/30">
                   <tr>
-                    {["N° Factura", "Caja", "Fecha", "Asesor", "Tipo de Pago", "Tipo de Venta", "Subtotal", "IVA", "Total", "Usuario", "Acciones"].map(
+                    {["N° Factura", "Caja", "Fecha", "Cliente", "Tipo de Pago", "Tipo de Venta", "Subtotal", "IVA", "Total", "Usuario", "Acciones"].map(
                       (label) => (
                         <th key={label} className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           {label}
@@ -552,7 +585,7 @@ export default function FacturacionClient({
                     <SortableHeader label="N° Factura" column="numeroFactura" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                     <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Caja</th>
                     <SortableHeader label="Fecha" column="fecha" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                    <th className="hidden px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground lg:table-cell">Asesor</th>
+                    <th className="hidden px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground lg:table-cell">Cliente</th>
                     <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Tipo de Pago</th>
                     <th className="hidden px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground xl:table-cell">Tipo de Venta</th>
                     <th className="hidden px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground md:table-cell">Subtotal</th>
@@ -564,13 +597,22 @@ export default function FacturacionClient({
                 </thead>
                 <tbody className="divide-y divide-border/40">
                   {sortedFacturas.map((factura) => (
-                    <tr key={factura.id} className="transition-colors hover:bg-muted/15">
-                      <td className="px-4 py-3 font-medium text-foreground">{factura.numeroFactura}</td>
+                    <tr
+                      key={factura.id}
+                      className={`transition-colors hover:bg-muted/15 ${factura.isVoided ? "opacity-60" : ""}`}
+                    >
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        {factura.numeroFactura}
+                        {factura.isVoided ? (
+                          <span className="ml-2 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">
+                            Anulada
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">{factura.cajaNombre}</td>
                       <td className="px-4 py-3 text-muted-foreground">{factura.fecha}</td>
                       <td className="hidden px-4 py-3 lg:table-cell">
-                        <div className="text-foreground">{factura.asesorNombre}</div>
-                        <div className="text-xs capitalize text-muted-foreground">({factura.asesorTipo})</div>
+                        <div className="text-foreground">{factura.clientName || "Sin cliente"}</div>
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -590,7 +632,7 @@ export default function FacturacionClient({
                       <td className="hidden px-4 py-3 text-muted-foreground xl:table-cell">{factura.usuarioGenero}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
-                          {mounted && can(PERMISSIONS.INVOICE_EDIT) && (
+                          {!factura.isVoided && mounted && can(PERMISSIONS.INVOICE_EDIT) && (
                             <RowActionButton title="Editar factura" onClick={() => handleEdit(factura)}>
                               <Edit size={15} />
                             </RowActionButton>
@@ -598,14 +640,26 @@ export default function FacturacionClient({
                           <RowActionButton title="Ver detalle" onClick={() => handleViewDetail(factura)}>
                             <Eye size={15} />
                           </RowActionButton>
-                          {factura.tipoPago === "Crédito" && mounted && can(PERMISSIONS.COLLECTION_CREATE) && (
+                          {!factura.isVoided && factura.tipoPago === "Crédito" && mounted && can(PERMISSIONS.COLLECTION_CREATE) && (
                             <RowActionButton title="Generar cobro" onClick={() => handleGenerarCobro(factura.id)}>
                               <CreditCard size={15} />
                             </RowActionButton>
                           )}
-                          {mounted && can(PERMISSIONS.BANK_TRANSFER_CREATE) && (
+                          {!factura.isVoided &&
+                            factura.cashManagementId !== null &&
+                            mounted &&
+                            can(PERMISSIONS.INVOICE_VOID) && (
+                              <RowActionButton
+                                title={voidingId === factura.id ? "Anulando..." : "Anular factura"}
+                                onClick={() => void handleVoid(factura)}
+                                tone="danger"
+                              >
+                                <Ban size={15} />
+                              </RowActionButton>
+                            )}
+                          {!factura.isVoided && mounted && can(PERMISSIONS.BANK_TRANSFER_APPLY) && (
                             <RowActionButton
-                              title="Relacionar transferencia"
+                              title="Aplicar transferencia"
                               onClick={() =>
                                 setLinkingInvoice({ id: Number(factura.id), document: factura.numeroFactura })
                               }
@@ -715,7 +769,8 @@ export default function FacturacionClient({
           invoiceDocument={linkingInvoice?.document ?? ""}
           onClose={() => setLinkingInvoice(null)}
           onLinked={() => {
-            alert("Transferencia relacionada correctamente");
+            // Recarga la lista para reflejar el nuevo saldo/estado de la factura.
+            void loadFacturas();
           }}
         />
       </div>
@@ -727,10 +782,12 @@ function RowActionButton({
   title,
   onClick,
   children,
+  tone = "default",
 }: {
   title: string;
   onClick: () => void;
   children: React.ReactNode;
+  tone?: "default" | "danger";
 }) {
   return (
     <button
@@ -738,7 +795,11 @@ function RowActionButton({
       onClick={onClick}
       title={title}
       aria-label={title}
-      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      className={
+        tone === "danger"
+          ? "rounded-lg p-2 text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700"
+          : "rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      }
     >
       {children}
     </button>

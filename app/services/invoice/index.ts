@@ -6,6 +6,7 @@ import {
   ServerInvoiceUpdatePayload,
 } from "@/app/type/invoice";
 import { createJsonHeaders, resolveServiceUrl, ServiceRequestContext } from '@/app/services/http';
+import type { CreditNoteImportPayload } from '@/app/services/billing/credit-note';
 
 type InvoiceGetFiltersWithContext = InvoiceGetFilters & {
   baseUrl?: string;
@@ -83,7 +84,22 @@ export const createInvoicesBatch = async (
   });
 };
 
-export const updateInvoice = async (payload: ServerInvoiceUpdatePayload, context?: ServiceRequestContext) => {
+// POST /v1/invoice/batch/with-credit-notes: facturas y notas de crédito en una
+// sola transacción — si cualquiera falla no se guarda nada (400 con `detail`).
+// Devuelve la Response cruda para que el llamador lea status y body.
+export const createInvoicesWithCreditNotes = async (
+  invoices: ServerInvoicePayload[],
+  creditNotes: CreditNoteImportPayload[],
+  context?: ServiceRequestContext,
+) => {
+  return await fetch(resolveServiceUrl('/api/invoice/batch/with-credit-notes', context), {
+    method: "POST",
+    headers: createJsonHeaders(context?.cookieHeader),
+    body: JSON.stringify({ invoices, creditNotes }),
+  });
+};
+
+export const updateInvoice =async (payload: ServerInvoiceUpdatePayload, context?: ServiceRequestContext) => {
   const response = await fetch(resolveServiceUrl('/api/invoice', context), {
     method: 'PUT',
     headers: createJsonHeaders(context?.cookieHeader),
@@ -96,4 +112,18 @@ export const updateInvoice = async (payload: ServerInvoiceUpdatePayload, context
   }
 
   return response.json();
+};
+
+// Anula una factura (204). El backend rechaza si tiene cobros activos (hay que anularlos
+// antes), si es histórica o si su gestión de caja está cerrada; lanza ese mensaje.
+export const voidInvoice = async (invoiceId: number, context?: ServiceRequestContext): Promise<void> => {
+  const response = await fetch(resolveServiceUrl(`/api/invoice/${invoiceId}/void`, context), {
+    method: 'POST',
+    headers: createJsonHeaders(context?.cookieHeader),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.detail || 'No se pudo anular la factura');
+  }
 };

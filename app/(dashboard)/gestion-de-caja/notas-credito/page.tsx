@@ -1,14 +1,22 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle, ChevronDown, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, Trash2, X } from 'lucide-react';
+import { Ban, CheckCircle, ChevronDown, CreditCard, Eye, FileSpreadsheet, FileText, Filter, Plus, Search, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { MaterialButton } from '@/components/MaterialButton';
 import { MaterialInput } from '@/components/MaterialInput';
 import ImportarFactura from '@/app/(dashboard)/gestion-de-caja/facturacion/modals/ImportarFactura';
 import AplicarNotaCreditoModal from './aplicar-nota-credito-modal';
-import { createCreditNote, getCreditNotes, issueCreditNote } from '@/app/services/billing/credit-note';
+import {
+  createCreditNote,
+  getCreditNoteApplications,
+  getCreditNotes,
+  issueCreditNote,
+  voidCreditNote,
+  voidCreditNoteApplication,
+} from '@/app/services/billing/credit-note';
 import { getCashManagementRecords } from '@/app/services/cash-management';
-import { CreditNoteCreatePayload, CreditNoteRecord } from '@/app/type/credit-note';
+import { CreditNoteApplication, CreditNoteCreatePayload, CreditNoteRecord } from '@/app/type/credit-note';
 import { ListSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
 import { useUserStore } from '@/app/store/useUserStore';
 import { PERMISSIONS } from '@/app/domain/auth/permissions';
@@ -78,6 +86,14 @@ const isDraftStatus = (status: string) => {
   const normalized = status?.toLowerCase();
   return normalized === 'borrador' || normalized === 'draft';
 };
+
+const isVoidedStatus = (status: string) => {
+  const normalized = status?.toLowerCase();
+  return normalized === 'anulada' || normalized === 'cancelled' || normalized === 'voided';
+};
+
+const isActiveApplication = (application: CreditNoteApplication) =>
+  application.status?.toLowerCase().startsWith('activ');
 
 export default function NotasCreditoPage() {
   const { can } = useUserStore();
@@ -284,6 +300,78 @@ export default function NotasCreditoPage() {
     }
   };
 
+  const [voidingId, setVoidingId] = useState<number | null>(null);
+  const [applications, setApplications] = useState<CreditNoteApplication[]>([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [applicationsError, setApplicationsError] = useState<string | null>(null);
+  const [voidingApplicationId, setVoidingApplicationId] = useState<number | null>(null);
+
+  const loadApplications = useCallback(async (creditNoteId: number) => {
+    try {
+      setApplicationsLoading(true);
+      setApplicationsError(null);
+      setApplications(await getCreditNoteApplications(creditNoteId));
+    } catch (error) {
+      setApplications([]);
+      setApplicationsError(error instanceof Error ? error.message : 'No se pudieron cargar las aplicaciones');
+    } finally {
+      setApplicationsLoading(false);
+    }
+  }, []);
+
+  // Un borrador nunca tiene aplicaciones; para el resto se cargan al abrir el detalle.
+  useEffect(() => {
+    if (!viewingRecord || isDraftStatus(viewingRecord.header.status)) {
+      setApplications([]);
+      setApplicationsError(null);
+      return;
+    }
+    void loadApplications(viewingRecord.header.id);
+  }, [viewingRecord, loadApplications]);
+
+  // El backend rechaza si la nota tiene aplicaciones activas o una devolución de caja activa,
+  // o si su gestión de caja está cerrada; ese mensaje se muestra tal cual.
+  const handleVoid = async (record: CreditNoteRecord) => {
+    if (voidingId) return;
+    const confirmed = confirm(
+      `¿Anular la nota de crédito ${record.header.number}? Si tiene aplicaciones a facturas, ` +
+        'primero debe anularlas. Esta acción no se puede deshacer.',
+    );
+    if (!confirmed) return;
+
+    try {
+      setVoidingId(record.header.id);
+      const updated = await voidCreditNote(record.header.id);
+      toast.success(`Nota de crédito ${record.header.number} anulada`);
+      if (viewingRecord?.header.id === record.header.id) setViewingRecord(updated);
+      await loadRecords();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo anular la nota de crédito');
+    } finally {
+      setVoidingId(null);
+    }
+  };
+
+  const handleVoidApplication = async (application: CreditNoteApplication) => {
+    if (voidingApplicationId) return;
+    const confirmed = confirm(
+      `¿Anular la aplicación de C$${Number(application.appliedAmountNio).toFixed(2)} a la factura ` +
+        `${application.targetInvoiceDocument}? El monto vuelve al saldo de la nota y al pendiente de la factura.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setVoidingApplicationId(application.id);
+      await voidCreditNoteApplication(application.id);
+      toast.success('Aplicación anulada');
+      await loadApplications(application.creditNoteId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo anular la aplicación');
+    } finally {
+      setVoidingApplicationId(null);
+    }
+  };
+
   const totalPages = paging.totalPages || 1;
   const hasAnyFilter = !!searchTerm || !!statusFilter;
 
@@ -431,13 +519,23 @@ export default function NotasCreditoPage() {
                               <CheckCircle size={18} />
                             </button>
                           )}
-                          {mounted && can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(record.header.status) && (
+                          {mounted && can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isApplicableStatus(record.header.status) && (
                             <button
                               onClick={() => setApplyingRecord(record)}
                               className="p-2 rounded-lg hover:bg-green-100 text-green-600"
                               title="Aplicar a factura"
                             >
                               <CreditCard size={18} />
+                            </button>
+                          )}
+                          {mounted && can(PERMISSIONS.CREDIT_NOTE_VOID) && !isVoidedStatus(record.header.status) && (
+                            <button
+                              onClick={() => void handleVoid(record)}
+                              disabled={voidingId === record.header.id}
+                              className="p-2 rounded-lg hover:bg-rose-100 text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Anular nota de crédito"
+                            >
+                              <Ban size={18} />
                             </button>
                           )}
                         </div>
@@ -533,10 +631,76 @@ export default function NotasCreditoPage() {
                 </table>
               </div>
 
+              {!isDraftStatus(viewingRecord.header.status) && (
+                <div className="mb-6">
+                  <h4 className="mb-3 text-sm font-medium text-foreground">Aplicaciones a facturas</h4>
+                  {applicationsLoading ? (
+                    <p className="text-sm text-muted-foreground">Cargando aplicaciones...</p>
+                  ) : applicationsError ? (
+                    <p className="text-sm text-rose-600">{applicationsError}</p>
+                  ) : applications.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">La nota no tiene aplicaciones.</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded border border-border">
+                      <table className="w-full min-w-[700px] text-sm">
+                        <thead className="bg-muted border-b border-border">
+                          <tr>
+                            <th className="px-4 py-2 text-left">Factura</th>
+                            <th className="px-4 py-2 text-left">Fecha</th>
+                            <th className="px-4 py-2 text-left">Gestión</th>
+                            <th className="px-4 py-2 text-right">Monto</th>
+                            <th className="px-4 py-2 text-left">Estado</th>
+                            <th className="px-4 py-2 text-right">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {applications.map((application) => (
+                            <tr key={application.id} className={isActiveApplication(application) ? '' : 'opacity-60'}>
+                              <td className="px-4 py-2">{application.targetInvoiceDocument}</td>
+                              <td className="px-4 py-2">{new Date(application.createdAt).toLocaleString()}</td>
+                              <td className="px-4 py-2">#{application.cashManagementId}</td>
+                              <td className="px-4 py-2 text-right">C${Number(application.appliedAmountNio).toFixed(2)}</td>
+                              <td className="px-4 py-2">
+                                {isActiveApplication(application)
+                                  ? 'Activa'
+                                  : `Anulada${application.voidedBy ? ` · ${application.voidedBy}` : ''}`}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {mounted && can(PERMISSIONS.CREDIT_NOTE_VOID) && isActiveApplication(application) && (
+                                  <button
+                                    onClick={() => void handleVoidApplication(application)}
+                                    disabled={voidingApplicationId === application.id}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                                  >
+                                    <Ban size={14} />
+                                    {voidingApplicationId === application.id ? 'Anulando...' : 'Anular'}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-end gap-3">
                 <MaterialButton variant="outlined" color="secondary" onClick={() => setViewingRecord(null)}>
                   Cerrar
                 </MaterialButton>
+                {mounted && can(PERMISSIONS.CREDIT_NOTE_VOID) && !isVoidedStatus(viewingRecord.header.status) && (
+                  <MaterialButton
+                    variant="outlined"
+                    color="secondary"
+                    startIcon={<Ban size={18} />}
+                    disabled={voidingId === viewingRecord.header.id}
+                    onClick={() => void handleVoid(viewingRecord)}
+                  >
+                    Anular nota
+                  </MaterialButton>
+                )}
                 {mounted && can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isDraftStatus(viewingRecord.header.status) && (
                   <MaterialButton
                     variant="contained"
@@ -548,7 +712,7 @@ export default function NotasCreditoPage() {
                     Aprobar
                   </MaterialButton>
                 )}
-                {mounted && can(PERMISSIONS.CREDIT_NOTE_EDIT) && isApplicableStatus(viewingRecord.header.status) && (
+                {mounted && can(PERMISSIONS.CREDIT_NOTE_ISSUE) && isApplicableStatus(viewingRecord.header.status) && (
                   <MaterialButton
                     variant="contained"
                     color="primary"

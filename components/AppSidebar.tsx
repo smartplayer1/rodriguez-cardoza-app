@@ -85,13 +85,13 @@ const menuItems: MenuItemType[] = [
     { id: 'auditoria-cupones', label: 'Auditoría de Cupones', href: '/premios/auditoria-cupones', icon: ShieldAlert, permission: PERMISSIONS.LEDGER_VIEW},
     { id: 'premios-ganados', label: 'Recalcular y Premios Ganados', href: '/premios/premios-ganados', icon: Award, permission: [PERMISSIONS.LEDGER_VIEW, PERMISSIONS.LEDGER_RECALCULATE]}
   ] },
-  { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, permission: [PERMISSIONS.CASH_MANAGEMENT_VIEW, PERMISSIONS.CURRENCY_CONVERSION_VIEW, PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.CASH_REGISTER_VIEW, PERMISSIONS.INVOICE_VIEW, PERMISSIONS.COLLECTION_VIEW, PERMISSIONS.CREDIT_NOTE_VIEW, PERMISSIONS.BANK_TRANSFER_VIEW], options: [
+  { id: 'gestion-caja', label: 'Gestion de Caja', icon: Wallet, permission: [PERMISSIONS.CASH_MANAGEMENT_VIEW, PERMISSIONS.CURRENCY_CONVERSION_VIEW, PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.CASH_INFLOW_VIEW, PERMISSIONS.CASH_LEDGER_VIEW, PERMISSIONS.CASH_REGISTER_VIEW, PERMISSIONS.INVOICE_VIEW, PERMISSIONS.COLLECTION_VIEW, PERMISSIONS.CREDIT_NOTE_VIEW, PERMISSIONS.BANK_TRANSFER_VIEW], options: [
     {id: 'gestiones', label: 'Gestiones', href: '/gestion-de-caja/gestiones', icon: Wallet , permission: PERMISSIONS.CASH_MANAGEMENT_VIEW},
     {id: 'conversiones', label: 'Conversiones', href: '/gestion-de-caja/conversiones', icon: RefreshCcw , permission: PERMISSIONS.CURRENCY_CONVERSION_VIEW},
     {id: 'salidas', label: 'Salidas', href: '/gestion-de-caja/salidas', icon: ArrowUpFromLine , permission: PERMISSIONS.CASH_OUTFLOW_VIEW},
     {id: 'cajas-registradoras', label: 'Cajas Registradoras', href: '/gestion-de-caja/cajas-registradoras', icon: Store , permission: PERMISSIONS.CASH_REGISTER_VIEW},
     {id: 'facturacion', label: 'Facturación', href: '/gestion-de-caja/facturacion', icon: Receipt, permission: PERMISSIONS.INVOICE_VIEW},
-    {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: ArrowLeftRight, permission: [PERMISSIONS.CASH_OUTFLOW_VIEW, PERMISSIONS.COLLECTION_VIEW]},
+    {id: 'ingreso-egreso', label: 'Ingresos y Egresos', href: '/gestion-de-caja/ingreso-egreso', icon: ArrowLeftRight, permission: [PERMISSIONS.CASH_LEDGER_VIEW, PERMISSIONS.CASH_INFLOW_VIEW, PERMISSIONS.CASH_OUTFLOW_VIEW]},
     {id: 'cobros', label: 'Cobros', href: '/gestion-de-caja/cobros', icon: CreditCard, permission: PERMISSIONS.COLLECTION_VIEW},
     {id: 'transferencias', label: 'Transferencias Bancarias', href: '/gestion-de-caja/transferencias', icon: Repeat1, permission: PERMISSIONS.BANK_TRANSFER_VIEW},
     {id: 'conciliacion-bancaria', label: 'Conciliación Bancaria', href: '/gestion-de-caja/conciliacion-bancaria', icon: CheckCheck, permission: PERMISSIONS.BANK_TRANSFER_VIEW},

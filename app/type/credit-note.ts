@@ -41,7 +41,11 @@ export interface CreditNoteHeader {
   invoiceDocument: string | null;
   startDate: string;
   total: number;
+  // Lo ya aplicado a facturas y lo que queda disponible para aplicar.
+  appliedAmountNio: number;
+  availableAmountNio: number;
   status: string;
+  cashManagementId: number | null;
   cashRegisterId: number | null;
   cashRegisterCode: string | null;
   cashRegisterName: string | null;
@@ -87,11 +91,23 @@ export interface CreditNoteApplyPayload {
   observation: string | null;
 }
 
-export interface CreditNoteApplyResult {
-  creditNoteId?: number;
-  targetInvoiceId?: number;
-  cashManagementId?: number;
-  amountAppliedNio?: number;
-  remainingBalanceNio?: number;
-  status?: string;
+// Aplicación de una nota de crédito a una factura (GET /credit-note/{id}/applications).
+export interface CreditNoteApplication {
+  id: number;
+  creditNoteId: number;
+  creditNoteNumber: string;
+  sourceInvoiceId: number;
+  sourceInvoiceDocument: string;
+  targetInvoiceId: number;
+  targetInvoiceDocument: string;
+  cashManagementId: number;
+  appliedAmountNio: number;
+  observation: string | null;
+  status: string; // "Activo" | "Anulado"
+  createdAt: string;
+  voidedAt: string | null;
+  voidedBy: string | null;
 }
+
+// POST /credit-note/{id}/apply y POST /credit-note/application/{id}/void devuelven la aplicación.
+export type CreditNoteApplyResult = CreditNoteApplication;

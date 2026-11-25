@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { proxyToBackend } from '@/app/lib/backend-proxy';
 import { getValidToken } from '@/app/lib/helper';
 
 const readErrorMessage = (body: unknown) => {
@@ -10,6 +11,16 @@ const readErrorMessage = (body: unknown) => {
   const errorBody = body as { detail?: string; message?: string; error?: string };
   return errorBody.detail || errorBody.message || errorBody.error || 'Error al actualizar la transferencia bancaria';
 };
+
+// GET /v1/billing/bank-transfer/{id}: transferencia con saldo y aplicaciones.
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyToBackend({
+    method: 'GET',
+    path: `/v1/billing/bank-transfer/${encodeURIComponent(id)}`,
+    errorMessage: 'Error al obtener la transferencia bancaria',
+  });
+}
 
 // PUT /v1/billing/bank-transfer/{id}: edita los datos de la transferencia.
 // Solo se permite mientras su gestión de caja esté abierta (la pantalla lo

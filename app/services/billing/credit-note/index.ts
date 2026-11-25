@@ -1,4 +1,5 @@
 import {
+  CreditNoteApplication,
   CreditNoteApplyPayload,
   CreditNoteApplyResult,
   CreditNoteCreatePayload,
@@ -142,6 +143,68 @@ export const applyCreditNote = async (
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
     throw new Error(errorData?.message || errorData?.detail || 'Failed to apply credit note');
+  }
+
+  return response.json();
+};
+
+export const getCreditNoteApplications = async (
+  creditNoteId: number,
+  context?: ServiceRequestContext,
+): Promise<CreditNoteApplication[]> => {
+  const response = await fetch(
+    resolveServiceUrl(`/api/billing/credit-note/${creditNoteId}/applications`, context),
+    {
+      method: 'GET',
+      headers: createJsonHeaders(context?.cookieHeader),
+      cache: 'no-store',
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.detail || 'No se pudieron cargar las aplicaciones');
+  }
+
+  return response.json();
+};
+
+// Anula una nota de crédito. El backend rechaza si tiene aplicaciones activas o una
+// devolución de caja activa (hay que anularlas antes), o si su gestión está cerrada.
+export const voidCreditNote = async (
+  creditNoteId: number,
+  context?: ServiceRequestContext,
+): Promise<CreditNoteRecord> => {
+  const response = await fetch(resolveServiceUrl(`/api/billing/credit-note/${creditNoteId}/void`, context), {
+    method: 'POST',
+    headers: createJsonHeaders(context?.cookieHeader),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.detail || 'No se pudo anular la nota de crédito');
+  }
+
+  return response.json();
+};
+
+// Anula la aplicación de una nota de crédito a una factura: el monto vuelve al saldo de la
+// nota y al pendiente de la factura. Solo con la gestión de la aplicación abierta.
+export const voidCreditNoteApplication = async (
+  applicationId: number,
+  context?: ServiceRequestContext,
+): Promise<CreditNoteApplyResult> => {
+  const response = await fetch(
+    resolveServiceUrl(`/api/billing/credit-note/application/${applicationId}/void`, context),
+    {
+      method: 'POST',
+      headers: createJsonHeaders(context?.cookieHeader),
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.detail || 'No se pudo anular la aplicación');
   }
 
   return response.json();

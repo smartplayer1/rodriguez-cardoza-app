@@ -1,5 +1,6 @@
 import { Receipt, X } from "lucide-react";
 import { MaterialButton } from "@/components/MaterialButton";
+import ResumenPagos from "./ResumenPagos";
 
 // Interfaces
 interface FacturaDetalle {
@@ -20,6 +21,8 @@ interface Factura {
   asesorId: string;
   asesorNombre: string;
   asesorTipo: 'promotor' | 'empleado';
+  clientCode?: string;
+  clientName?: string;
   fecha: string;
   usuarioGenero: string;
   moneda: string;
@@ -77,8 +80,16 @@ export default function VerDetalle({editingFactura, isOpen, onClose}: VerDetalle
                     <p className="text-foreground">{editingFactura.cajaNombre}</p>
                     </div>
                     <div>
-                    <span className="text-muted-foreground">Asesor:</span>
-                    <p className="text-foreground">{editingFactura.asesorNombre}</p>
+                    <span className="text-muted-foreground">Cliente:</span>
+                    <p className="text-foreground">
+                      {[editingFactura.clientCode, editingFactura.clientName].filter(Boolean).join(' – ') || 'Sin cliente'}
+                    </p>
+                    </div>
+                    <div>
+                    <span className="text-muted-foreground">Promotor:</span>
+                    <p className="text-foreground">
+                      {[editingFactura.asesorId, editingFactura.asesorNombre].filter(Boolean).join(' – ') || 'Sin promotor'}
+                    </p>
                     </div>
                     <div>
                     <span className="text-muted-foreground">Fecha:</span>
@@ -91,10 +102,6 @@ export default function VerDetalle({editingFactura, isOpen, onClose}: VerDetalle
                     <div>
                     <span className="text-muted-foreground">Moneda:</span>
                     <p className="text-foreground">{editingFactura.moneda}</p>
-                    </div>
-                    <div>
-                    <span className="text-muted-foreground">Tipo Asesor:</span>
-                    <p className="text-foreground capitalize">{editingFactura.asesorTipo}</p>
                     </div>
                     <div>
                     <span className="text-muted-foreground">Tipo de Pago:</span>
@@ -114,6 +121,13 @@ export default function VerDetalle({editingFactura, isOpen, onClose}: VerDetalle
                     </div>
                 </div>
                 </div>
+
+                {/* Pagos: cobros + transferencias aplicadas (paidAmountNio ya incluye ambas) */}
+                <ResumenPagos
+                  key={editingFactura.id}
+                  invoiceId={Number(editingFactura.id)}
+                  document={editingFactura.numeroFactura}
+                />
 
                 {/* Detalles */}
                 <div className="mb-6">

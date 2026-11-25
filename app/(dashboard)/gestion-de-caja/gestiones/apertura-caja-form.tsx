@@ -1,10 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, X } from "lucide-react";
 
 import { createCashManagement } from "@/app/services/cash-management";
+import { getLatestExchangeRate } from "@/app/services/billing/exchange-rate";
+import type { ExchangeRate } from "@/app/type/exchange-rate";
 import { CashManagementCreatePayload } from "@/app/type/cash-management";
 import { useUserStore } from "@/app/store/useUserStore";
 import { PERMISSIONS } from "@/app/domain/auth/permissions";
@@ -44,8 +47,30 @@ export default function AperturaCajaForm({
   const [isOpen, setIsOpen] = useState(false);
   const [cashRegisterId, setCashRegisterId] = useState("");
   const [responsibleEmployeeId, setResponsibleEmployeeId] = useState("");
-  const [exchangeRateNioPerUsd, setExchangeRateNioPerUsd] = useState("36.5");
+  // Tasa vigente registrada (la que el backend aplica a la apertura); null = no hay ninguna.
+  const [latestRate, setLatestRate] = useState<ExchangeRate | null>(null);
+  const [rateLoaded, setRateLoaded] = useState(false);
+  const exchangeRateNioPerUsd = latestRate?.nioPerUsd ?? 0;
   const [observation, setObservation] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setRateLoaded(false);
+    getLatestExchangeRate()
+      .then((rate) => {
+        if (!cancelled) setLatestRate(rate);
+      })
+      .catch(() => {
+        if (!cancelled) setLatestRate(null);
+      })
+      .finally(() => {
+        if (!cancelled) setRateLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
   const [rows, setRows] = useState<DenominationRow[]>([createDefaultRow()]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -58,8 +83,7 @@ export default function AperturaCajaForm({
       const lineTotal = denomination * quantity;
 
       if (row.currency === "USD") {
-        const rate = Number.parseFloat(exchangeRateNioPerUsd) || 0;
-        return sum + lineTotal * rate;
+        return sum + lineTotal * exchangeRateNioPerUsd;
       }
 
       return sum + lineTotal;
@@ -91,7 +115,6 @@ export default function AperturaCajaForm({
   const resetForm = () => {
     setCashRegisterId("");
     setResponsibleEmployeeId("");
-    setExchangeRateNioPerUsd("36.5");
     setObservation("");
     setRows([createDefaultRow()]);
   };
@@ -117,8 +140,6 @@ export default function AperturaCajaForm({
       responsibleEmployeeId,
       10,
     );
-    const parsedExchangeRate = Number.parseFloat(exchangeRateNioPerUsd);
-
     if (!Number.isFinite(parsedCashRegisterId) || parsedCashRegisterId <= 0) {
       setErrorMessage("Debes seleccionar una caja.");
       return;
@@ -132,8 +153,10 @@ export default function AperturaCajaForm({
       return;
     }
 
-    if (!Number.isFinite(parsedExchangeRate) || parsedExchangeRate <= 0) {
-      setErrorMessage("La tasa NIO/USD debe ser mayor a 0.");
+    if (!latestRate) {
+      setErrorMessage(
+        "No hay un tipo de cambio registrado. Regístrelo en Configuración de Moneda antes de abrir caja.",
+      );
       return;
     }
 
@@ -161,7 +184,6 @@ export default function AperturaCajaForm({
     const payload: CashManagementCreatePayload = {
       cashRegisterId: parsedCashRegisterId,
       responsibleEmployeeId: parsedResponsibleEmployeeId,
-      exchangeRateNioPerUsd: parsedExchangeRate,
       observation: observation.trim() ? observation.trim() : null,
       denominations,
     };
@@ -271,18 +293,30 @@ export default function AperturaCajaForm({
 
                   <label className="space-y-2">
                     <span className="text-sm text-muted-foreground">
-                      Tasa NIO/USD
+                      Tasa NIO/USD (vigente)
                     </span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.0001"
-                      value={exchangeRateNioPerUsd}
-                      onChange={(event) =>
-                        setExchangeRateNioPerUsd(event.target.value)
-                      }
-                      className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    {latestRate ? (
+                      <div className="w-full rounded-2xl border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        C$ {latestRate.nioPerUsd.toFixed(4)}
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          desde {latestRate.effectiveDate.slice(8, 10)}/{latestRate.effectiveDate.slice(5, 7)}/
+                          {latestRate.effectiveDate.slice(0, 4)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="w-full rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        {rateLoaded ? (
+                          <>
+                            Sin tipo de cambio.{" "}
+                            <Link href="/configuraciones/moneda" className="underline">
+                              Registrarlo
+                            </Link>
+                          </>
+                        ) : (
+                          "Cargando..."
+                        )}
+                      </div>
+                    )}
                   </label>
 
                   <label className="space-y-2 md:col-span-2 xl:col-span-1">

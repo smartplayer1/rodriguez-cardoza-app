@@ -28,6 +28,8 @@ type InvoiceOption = {
   document: string;
   clientCode: string;
   clientName: string;
+  promoterCode: string;
+  promoterName: string;
   chargeStatus: string;
   isVoided: boolean;
   invoiceAmountNio: number;
@@ -36,6 +38,10 @@ type InvoiceOption = {
   collectionCount: number;
   branchCode: string;
 };
+
+/** "código – nombre", o solo lo que venga; "" si no hay ninguno. */
+const formatCodeName = (code: string, name: string) =>
+  [code.trim(), name.trim()].filter(Boolean).join(" – ");
 
 type CashManagementOption = {
   id: string;
@@ -61,7 +67,9 @@ const mapCreditInvoice = (invoice: CreditInvoiceRecord): InvoiceOption => ({
   invoiceId: invoice.invoiceId,
   document: invoice.document,
   clientCode: invoice.clientCode,
-  clientName: invoice.clientName,
+  clientName: invoice.clientName ?? "",
+  promoterCode: invoice.promoterCode ?? "",
+  promoterName: invoice.promoterName ?? "",
   chargeStatus: invoice.chargeStatus,
   isVoided: invoice.isVoided,
   invoiceAmountNio: invoice.invoiceAmountNio,
@@ -102,6 +110,8 @@ export default function CrearCobroModal() {
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Mensaje del 409 (transferencia duplicada) para mostrarlo bajo su documento.
+  const [duplicateTransferMessage, setDuplicateTransferMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     number: "",
@@ -264,14 +274,18 @@ export default function CrearCobroModal() {
   }, [selectedCashManagementId]);
 
   const filteredInvoices = useMemo(() => {
-    return invoices.filter((invoice) => {
-      const matchesSearch =
-        invoice.document.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.clientCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return invoices;
 
-      return matchesSearch;
-    });
+    return invoices.filter((invoice) =>
+      [
+        invoice.document,
+        invoice.clientCode,
+        invoice.clientName,
+        invoice.promoterCode,
+        invoice.promoterName,
+      ].some((value) => value.toLowerCase().includes(term)),
+    );
   }, [invoices, searchTerm]);
 
   const selectedInvoices = useMemo(
@@ -458,6 +472,7 @@ export default function CrearCobroModal() {
     }
 
     setIsSubmitting(true);
+    setDuplicateTransferMessage(null);
 
     try {
       const failures: string[] = [];
@@ -468,6 +483,9 @@ export default function CrearCobroModal() {
         } catch (error) {
           const reason =
             error instanceof Error ? error.message : "Error al generar cobro";
+          if ((error as { status?: number } | null)?.status === 409) {
+            setDuplicateTransferMessage(reason);
+          }
           failures.push(`${invoice.document}: ${reason}`);
         }
       }
@@ -650,7 +668,7 @@ export default function CrearCobroModal() {
                             setSearchTerm(event.target.value)
                           }
                           className="block w-full rounded-2xl border border-border bg-background py-2 pl-10 pr-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                          placeholder="Documento, codigo o nombre del cliente"
+                          placeholder="Documento, cliente o promotor"
                         />
                       </div>
                     </label>
@@ -765,9 +783,13 @@ export default function CrearCobroModal() {
                                   {invoice.document}
                                 </td>
                                 <td className="px-3 py-2 align-top text-foreground">
-                                  <span className="font-mono text-xs">{invoice.clientCode}</span>
-                                  {invoice.clientName ? (
-                                    <span className="block text-xs text-muted-foreground">{invoice.clientName}</span>
+                                  <span className="text-xs">
+                                    {formatCodeName(invoice.clientCode, invoice.clientName) || "—"}
+                                  </span>
+                                  {formatCodeName(invoice.promoterCode, invoice.promoterName) ? (
+                                    <span className="block text-xs text-muted-foreground">
+                                      Promotor: {formatCodeName(invoice.promoterCode, invoice.promoterName)}
+                                    </span>
                                   ) : null}
                                 </td>
                                 <td className="px-3 py-2 align-top text-muted-foreground">
@@ -895,14 +917,25 @@ export default function CrearCobroModal() {
                             <input
                               type="text"
                               value={row.accountNumber}
-                              onChange={(event) =>
+                              onChange={(event) => {
                                 updateRow(index, {
                                   accountNumber: event.target.value,
-                                })
-                              }
+                                });
+                                setDuplicateTransferMessage(null);
+                              }}
                               className="block w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm"
                               placeholder="Número de referencia o documento de la transferencia"
                             />
+                            {duplicateTransferMessage &&
+                              row.accountNumber.trim() &&
+                              duplicateTransferMessage
+                                .toLowerCase()
+                                .replace(/\s+/g, "")
+                                .includes(row.accountNumber.toLowerCase().replace(/\s+/g, "")) && (
+                                <span className="block text-xs text-red-600">
+                                  {duplicateTransferMessage}
+                                </span>
+                              )}
                           </label>
                           <label className="block space-y-1 min-w-0">
                             <span className="text-xs text-muted-foreground">

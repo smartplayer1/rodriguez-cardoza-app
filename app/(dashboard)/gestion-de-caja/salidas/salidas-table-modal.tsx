@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Eye, X } from "lucide-react";
 import { CashManagementOutflowRecord } from "@/app/type/cash-management";
+import { formatCashAmount } from "@/app/domain/cash/currency";
 
 type Props = {
   records: CashManagementOutflowRecord[];
@@ -23,13 +24,6 @@ const formatDateTime = (value: string | null) => {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
-};
-
-const formatAmount = (value: number) => {
-  return new Intl.NumberFormat("es-NI", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 };
 
 const getStatusClasses = (status: string) => {
@@ -75,13 +69,13 @@ export default function SalidasTableModal({ records }: Props) {
                     <td className="px-4 py-4 text-foreground">{record.number}</td>
                     <td className="px-4 py-4 text-muted-foreground">#{record.cashManagementId}</td>
                     <td className="px-4 py-4 text-muted-foreground">{formatDateTime(record.occurredAt)}</td>
-                    <td className="px-4 py-4 text-foreground">{record.concept}</td>
+                    <td className="px-4 py-4 text-foreground">{record.accountingConceptName || record.concept}</td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getStatusClasses(record.status)}`}>
                         {record.status}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-right text-foreground">{formatAmount(record.total)}</td>
+                    <td className="px-4 py-4 text-right font-mono text-foreground">{formatCashAmount(record.total, record.currency)}</td>
                     <td className="px-4 py-4 text-muted-foreground">{record.creditNoteId ? `#${record.creditNoteId}` : "Sin vinculo"}</td>
                     <td className="px-4 py-4 text-right">
                       <button
@@ -114,7 +108,7 @@ export default function SalidasTableModal({ records }: Props) {
               <div>
                 <h3 className="text-foreground">Detalle de salida #{selectedRecord.number}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Gestion #{selectedRecord.cashManagementId} · {selectedRecord.concept}
+                  Gestion #{selectedRecord.cashManagementId} · {selectedRecord.accountingConceptName || selectedRecord.concept}
                 </p>
               </div>
               <button
@@ -137,7 +131,7 @@ export default function SalidasTableModal({ records }: Props) {
                   label="Anulada"
                   value={selectedRecord.voidedAt ? `${formatDateTime(selectedRecord.voidedAt)} · ${selectedRecord.voidedBy ?? "N/D"}` : "No"}
                 />
-                <DetailCard label="Total" value={formatAmount(selectedRecord.total)} />
+                <DetailCard label="Total" value={formatCashAmount(selectedRecord.total, selectedRecord.currency)} />
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/60">
@@ -162,7 +156,9 @@ export default function SalidasTableModal({ records }: Props) {
                             <td className="px-4 py-2 text-foreground">{item.currency}</td>
                             <td className="px-4 py-2 text-right text-foreground">{item.denomination}</td>
                             <td className="px-4 py-2 text-right text-foreground">{item.quantity}</td>
-                            <td className="px-4 py-2 text-right text-foreground">{item.total}</td>
+                            <td className="px-4 py-2 text-right font-mono text-foreground">
+                              {formatCashAmount(item.total ?? item.denomination * item.quantity, item.currency)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
